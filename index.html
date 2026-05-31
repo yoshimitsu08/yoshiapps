@@ -7,118 +7,93 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#1a1814;--bg2:#211f1b;--bg3:#2a2722;
-  --surface:#302d27;
+  --bg:#1a1814;--bg2:#211f1b;--bg3:#2a2722;--surface:#302d27;
   --accent:#c8a96e;--text:#e8e0d0;--text2:#a09880;--text3:#706858;
   --border:#3f3b34;
   --font-ui:'Courier New',monospace;--font-body:'Georgia',serif;
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body)}
 
-/* HEADER */
-header{
-  padding:40px 0 28px;
-  text-align:center;
-  border-bottom:1px solid var(--border);
-  position:relative;
-}
-header::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(200,169,110,.07) 0%,transparent 70%);
-  pointer-events:none;
-}
+header{padding:36px 0 24px;text-align:center;border-bottom:1px solid var(--border);position:relative;}
+header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(200,169,110,.07) 0%,transparent 70%);pointer-events:none;}
 .site-label{font-family:var(--font-ui);font-size:10px;letter-spacing:4px;color:var(--text3);text-transform:uppercase;margin-bottom:10px}
-.site-title{font-family:var(--font-ui);font-size:26px;letter-spacing:6px;color:var(--accent);font-weight:normal;margin-bottom:6px}
+.site-title{font-family:var(--font-ui);font-size:24px;letter-spacing:5px;color:var(--accent);font-weight:normal;margin-bottom:5px}
 .site-sub{font-family:var(--font-ui);font-size:11px;letter-spacing:2px;color:var(--text3)}
 
-/* MAIN */
-main{max-width:760px;margin:0 auto;padding:40px 24px 80px}
+main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
+.section-label{font-family:var(--font-ui);font-size:10px;letter-spacing:3px;color:var(--text3);text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
 
-.section-label{
-  font-family:var(--font-ui);font-size:10px;letter-spacing:3px;color:var(--text3);
-  text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border);
-}
-
-/* LIST */
 .app-list{display:flex;flex-direction:column;gap:2px;margin-bottom:40px}
 
-/* 横長カード */
 .app-card{
   display:flex;align-items:center;gap:0;
   background:var(--bg2);border:1px solid var(--border);
   text-decoration:none;color:inherit;
   transition:border-color .2s,background .2s;
-  cursor:pointer;
-  overflow:hidden;
+  overflow:hidden;min-height:56px;
 }
 .app-card:hover{border-color:var(--accent);background:var(--surface)}
 .app-card:hover .app-arrow{opacity:1;transform:translateX(3px)}
 
-/* アイコン */
 .app-icon{
-  width:64px;height:64px;
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
-  border-right:1px solid var(--border);
-  background:var(--bg3);
-  font-size:22px;
+  width:56px;height:56px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;border-right:1px solid var(--border);background:var(--bg3);font-size:20px;
 }
-
-/* アプリ名 */
 .app-name{
-  width:130px;flex-shrink:0;
-  padding:0 16px;
-  font-family:var(--font-ui);font-size:13px;letter-spacing:1px;color:var(--text);
+  padding:0 14px;font-family:var(--font-ui);font-size:12px;letter-spacing:1px;
+  color:var(--text);flex-shrink:0;width:110px;
 }
-
-/* バージョン */
 .app-ver{
-  width:80px;flex-shrink:0;
-  font-family:var(--font-ui);font-size:10px;letter-spacing:1px;
-  color:var(--accent);
-  border-left:1px solid var(--border);
-  padding:0 14px;
+  width:72px;flex-shrink:0;font-family:var(--font-ui);font-size:10px;letter-spacing:1px;
+  color:var(--accent);border-left:1px solid var(--border);padding:0 12px;
 }
-
-/* 説明 */
+/* 説明文：スマホでは非表示 */
 .app-desc{
-  flex:1;min-width:0;
-  padding:0 16px;
-  font-size:12px;color:var(--text2);line-height:1.5;
-  border-left:1px solid var(--border);
+  flex:1;min-width:0;padding:0 14px;font-size:12px;color:var(--text2);
+  line-height:1.5;border-left:1px solid var(--border);
 }
-
-/* 矢印 */
 .app-arrow{
-  flex-shrink:0;padding:0 16px;
-  font-family:var(--font-ui);font-size:13px;color:var(--accent);
-  opacity:.3;transition:opacity .2s,transform .2s;
+  flex-shrink:0;padding:0 14px;font-family:var(--font-ui);font-size:13px;
+  color:var(--accent);opacity:.3;transition:opacity .2s,transform .2s;
 }
 
-/* プレースホルダー */
-.app-card.placeholder{
-  border-style:dashed;opacity:.35;pointer-events:none;cursor:default;
-}
+.app-card.placeholder{border-style:dashed;opacity:.35;pointer-events:none;}
 
-/* ミニUIアイコン（メモ） */
-.icon-memo{
-  display:flex;align-items:stretch;width:36px;height:28px;overflow:hidden;border:1px solid var(--border);opacity:.6;
-}
+/* ミニUIアイコン */
+.icon-memo{display:flex;align-items:stretch;width:32px;height:26px;overflow:hidden;border:1px solid var(--border);opacity:.6;}
 .icon-memo-sb{width:38%;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:2px;padding:3px 2px}
 .icon-memo-bar{height:2px;border-radius:1px;background:var(--border)}
 .icon-memo-bar.a{background:var(--accent);width:80%}
 .icon-memo-ed{flex:1;display:flex;flex-direction:column;gap:2px;padding:3px 2px}
 .icon-memo-line{height:2px;border-radius:1px;background:var(--border)}
 
-/* FOOTER */
-footer{
-  text-align:center;padding:20px;border-top:1px solid var(--border);
-  font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:var(--text3);
+/* PDF アイコン */
+.icon-pdf{
+  width:26px;height:32px;border:1px solid var(--border);opacity:.6;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:var(--font-ui);font-size:7px;letter-spacing:1px;color:var(--accent);gap:3px;
+}
+.icon-pdf-lines{display:flex;flex-direction:column;gap:2px;width:70%}
+.icon-pdf-line{height:2px;border-radius:1px;background:var(--border)}
+
+footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:var(--text3);}
+
+/* ── スマホ対応 ── */
+@media(max-width:540px){
+  header{padding:24px 0 18px}
+  .site-title{font-size:20px;letter-spacing:3px}
+  main{padding:24px 12px 60px}
+  /* 説明文を非表示 */
+  .app-desc{display:none}
+  /* バージョンのborder-leftだけ残す */
+  .app-ver{border-left:1px solid var(--border)}
+  .app-name{width:auto;flex:1;padding:0 12px}
+  .app-icon{width:50px;height:50px}
+  .app-arrow{padding:0 10px}
 }
 </style>
 </head>
 <body>
-
 <header>
   <div class="site-label">my tools</div>
   <div class="site-title">APPS</div>
@@ -129,8 +104,7 @@ footer{
   <div class="section-label">ツール一覧</div>
   <div class="app-list">
 
-    <!-- Memo -->
-    <a class="app-card" href="memo_app_ver2.20.html">
+    <a class="app-card" href="memo_app_ver2.21.html">
       <div class="app-icon">
         <div class="icon-memo">
           <div class="icon-memo-sb">
@@ -147,23 +121,30 @@ footer{
         </div>
       </div>
       <div class="app-name">Memo</div>
-      <div class="app-ver">ver 2.20</div>
+      <div class="app-ver">ver 2.21</div>
       <div class="app-desc">テキストエディタ。フォルダ管理・画像埋め込み・ローカル／クラウド保存対応。</div>
       <div class="app-arrow">→</div>
     </a>
 
-    <!-- Coming soon 1 -->
-    <div class="app-card placeholder">
-      <div class="app-icon" style="font-size:18px;color:var(--text3)">＋</div>
-      <div class="app-name">Coming soon</div>
-      <div class="app-ver">—</div>
-      <div class="app-desc">次のツールがここに追加されます。</div>
+    <a class="app-card" href="jpg2pdf_ver1.00.html">
+      <div class="app-icon">
+        <div class="icon-pdf">
+          <div class="icon-pdf-lines">
+            <div class="icon-pdf-line"></div>
+            <div class="icon-pdf-line" style="width:60%"></div>
+            <div class="icon-pdf-line"></div>
+          </div>
+          <span>PDF</span>
+        </div>
+      </div>
+      <div class="app-name">JPG→PDF</div>
+      <div class="app-ver">ver 1.00</div>
+      <div class="app-desc">複数JPG/PNG画像をA4縦PDFに変換。ドラッグで順番並び替え対応。</div>
       <div class="app-arrow">→</div>
-    </div>
+    </a>
 
-    <!-- Coming soon 2 -->
     <div class="app-card placeholder">
-      <div class="app-icon" style="font-size:18px;color:var(--text3)">＋</div>
+      <div class="app-icon" style="font-size:16px;color:var(--text3)">＋</div>
       <div class="app-name">Coming soon</div>
       <div class="app-ver">—</div>
       <div class="app-desc">次のツールがここに追加されます。</div>
@@ -172,8 +153,6 @@ footer{
 
   </div>
 </main>
-
 <footer>— personal tools —</footer>
-
 </body>
 </html>
