@@ -47,7 +47,6 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
   width:72px;flex-shrink:0;font-family:var(--font-ui);font-size:10px;letter-spacing:1px;
   color:var(--accent);border-left:1px solid var(--border);padding:0 12px;
 }
-/* 説明文：スマホでは非表示 */
 .app-desc{
   flex:1;min-width:0;padding:0 14px;font-size:12px;color:var(--text2);
   line-height:1.5;border-left:1px solid var(--border);
@@ -57,9 +56,12 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
   color:var(--accent);opacity:.3;transition:opacity .2s,transform .2s;
 }
 
-.app-card.placeholder{border-style:dashed;opacity:.35;pointer-events:none;}
+/* ミニUIアイコン — 重量 */
+.icon-weight{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;opacity:.6}
+.icon-weight-shape{font-size:16px;line-height:1;color:var(--accent)}
+.icon-weight-bar{height:2px;border-radius:1px;background:var(--border);width:28px}
 
-/* ミニUIアイコン */
+/* ミニUIアイコン — メモ */
 .icon-memo{display:flex;align-items:stretch;width:32px;height:26px;overflow:hidden;border:1px solid var(--border);opacity:.6;}
 .icon-memo-sb{width:38%;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:2px;padding:3px 2px}
 .icon-memo-bar{height:2px;border-radius:1px;background:var(--border)}
@@ -67,7 +69,7 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
 .icon-memo-ed{flex:1;display:flex;flex-direction:column;gap:2px;padding:3px 2px}
 .icon-memo-line{height:2px;border-radius:1px;background:var(--border)}
 
-/* PDF アイコン */
+/* ミニUIアイコン — PDF */
 .icon-pdf{
   width:26px;height:32px;border:1px solid var(--border);opacity:.6;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -76,16 +78,18 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
 .icon-pdf-lines{display:flex;flex-direction:column;gap:2px;width:70%}
 .icon-pdf-line{height:2px;border-radius:1px;background:var(--border)}
 
+/* ミニUIアイコン — 番地 */
+.icon-loc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:.6}
+.icon-loc-pin{font-size:18px;line-height:1;color:var(--accent)}
+.icon-loc-bar{height:2px;border-radius:1px;background:var(--border);width:24px}
+
 footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:var(--text3);}
 
-/* ── スマホ対応 ── */
 @media(max-width:540px){
   header{padding:24px 0 18px}
   .site-title{font-size:20px;letter-spacing:3px}
   main{padding:24px 12px 60px}
-  /* 説明文を非表示 */
   .app-desc{display:none}
-  /* バージョンのborder-leftだけ残す */
   .app-ver{border-left:1px solid var(--border)}
   .app-name{width:auto;flex:1;padding:0 12px}
   .app-icon{width:50px;height:50px}
@@ -103,6 +107,19 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-fa
 <main>
   <div class="section-label">ツール一覧</div>
   <div class="app-list">
+
+    <a class="app-card" href="weight_calc_ver1_00.html">
+      <div class="app-icon">
+        <div class="icon-weight">
+          <div class="icon-weight-shape">■●</div>
+          <div class="icon-weight-bar"></div>
+        </div>
+      </div>
+      <div class="app-name">Weight</div>
+      <div class="app-ver">ver 1.00</div>
+      <div class="app-desc">円柱・直方体・円筒の重量計算。材質・員数対応。</div>
+      <div class="app-arrow">→</div>
+    </a>
 
     <a class="app-card" href="memo_app_ver2_22.html">
       <div class="app-icon">
@@ -143,13 +160,18 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-fa
       <div class="app-arrow">→</div>
     </a>
 
-    <div class="app-card placeholder">
-      <div class="app-icon" style="font-size:16px;color:var(--text3)">＋</div>
-      <div class="app-name">Coming soon</div>
-      <div class="app-ver">—</div>
-      <div class="app-desc">次のツールがここに追加されます。</div>
+    <a class="app-card" href="location_ver1_00.html">
+      <div class="app-icon">
+        <div class="icon-loc">
+          <div class="icon-loc-pin">▣</div>
+          <div class="icon-loc-bar"></div>
+        </div>
+      </div>
+      <div class="app-name">Location</div>
+      <div class="app-ver">ver 1.00</div>
+      <div class="app-desc">材料位置照会システム。倉番と番地の紐づけ・入出庫・検索。</div>
       <div class="app-arrow">→</div>
-    </div>
+    </a>
 
   </div>
 </main>
