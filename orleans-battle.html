@@ -136,6 +136,7 @@
     position: fixed;
     top: 0; left: 0; right: 0;
     height: 52px;
+    z-index: 30;
     background: linear-gradient(to bottom, rgba(10,5,2,0.95), rgba(10,5,2,0.7));
     display: flex;
     align-items: center;
@@ -185,6 +186,7 @@
     position: fixed;
     bottom: 0; left: 0; right: 0;
     height: 72px;
+    z-index: 30;
     background: linear-gradient(to top, rgba(10,5,2,0.95), rgba(10,5,2,0.7));
     display: flex;
     align-items: center;
@@ -343,6 +345,7 @@
     position: fixed;
     bottom: 80px;
     right: 12px;
+    z-index: 30;
     width: 90px;
     height: 90px;
     border: 2px solid rgba(200,150,12,0.5);
@@ -562,6 +565,57 @@ const MAPS = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   ],
 ];
+
+// ── STAGES ────────────────────────────────────────────────────────────────────
+const STAGES = [
+  {
+    name: "STAGE 1 — オルレアン包囲戦",
+    mission: "敵を全滅させよ",
+    winCondition: "enemies",
+    allies: [
+      {x:460,y:460},{x:420,y:560},{x:500,y:380},{x:380,y:500},
+      {x:340,y:440,t:'commander'},
+      {x:440,y:620,t:'archer'},{x:360,y:580,t:'archer'},
+    ],
+    enemies: [
+      {x:860,y:300},{x:920,y:420},{x:880,y:560},{x:820,y:660},
+      {x:960,y:360},{x:800,y:480},
+      {x:900,y:240,t:'knight'},{x:840,y:580,t:'knight'},
+    ],
+  },
+  {
+    name: "STAGE 2 — 要塞攻略",
+    mission: "要塞内の敵を全滅させよ",
+    winCondition: "enemies",
+    allies: [
+      {x:400,y:400},{x:360,y:520},{x:440,y:300},{x:320,y:460},
+      {x:280,y:380,t:'commander'},
+      {x:300,y:540,t:'archer'},{x:260,y:460,t:'archer'},
+    ],
+    enemies: [
+      {x:760,y:280},{x:800,y:360},{x:760,y:440},{x:800,y:520},
+      {x:720,y:240},{x:840,y:320},{x:720,y:480},
+      {x:780,y:200,t:'knight'},{x:860,y:440,t:'knight'},
+    ],
+  },
+  {
+    name: "STAGE 3 — ロワール渡河",
+    mission: "橋を渡り東岸へ到達せよ",
+    winCondition: "reach",
+    goalX: 960,
+    allies: [
+      {x:400,y:380},{x:380,y:520},{x:420,y:260},{x:360,y:620},
+      {x:320,y:440,t:'commander'},
+      {x:340,y:300,t:'archer'},{x:320,y:560,t:'archer'},
+    ],
+    enemies: [
+      {x:940,y:260},{x:980,y:400},{x:940,y:540},{x:1020,y:320},
+      {x:1000,y:480},{x:960,y:180},
+      {x:1000,y:340,t:'knight'},{x:960,y:480,t:'knight'},
+    ],
+  },
+];
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = {
   running: false,
@@ -571,6 +625,8 @@ let state = {
   enemies: [],
   particles: [],
   bubbles: [],
+  waves: [],   // FollowMe ripple effects
+  arrows: [],  // archer projectiles
   hp: 100,
   maxHp: 100,
   callCooldown: 0,
@@ -633,6 +689,77 @@ function makeEnemy(x,y) {
     attackCooldown: 900 + Math.random()*400,
     wanderTimer: 0,
     wanderAngle: Math.random()*Math.PI*2,
+  };
+}
+
+
+function makeCommander(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 50 + Math.random()*10,
+    hp: 80, maxHp: 80,
+    radius: 10,
+    angle: 0,
+    type: 'commander',
+    subtype: 'ally',
+    state: 'guard',
+    target: null,
+    frameTimer: 0,
+    frame: 0,
+    patrolTimer: 0,
+    patrolAngle: Math.random()*Math.PI*2,
+    followTarget: null,
+    auraTimer: 0,
+    homeX: x, homeY: y,
+    attackTimer: 0,
+  };
+}
+
+function makeArcher(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 50 + Math.random()*10,
+    hp: 45, maxHp: 45,
+    radius: 9,
+    angle: 0,
+    type: 'archer',
+    subtype: 'ally',
+    state: 'shoot',  // shoot|move|fight
+    target: null,
+    frameTimer: 0,
+    frame: 0,
+    followTarget: null,
+    shootTimer: 0,
+    shootCooldown: 1400,
+    moveTimer: 0,
+    homeX: x, homeY: y,
+  };
+}
+
+function makeKnight(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 44 + Math.random()*20,
+    hp: 70, maxHp: 70,
+    radius: 11,
+    angle: 0,
+    type: 'knight',
+    subtype: 'enemy',
+    state: 'idle',
+    target: null,
+    frameTimer: 0,
+    frame: 0,
+    aggroRange: 150 + Math.random()*50,
+    attackRange: 18,
+    attackTimer: 0,
+    attackCooldown: 1000 + Math.random()*400,
+    wanderTimer: 0,
+    wanderAngle: Math.random()*Math.PI*2,
+    dashTimer: 0,
+    dashCooldown: 3000 + Math.random()*1000,
+    dashing: false,
+    dashDx: 0, dashDy: 0,
+    dashDist: 0,
   };
 }
 
@@ -784,24 +911,99 @@ function drawEntity(ctx, e, camX, camY) {
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(e.angle);
-    // Dark tunic
     ctx.fillStyle = '#803020';
     ctx.beginPath();
     ctx.ellipse(0,1,r*0.85,r,0,0,Math.PI*2);
     ctx.fill();
-    // Head
     ctx.fillStyle = '#c09070';
     ctx.beginPath();
     ctx.arc(0,-r*0.35,r*0.42,0,Math.PI*2);
     ctx.fill();
-    // Helm - dark
     ctx.fillStyle = '#404040';
     ctx.beginPath();
     ctx.arc(0,-r*0.45,r*0.4,Math.PI,0);
     ctx.fill();
-    // Eye slit
     ctx.fillStyle = '#ff4000';
     ctx.fillRect(-r*0.2,-r*0.55,r*0.4,2);
+    ctx.restore();
+
+  } else if (e.type === 'commander') {
+    // 指揮官：金の鎧、羽根付き兜
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    // オーラ
+    const buffAlpha = 0.12 + 0.06*Math.sin(e.auraTimer/200);
+    ctx.globalAlpha = buffAlpha;
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath(); ctx.arc(0,0,r*2.2,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // 体
+    ctx.fillStyle = '#b8860b';
+    ctx.beginPath(); ctx.ellipse(0,1,r*0.9,r*1.05,0,0,Math.PI*2); ctx.fill();
+    // 金鎧ハイライト
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.ellipse(0,0,r*0.55,r*0.7,0,0,Math.PI*2); ctx.fill();
+    // 頭
+    ctx.fillStyle = '#d4a870';
+    ctx.beginPath(); ctx.arc(0,-r*0.38,r*0.42,0,Math.PI*2); ctx.fill();
+    // 兜と羽根
+    ctx.fillStyle = '#8b6914';
+    ctx.beginPath(); ctx.arc(0,-r*0.48,r*0.4,Math.PI,0); ctx.fill();
+    ctx.fillStyle = '#ff6060';
+    ctx.beginPath(); ctx.moveTo(-2,-r*0.88); ctx.lineTo(0,-r*1.5); ctx.lineTo(2,-r*0.88); ctx.fill();
+    ctx.restore();
+
+  } else if (e.type === 'archer') {
+    // 弓兵：緑マント、弓を持つ
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    ctx.fillStyle = '#2a6040';
+    ctx.beginPath(); ctx.ellipse(0,1,r*0.82,r,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d4a870';
+    ctx.beginPath(); ctx.arc(0,-r*0.38,r*0.4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1a4030';
+    ctx.beginPath(); ctx.arc(0,-r*0.48,r*0.36,Math.PI,0); ctx.fill();
+    // 弓
+    ctx.strokeStyle = '#8b4513';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(r*0.5, 0, r*0.6, -Math.PI*0.45, Math.PI*0.45);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,200,0.7)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(r*0.5-r*0.55, -r*0.27);
+    ctx.lineTo(r*0.5-r*0.55, r*0.27);
+    ctx.stroke();
+    ctx.restore();
+
+  } else if (e.type === 'knight') {
+    // 騎馬兵：大きい・茶色の馬体
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    // 馬体
+    ctx.fillStyle = '#5a3010';
+    ctx.beginPath(); ctx.ellipse(0,3,r*1.1,r*1.3,0,0,Math.PI*2); ctx.fill();
+    // 騎士
+    ctx.fillStyle = '#505060';
+    ctx.beginPath(); ctx.ellipse(0,-r*0.1,r*0.75,r*0.85,0,0,Math.PI*2); ctx.fill();
+    // 頭
+    ctx.fillStyle = '#c09070';
+    ctx.beginPath(); ctx.arc(0,-r*0.55,r*0.38,0,Math.PI*2); ctx.fill();
+    // 鉄兜（全頭型）
+    ctx.fillStyle = '#383838';
+    ctx.beginPath(); ctx.arc(0,-r*0.6,r*0.42,Math.PI,0); ctx.fill();
+    ctx.fillRect(-r*0.42,-r*0.6,r*0.84,r*0.3);
+    // ダッシュ中は赤く光る
+    if (e.dashing) {
+      ctx.globalAlpha=0.5;
+      ctx.fillStyle='#ff3300';
+      ctx.beginPath(); ctx.ellipse(0,0,r*1.3,r*1.5,0,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
     ctx.restore();
   }
 
@@ -872,8 +1074,80 @@ function moveToward(entity, tx, ty, speed, dt) {
 }
 
 // ── AI ────────────────────────────────────────────────────────────────────────
+// 指揮官アップデート
+function updateCommander(c, dt) {
+  if (c.hp<=0) return;
+  // 指揮官バフ：半径100以内の味方のatkを+50%（描画用フラグ）
+  c.auraTimer += dt;
+  // 近い敵がいたら攻撃
+  const near = findNearest(c, state.enemies, 120);
+  if (near) {
+    const d = dist(c, near);
+    if (d > 16) moveToward(c, near.x, near.y, c.speed, dt);
+    else {
+      c.attackTimer += dt;
+      if (c.attackTimer > 900) {
+        c.attackTimer = 0;
+        near.hp -= 10 + Math.random()*6;
+        spawnParticles(near.x, near.y, '#ffcc00', 3);
+        if (near.hp<=0) { spawnParticles(near.x, near.y, '#ff8800', 8); }
+      }
+    }
+  } else if (c.followTarget) {
+    const ft = c.followTarget;
+    if (!ft||ft.hp<=0){c.followTarget=null;return;}
+    if (dist(c,ft)>30) moveToward(c,ft.x,ft.y,c.speed*1.1,dt);
+    else c.followTarget=null;
+  } else {
+    // ホームに戻る
+    const dh = dist(c,{x:c.homeX,y:c.homeY});
+    if (dh>40) moveToward(c,c.homeX,c.homeY,c.speed*0.6,dt);
+  }
+  resolveCollision(state.map, c);
+  clampToBounds(c);
+}
+
+// 弓兵アップデート
+function updateArcher(a, dt) {
+  if (a.hp<=0) return;
+  if (a.followTarget) {
+    const ft = a.followTarget;
+    if (!ft||ft.hp<=0){a.followTarget=null;a.state='shoot';return;}
+    if (dist(a,ft)>30) { moveToward(a,ft.x,ft.y,a.speed,dt); a.state='move'; }
+    else { a.followTarget=null; a.state='shoot'; }
+  } else {
+    // shoot: 視野内の敵に矢
+    const target = findNearest(a, state.enemies, 220);
+    if (target) {
+      a.shootTimer += dt;
+      const dx=target.x-a.x, dy=target.y-a.y;
+      a.angle = Math.atan2(dx,-dy);
+      if (a.shootTimer >= a.shootCooldown) {
+        a.shootTimer = 0;
+        state.arrows.push({
+          x:a.x, y:a.y,
+          tx:target.x, ty:target.y,
+          vx: (dx/Math.hypot(dx,dy))*300,
+          vy: (dy/Math.hypot(dx,dy))*300,
+          life:1200, maxLife:1200,
+          dmg: 12 + Math.random()*6,
+          owner:'ally',
+        });
+      }
+    }
+  }
+  resolveCollision(state.map, a);
+  clampToBounds(a);
+}
+
 function updateAlly(ally, dt) {
+  if (ally.type==='commander') { updateCommander(ally,dt); return; }
+  if (ally.type==='archer')    { updateArcher(ally,dt); return; }
   if (ally.hp<=0) return;
+
+  // 指揮官バフ確認
+  const buffed = state.allies.some(c=>c.type==='commander'&&c.hp>0&&dist(c,ally)<100);
+  const atkBonus = buffed ? 1.5 : 1.0;
 
   // Check for nearby enemies
   const nearEnemy = findNearest(ally, state.enemies, 160);
@@ -893,11 +1167,10 @@ function updateAlly(ally, dt) {
     if (d > 16) {
       moveToward(ally, ally.target.x, ally.target.y, ally.speed, dt);
     } else {
-      // attack
       ally.attackTimer = (ally.attackTimer||0) + dt;
       if (ally.attackTimer > 800) {
         ally.attackTimer = 0;
-        ally.target.hp -= 8 + Math.random()*5;
+        ally.target.hp -= (8 + Math.random()*5) * atkBonus;
         spawnParticles(ally.target.x, ally.target.y, '#ff4040', 3);
         if (ally.target.hp<=0) {
           spawnParticles(ally.target.x, ally.target.y, '#ff8800', 8);
@@ -913,7 +1186,6 @@ function updateAlly(ally, dt) {
     if (d > 30) moveToward(ally, ft.x, ft.y, ally.speed*1.2, dt);
     else ally.followTarget = null;
   } else {
-    // patrol
     ally.patrolTimer += dt;
     if (ally.patrolTimer > 2000+Math.random()*1500) {
       ally.patrolAngle = Math.random()*Math.PI*2;
@@ -933,7 +1205,82 @@ function updateAlly(ally, dt) {
   clampToBounds(ally);
 }
 
+function updateKnight(k, dt) {
+  if (k.hp<=0) return;
+  // ダッシュ攻撃中
+  if (k.dashing) {
+    const step = 400*(dt/1000);
+    k.x += k.dashDx*step;
+    k.y += k.dashDy*step;
+    k.dashDist -= step;
+    // ヒット判定
+    const targets = [state.jeanne, ...state.allies.filter(a=>a.hp>0)];
+    for (const t of targets) {
+      if (dist(k,t)<k.radius+t.radius+4) {
+        t.hp -= 24 + Math.random()*8;
+        spawnParticles(t.x,t.y,'#ff2000',5);
+        if (t.type==='jeanne') { state.hp=Math.max(0,state.hp-24); updateHpBar(); }
+        if (t.hp<=0) spawnParticles(t.x,t.y,'#cc8800',8);
+      }
+    }
+    if (k.dashDist<=0||isSolid(state.map,k.x,k.y)) {
+      k.dashing=false;
+      resolveCollision(state.map,k);
+    }
+    clampToBounds(k);
+    return;
+  }
+  k.dashTimer += dt;
+  // 敵感知
+  const jDist=dist(k,state.jeanne);
+  let nearTarget=null, nearDist=k.aggroRange;
+  if (jDist<nearDist){nearTarget=state.jeanne;nearDist=jDist;}
+  for (const a of state.allies){if(a.hp<=0)continue;const d=dist(k,a);if(d<nearDist){nearTarget=a;nearDist=d;}}
+
+  if (nearTarget) {
+    k.state='chase'; k.target=nearTarget;
+    // ダッシュ発動条件
+    if (k.dashTimer>=k.dashCooldown && nearDist < k.aggroRange) {
+      k.dashTimer=0; k.dashing=true;
+      const dx=nearTarget.x-k.x, dy=nearTarget.y-k.y;
+      // 縦か横のみ
+      if (Math.abs(dx)>Math.abs(dy)){k.dashDx=dx>0?1:-1;k.dashDy=0;}
+      else {k.dashDx=0;k.dashDy=dy>0?1:-1;}
+      k.dashDist=5*TILE;
+      k.angle=Math.atan2(k.dashDx,-k.dashDy);
+      spawnParticles(k.x,k.y,'#ff8800',4);
+      return;
+    }
+  } else { k.state='wander'; k.target=null; }
+
+  if (k.state==='chase'&&k.target) {
+    const d=dist(k,k.target);
+    if (d>k.attackRange) moveToward(k,k.target.x,k.target.y,k.speed,dt);
+    else {
+      k.attackTimer+=dt;
+      if (k.attackTimer>=k.attackCooldown){
+        k.attackTimer=0;
+        const dmg=12+Math.random()*6;
+        k.target.hp-=dmg;
+        spawnParticles(k.target.x,k.target.y,'#ff2020',3);
+        if(k.target.type==='jeanne'){state.hp=Math.max(0,state.hp-dmg);updateHpBar();}
+        if(k.target.hp<=0){spawnParticles(k.target.x,k.target.y,'#cc8800',8);k.target=null;k.state='wander';}
+      }
+    }
+  } else {
+    k.wanderTimer+=dt;
+    if(k.wanderTimer>2500){k.wanderAngle=Math.random()*Math.PI*2;k.wanderTimer=0;}
+    const tx=k.x+Math.cos(k.wanderAngle)*k.speed*0.4*(dt/1000);
+    const ty=k.y+Math.sin(k.wanderAngle)*k.speed*0.4*(dt/1000);
+    if(!isSolid(state.map,tx,ty)){k.x=tx;k.y=ty;k.angle=k.wanderAngle+Math.PI/2;}
+    else k.wanderAngle+=Math.PI*(0.5+Math.random());
+  }
+  resolveCollision(state.map,k);
+  clampToBounds(k);
+}
+
 function updateEnemy(enemy, dt) {
+  if (enemy.type==='knight') { updateKnight(enemy,dt); return; }
   if (enemy.hp<=0) return;
 
   // Aggro: detect jeanne and allies
@@ -1077,6 +1424,36 @@ function update(dt) {
     if (state.bubbles[i].life<=0) state.bubbles.splice(i,1);
   }
 
+  // Update arrows
+  for (let i=state.arrows.length-1;i>=0;i--) {
+    const ar=state.arrows[i];
+    ar.x+=ar.vx*(dt/1000); ar.y+=ar.vy*(dt/1000);
+    ar.life-=dt;
+    if(ar.life<=0||isSolid(state.map,ar.x,ar.y)){state.arrows.splice(i,1);continue;}
+    // hit check
+    const targets = ar.owner==='ally'
+      ? state.enemies.filter(e=>e.hp>0)
+      : [state.jeanne,...state.allies.filter(a=>a.hp>0)];
+    let hit=false;
+    for(const t of targets){
+      if(dist({x:ar.x,y:ar.y},t)<t.radius+5){
+        t.hp-=ar.dmg; spawnParticles(t.x,t.y,'#ffaa00',3);
+        if(t.type==='jeanne'){state.hp=Math.max(0,state.hp-ar.dmg);updateHpBar();}
+        if(t.hp<=0) spawnParticles(t.x,t.y,'#ff8800',8);
+        hit=true; break;
+      }
+    }
+    if(hit) state.arrows.splice(i,1);
+  }
+
+  // Update waves (Follow Me ripple)
+  for (let i=state.waves.length-1;i>=0;i--) {
+    const w=state.waves[i];
+    w.r+=w.speed*(dt/1000);
+    w.life-=dt;
+    if(w.life<=0) state.waves.splice(i,1);
+  }
+
   // Cooldown
   if (state.callCooldown > 0) {
     state.callCooldown = Math.max(0, state.callCooldown-dt);
@@ -1161,6 +1538,56 @@ function render() {
     ctx.fillStyle = 'rgba(240,192,64,0.9)';
     ctx.font = 'bold 11px Cinzel, serif';
     ctx.fillText('GOAL ▶', gx-24, 65);
+    ctx.restore();
+  }
+
+  // Draw waves (Follow Me ripple)
+  for (const w of state.waves) {
+    if (w.r < 5) continue;
+    ctx.save();
+    ctx.globalAlpha = (w.life/w.maxLife)*0.55;
+    ctx.strokeStyle = '#f0c040';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(w.x-cam.x, w.y-cam.y, w.r, 0, Math.PI*2);
+    ctx.stroke();
+    // 有効範囲円（最大時）
+    if (w.r >= CALL_RANGE*0.95) {
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = '#f0c040';
+      ctx.beginPath();
+      ctx.arc(w.x-cam.x, w.y-cam.y, CALL_RANGE, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Draw arrows
+  for (const ar of state.arrows) {
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = ar.owner==='ally' ? '#c8a060' : '#c03020';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const ang = Math.atan2(ar.vy, ar.vx);
+    ctx.moveTo(ar.x-cam.x, ar.y-cam.y);
+    ctx.lineTo(ar.x-cam.x - Math.cos(ang)*12, ar.y-cam.y - Math.sin(ang)*12);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw commander aura rings
+  for (const c of state.allies) {
+    if (c.type!=='commander'||c.hp<=0) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.18+0.06*Math.sin(c.auraTimer/180);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    ctx.arc(c.x-cam.x, c.y-cam.y, 100, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
     ctx.restore();
   }
 
@@ -1279,28 +1706,36 @@ function updateHpBar() {
 }
 
 // ── CALL ALLIES ───────────────────────────────────────────────────────────────
+const CALL_RANGE = 240; // Follow Me 有効範囲
 function callAllies() {
   if (state.callCooldown > 0) return;
   state.callCooldown = state.callMaxCooldown;
   document.getElementById('call-btn').disabled = true;
   document.getElementById('cooldown-bar').style.width = '100%';
 
-  // Show bubble on Jeanne
+  // 波紋エフェクト（3段）
+  for(let i=0;i<3;i++){
+    state.waves.push({
+      x:state.jeanne.x, y:state.jeanne.y,
+      r:10+i*20, maxR:CALL_RANGE,
+      speed:200, life:800+i*100, maxLife:800+i*100,
+      delay:i*120,
+    });
+  }
+
   state.bubbles.push({
     x: state.jeanne.x, y: state.jeanne.y,
     text: 'Follow Me!!', life: 1800,
   });
 
-  // Up to 3 nearest allies follow Jeanne
+  // 範囲内の全味方を招集
   const liveAllies = state.allies.filter(a=>a.hp>0);
-  liveAllies.sort((a,b)=>dist(a,state.jeanne)-dist(b,state.jeanne));
-  const toCall = liveAllies.slice(0, 3);
-  for (const a of toCall) {
+  const inRange = liveAllies.filter(a=>dist(a,state.jeanne)<=CALL_RANGE);
+  inRange.sort((a,b)=>dist(a,state.jeanne)-dist(b,state.jeanne));
+  for (const a of inRange) {
     a.followTarget = state.jeanne;
-    a.state = 'follow';
-    state.bubbles.push({
-      x:a.x, y:a.y, text:'Oui, Jeanne!', life:1200,
-    });
+    a.state = a.type==='archer' ? 'move' : 'follow';
+    state.bubbles.push({ x:a.x, y:a.y, text:'Oui, Jeanne!', life:1200 });
   }
 }
 
@@ -1355,14 +1790,23 @@ function loadStage(stageIdx) {
   state.hp = 100; state.maxHp = 100;
   updateHpBar();
 
-  // Spawn allies
-  state.allies = sd.allies.map(p => makeAlly(p.x, p.y));
+  // Spawn allies (type指定対応)
+  state.allies = sd.allies.map(p => {
+    if(p.t==='commander') return makeCommander(p.x,p.y);
+    if(p.t==='archer')    return makeArcher(p.x,p.y);
+    return makeAlly(p.x,p.y);
+  });
 
-  // Spawn enemies
-  state.enemies = sd.enemies.map(p => makeEnemy(p.x, p.y));
+  // Spawn enemies (type指定対応)
+  state.enemies = sd.enemies.map(p => {
+    if(p.t==='knight') return makeKnight(p.x,p.y);
+    return makeEnemy(p.x,p.y);
+  });
 
   state.particles = [];
   state.bubbles = [];
+  state.waves = [];
+  state.arrows = [];
   state.target = null;
   state.callCooldown = 0;
   document.getElementById('call-btn').disabled = false;
