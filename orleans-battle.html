@@ -1081,7 +1081,7 @@ function updateCommander(c, dt) {
   c.auraTimer += dt;
   // 近い敵がいたら攻撃
   const near = findNearest(c, state.enemies, 120);
-  if (near) {
+  if (near && near.hp>0) {
     const d = dist(c, near);
     if (d > 16) moveToward(c, near.x, near.y, c.speed, dt);
     else {
@@ -1118,22 +1118,23 @@ function updateArcher(a, dt) {
   } else {
     // shoot: 視野内の敵に矢
     const target = findNearest(a, state.enemies, 220);
-    if (target) {
+    if (target && target.hp>0) {
       a.shootTimer += dt;
       const dx=target.x-a.x, dy=target.y-a.y;
+      const dn=Math.hypot(dx,dy)||1;
       a.angle = Math.atan2(dx,-dy);
       if (a.shootTimer >= a.shootCooldown) {
         a.shootTimer = 0;
         state.arrows.push({
           x:a.x, y:a.y,
-          tx:target.x, ty:target.y,
-          vx: (dx/Math.hypot(dx,dy))*300,
-          vy: (dy/Math.hypot(dx,dy))*300,
+          vx:(dx/dn)*300, vy:(dy/dn)*300,
           life:1200, maxLife:1200,
-          dmg: 12 + Math.random()*6,
+          dmg:12+Math.random()*6,
           owner:'ally',
         });
       }
+    } else {
+      a.shootTimer = 0;
     }
   }
   resolveCollision(state.map, a);
@@ -1141,9 +1142,9 @@ function updateArcher(a, dt) {
 }
 
 function updateAlly(ally, dt) {
+  if (ally.hp<=0) return;
   if (ally.type==='commander') { updateCommander(ally,dt); return; }
   if (ally.type==='archer')    { updateArcher(ally,dt); return; }
-  if (ally.hp<=0) return;
 
   // 指揮官バフ確認
   const buffed = state.allies.some(c=>c.type==='commander'&&c.hp>0&&dist(c,ally)<100);
@@ -1217,10 +1218,12 @@ function updateKnight(k, dt) {
     const targets = [state.jeanne, ...state.allies.filter(a=>a.hp>0)];
     for (const t of targets) {
       if (dist(k,t)<k.radius+t.radius+4) {
-        t.hp -= 24 + Math.random()*8;
+        const dmg = 24 + Math.random()*8;
+        t.hp -= dmg;
         spawnParticles(t.x,t.y,'#ff2000',5);
-        if (t.type==='jeanne') { state.hp=Math.max(0,state.hp-24); updateHpBar(); }
+        if (t.type==='jeanne') { state.hp=Math.max(0,state.hp-dmg); updateHpBar(); }
         if (t.hp<=0) spawnParticles(t.x,t.y,'#cc8800',8);
+        break; // 1ダッシュ1ヒット
       }
     }
     if (k.dashDist<=0||isSolid(state.map,k.x,k.y)) {
@@ -1375,8 +1378,13 @@ function gameLoop(timestamp) {
   const dt = Math.min(timestamp - state.lastTime, 50);
   state.lastTime = timestamp;
 
-  update(dt);
-  render();
+  try {
+    update(dt);
+    render();
+  } catch(e) {
+    console.error('GameLoop error:', e);
+    // エラーがあってもループを継続（フリーズ防止）
+  }
 
   requestAnimationFrame(gameLoop);
 }
@@ -1427,15 +1435,16 @@ function update(dt) {
   // Update arrows
   for (let i=state.arrows.length-1;i>=0;i--) {
     const ar=state.arrows[i];
+    if(isNaN(ar.x)||isNaN(ar.y)){state.arrows.splice(i,1);continue;}
     ar.x+=ar.vx*(dt/1000); ar.y+=ar.vy*(dt/1000);
     ar.life-=dt;
     if(ar.life<=0||isSolid(state.map,ar.x,ar.y)){state.arrows.splice(i,1);continue;}
     // hit check
-    const targets = ar.owner==='ally'
+    const arTargets = ar.owner==='ally'
       ? state.enemies.filter(e=>e.hp>0)
       : [state.jeanne,...state.allies.filter(a=>a.hp>0)];
     let hit=false;
-    for(const t of targets){
+    for(const t of arTargets){
       if(dist({x:ar.x,y:ar.y},t)<t.radius+5){
         t.hp-=ar.dmg; spawnParticles(t.x,t.y,'#ffaa00',3);
         if(t.type==='jeanne'){state.hp=Math.max(0,state.hp-ar.dmg);updateHpBar();}
@@ -1481,6 +1490,7 @@ function checkConditions(aliveAllies) {
   const aliveEnemies = state.enemies.filter(e=>e.hp>0).length;
 
   // Lose: jeanne dead or no allies
+  // ジャンヌ死亡 or 戦闘可能な一般兵+指揮官+弓兵が全滅
   if (state.hp<=0 || aliveAllies===0) {
     showOverlay('GAME OVER', '兵士たちは戦場に散った…<br>フランスの栄光を取り戻せ。', 'over', true);
     return;
