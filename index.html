@@ -83,6 +83,11 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
 .icon-loc-pin{font-size:18px;line-height:1;color:var(--accent)}
 .icon-loc-bar{height:2px;border-radius:1px;background:var(--border);width:24px}
 
+/* ミニUIアイコン — ゲーム */
+.icon-game{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;opacity:.6}
+.icon-game-crest{font-size:20px;line-height:1;color:var(--accent)}
+.icon-game-bar{height:2px;border-radius:1px;background:var(--border);width:22px}
+
 footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:var(--text3);}
 
 @media(max-width:540px){
@@ -190,13 +195,18 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-fa
       <div class="app-arrow">→</div>
     </a>
 
-    <div class="app-card placeholder">
-      <div class="app-icon" style="font-size:16px;color:var(--text3)">＋</div>
-      <div class="app-name">Coming soon</div>
-      <div class="app-ver">—</div>
-      <div class="app-desc">次のツールがここに追加されます。</div>
+    <a class="app-card" href="orleans-battle.html">
+      <div class="app-icon">
+        <div class="icon-game">
+          <div class="icon-game-crest">⚜</div>
+          <div class="icon-game-bar"></div>
+        </div>
+      </div>
+      <div class="app-name">Orleans</div>
+      <div class="app-ver">ver 1.00</div>
+      <div class="app-desc">ステージクリア型アクション。ジャンヌを操り仲間を指揮してフランスを解放せよ。</div>
       <div class="app-arrow">→</div>
-    </div>
+    </a>
 
   </div>
 </main>

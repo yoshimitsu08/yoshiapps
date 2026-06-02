@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オルレアンの戦姫</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap');
+
+  :root {
+    --gold: #c8960c;
+    --gold-light: #f0c040;
+    --blood: #8b1a1a;
+    --blood-dark: #4a0e0e;
+    --parchment: #d4b483;
+    --parchment-dark: #8b7355;
+    --sky: #3a5a8a;
+    --grass: #2d5a27;
+    --grass-dark: #1a3a15;
+    --stone: #6b6b6b;
+    --ui-bg: rgba(10,5,2,0.88);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0503;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Noto Sans JP', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #game-wrapper {
+    position: relative;
+    width: 800px;
+    max-width: 100vw;
+  }
+
+  #title-screen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #2a1a0a 0%, #0a0503 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 24px;
+  }
+
+  .title-crest {
+    font-size: 64px;
+    filter: drop-shadow(0 0 20px var(--gold));
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { filter: drop-shadow(0 0 20px var(--gold)); }
+    50% { filter: drop-shadow(0 0 40px var(--gold-light)); }
+  }
+
+  .title-main {
+    font-family: 'Cinzel', serif;
+    font-size: 38px;
+    font-weight: 900;
+    color: var(--gold-light);
+    text-shadow: 0 0 30px var(--gold), 2px 2px 0 var(--blood-dark);
+    letter-spacing: 4px;
+    text-align: center;
+  }
+
+  .title-sub {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    color: var(--parchment);
+    letter-spacing: 8px;
+    opacity: 0.8;
+  }
+
+  .title-desc {
+    color: var(--parchment);
+    font-size: 13px;
+    text-align: center;
+    line-height: 2;
+    max-width: 500px;
+    opacity: 0.85;
+    border: 1px solid rgba(200,150,12,0.3);
+    padding: 16px 24px;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .start-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    color: #0a0503;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    border: 2px solid var(--gold-light);
+    padding: 14px 48px;
+    cursor: pointer;
+    letter-spacing: 4px;
+    font-weight: 700;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px rgba(200,150,12,0.4);
+  }
+  .start-btn:hover {
+    background: linear-gradient(135deg, #fff, var(--gold-light));
+    box-shadow: 0 0 40px rgba(200,150,12,0.8);
+    transform: scale(1.04);
+  }
+
+  #game-canvas {
+    display: block;
+    background: #2d5a27;
+    cursor: crosshair;
+    image-rendering: pixelated;
+  }
+
+  #ui-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  #top-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: linear-gradient(to bottom, rgba(10,5,2,0.95), rgba(10,5,2,0.7));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 2px solid rgba(200,150,12,0.4);
+  }
+
+  .stage-title {
+    font-family: 'Cinzel', serif;
+    color: var(--gold-light);
+    font-size: 15px;
+    letter-spacing: 2px;
+  }
+
+  .hp-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hp-icon { font-size: 18px; }
+
+  .hp-bar-outer {
+    width: 120px;
+    height: 14px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--blood);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #hp-bar {
+    height: 100%;
+    background: linear-gradient(to right, var(--blood), #e03030);
+    transition: width 0.3s;
+    width: 100%;
+  }
+
+  .ally-count {
+    font-family: 'Cinzel', serif;
+    color: var(--parchment);
+    font-size: 13px;
+  }
+
+  #bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 72px;
+    background: linear-gradient(to top, rgba(10,5,2,0.95), rgba(10,5,2,0.7));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-top: 2px solid rgba(200,150,12,0.4);
+    pointer-events: all;
+  }
+
+  .objective-box {
+    color: var(--parchment);
+    font-size: 12px;
+    line-height: 1.6;
+    max-width: 300px;
+  }
+
+  .objective-label {
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  #call-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--gold-light);
+    background: linear-gradient(135deg, var(--blood-dark), #200808);
+    border: 2px solid var(--gold);
+    padding: 10px 20px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    pointer-events: all;
+    box-shadow: 0 0 12px rgba(200,150,12,0.3), inset 0 0 10px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 120px;
+  }
+  #call-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--blood), #4a0e0e);
+    box-shadow: 0 0 24px rgba(200,150,12,0.6);
+    transform: scale(1.05);
+  }
+  #call-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  #call-btn .btn-icon { font-size: 20px; }
+  #call-btn .cooldown-bar-outer {
+    width: 90px; height: 4px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(200,150,12,0.3);
+  }
+  #cooldown-bar {
+    height: 100%;
+    background: var(--gold);
+    width: 100%;
+    transition: width 0.1s linear;
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    display: none;
+  }
+
+  #overlay.show { display: flex; }
+
+  .overlay-box {
+    background: radial-gradient(ellipse at center, #1a0a04, #0a0503);
+    border: 3px solid var(--gold);
+    padding: 40px 60px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 30px rgba(200,150,12,0.3);
+  }
+
+  .overlay-title {
+    font-family: 'Cinzel', serif;
+    font-size: 36px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    letter-spacing: 4px;
+  }
+
+  .overlay-title.clear { color: var(--gold-light); text-shadow: 0 0 20px var(--gold); }
+  .overlay-title.over { color: #e03030; text-shadow: 0 0 20px #800000; }
+
+  .overlay-sub {
+    color: var(--parchment);
+    font-size: 14px;
+    margin-bottom: 24px;
+    line-height: 1.8;
+  }
+
+  .overlay-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    padding: 10px 32px;
+    border: 2px solid var(--gold);
+    background: transparent;
+    color: var(--gold-light);
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    margin: 0 6px;
+  }
+  .overlay-btn:hover {
+    background: var(--gold);
+    color: #0a0503;
+  }
+
+  #speech-bubble-layer {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  .speech-bubble {
+    position: absolute;
+    background: rgba(240,192,64,0.95);
+    color: #0a0503;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-family: 'Cinzel', serif;
+    animation: bubblePop 0.15s ease-out;
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(240,192,64,0.95);
+    border-bottom: none;
+  }
+  @keyframes bubblePop {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  #minimap {
+    position: absolute;
+    bottom: 80px;
+    right: 12px;
+    width: 90px;
+    height: 90px;
+    border: 2px solid rgba(200,150,12,0.5);
+    background: rgba(0,0,0,0.6);
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  #stage-announce {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    font-family: 'Cinzel', serif;
+    font-size: 28px;
+    color: var(--gold-light);
+    text-shadow: 0 0 20px var(--gold), 2px 2px 4px #000;
+    pointer-events: none;
+    opacity: 0;
+    letter-spacing: 4px;
+    transition: opacity 0.5s;
+    white-space: nowrap;
+    z-index: 40;
+  }
+  #stage-announce.show {
+    opacity: 1;
+    animation: stageSlide 2.5s ease forwards;
+  }
+  @keyframes stageSlide {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
+    20% { opacity: 1; transform: translate(-50%,-50%) scale(1.05); }
+    70% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <canvas id="game-canvas" width="800" height="520"></canvas>
+
+  <!-- Title Screen -->
+  <div id="title-screen">
+    <div class="title-crest">⚜</div>
+    <div class="title-main">オルレアンの戦姫</div>
+    <div class="title-sub">LA PUCELLE D'ORLÉANS</div>
+    <div class="title-desc">
+      ジャンヌ・ダルクを操り、フランス軍を勝利へ導け。<br>
+      <strong>クリック/タップ</strong>で走る方向を指示。<br>
+      <strong>「Follow Me!!」</strong>ボタンで近くの味方を招集。<br>
+      敵を誘導し、味方を最適な位置へ配備せよ。
+    </div>
+    <button class="start-btn" onclick="startGame()">COMMENCE LA BATAILLE</button>
+  </div>
+
+  <!-- UI Layer -->
+  <div id="ui-layer">
+    <div id="top-bar">
+      <div class="stage-title" id="stage-label">STAGE 1 — オルレアン包囲戦</div>
+      <div class="hp-bar-wrap">
+        <span class="hp-icon">❤</span>
+        <div class="hp-bar-outer">
+          <div id="hp-bar"></div>
+        </div>
+        <span style="color:#ccc;font-size:12px;" id="hp-text">100</span>
+      </div>
+      <div class="ally-count">⚔ 味方: <span id="ally-count">0</span></div>
+    </div>
+
+    <div id="bottom-bar">
+      <div class="objective-box">
+        <span class="objective-label">MISSION</span>
+        <span id="mission-text">敵を全滅させよ</span>
+      </div>
+      <button id="call-btn" onclick="callAllies()">
+        <span class="btn-icon">📣</span>
+        <span>Follow Me!!</span>
+        <div class="cooldown-bar-outer">
+          <div id="cooldown-bar"></div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Minimap -->
+    <canvas id="minimap" width="90" height="90"></canvas>
+
+    <!-- Stage Announce -->
+    <div id="stage-announce"></div>
+  </div>
+
+  <!-- Overlay -->
+  <div id="overlay">
+    <div class="overlay-box">
+      <div class="overlay-title" id="overlay-title"></div>
+      <div class="overlay-sub" id="overlay-sub"></div>
+      <div id="overlay-btns"></div>
+    </div>
+  </div>
+
+  <!-- Speech Bubbles -->
+  <svg id="speech-bubble-layer" width="800" height="520"></svg>
+</div>
+
+<script>
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mctx = minimap.getContext('2d');
+const W = 800, H = 520;
+const GAME_H = H; // full canvas height, top/bottom UI is overlay
+
+// ── TILE MAP ──────────────────────────────────────────────────────────────────
+const TILE = 40;
+const MAP_W = 24, MAP_H = 18;
+// 0=grass, 1=stone wall, 2=road, 3=tree, 4=water
+const MAPS = [
+  // Stage 1 - open field with walls
+  [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,1,0,0,0,0,0,0,3,3,0,0,0,0,0,0,1,1,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,1],
+    [1,3,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,3,0,1],
+    [1,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,1,1,0,0,0,0,3,3,0,0,0,0,3,0,0,0,1,1,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+  // Stage 2 - siege with fortress
+  [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,3,0,0,0,1,0,0,0,0,1,0,0,0,3,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,2,2,2,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,3,0,0,0,1,0,0,0,0,1,0,0,0,3,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+  // Stage 3 - river crossing
+  [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,3,0,0,4,4,4,4,0,0,0,0,0,3,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,4,4,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,3,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,3,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,3,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,3,0,1],
+    [1,0,0,0,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,4,2,2,4,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,4,4,4,4,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,0,0,0,3,0,0,4,4,4,4,0,0,0,0,0,3,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+];
+
+const STAGES = [
+  {
+    name: "STAGE 1 — オルレアン包囲戦",
+    mission: "敵を全滅させよ",
+    winCondition: "enemies",
+    allies: [
+      {x:120,y:200},{x:80,y:300},{x:150,y:380},{x:100,y:140},
+    ],
+    enemies: [
+      {x:620,y:160},{x:680,y:240},{x:700,y:340},{x:640,y:420},
+      {x:560,y:280},{x:720,y:160},
+    ],
+  },
+  {
+    name: "STAGE 2 — 要塞攻略",
+    mission: "要塞内の敵を全滅させよ",
+    winCondition: "enemies",
+    allies: [
+      {x:100,y:160},{x:80,y:300},{x:120,y:400},{x:60,y:240},
+    ],
+    enemies: [
+      {x:500,y:200},{x:540,y:240},{x:500,y:280},{x:540,y:320},
+      {x:460,y:160},{x:580,y:200},{x:460,y:340},
+    ],
+  },
+  {
+    name: "STAGE 3 — ロワール渡河",
+    mission: "橋を渡り東岸へ到達せよ",
+    winCondition: "reach",
+    goalX: 650,
+    allies: [
+      {x:100,y:200},{x:80,y:340},{x:120,y:120},{x:80,y:440},
+    ],
+    enemies: [
+      {x:640,y:180},{x:680,y:280},{x:640,y:380},{x:700,y:240},
+      {x:720,y:340},{x:660,y:140},
+    ],
+  },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = {
+  running: false,
+  stage: 0,
+  jeanne: null,
+  allies: [],
+  enemies: [],
+  particles: [],
+  bubbles: [],
+  hp: 100,
+  maxHp: 100,
+  callCooldown: 0,
+  callMaxCooldown: 3000,
+  target: null, // click target for jeanne
+  overlay: false,
+  map: null,
+  camera: {x:0,y:0},
+  lastTime: 0,
+};
+
+// ── ENTITY FACTORY ────────────────────────────────────────────────────────────
+function makeJeanne(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 110,
+    hp: 100, maxHp: 100,
+    radius: 10,
+    angle: 0,
+    type: 'jeanne',
+    frameTimer: 0,
+    frame: 0,
+    blinkTimer: 0,
+  };
+}
+
+function makeAlly(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 70 + Math.random()*20,
+    hp: 60, maxHp: 60,
+    radius: 9,
+    angle: 0,
+    type: 'ally',
+    state: 'patrol', // patrol|follow|fight
+    target: null,
+    frameTimer: 0,
+    frame: 0,
+    patrolTimer: 0 + Math.random()*120,
+    patrolAngle: Math.random()*Math.PI*2,
+    followTarget: null,
+  };
+}
+
+function makeEnemy(x,y) {
+  return {
+    x, y, vx:0, vy:0,
+    speed: 55 + Math.random()*30,
+    hp: 50, maxHp: 50,
+    radius: 9,
+    angle: 0,
+    type: 'enemy',
+    state: 'idle', // idle|chase|fight
+    target: null,
+    frameTimer: 0,
+    frame: 0,
+    aggroRange: 120 + Math.random()*60,
+    attackRange: 18,
+    attackTimer: 0,
+    attackCooldown: 900 + Math.random()*400,
+    wanderTimer: 0,
+    wanderAngle: Math.random()*Math.PI*2,
+  };
+}
+
+// ── TILE HELPERS ──────────────────────────────────────────────────────────────
+function getTile(map, wx, wy) {
+  const tx = Math.floor(wx / TILE);
+  const ty = Math.floor(wy / TILE);
+  if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return 1;
+  return map[ty][tx];
+}
+
+function isBlocking(tile) { return tile===1||tile===3||tile===4; }
+
+function isSolid(map, wx, wy) {
+  return isBlocking(getTile(map, wx, wy));
+}
+
+function resolveCollision(map, entity) {
+  const r = entity.radius;
+  const {x,y} = entity;
+  // push out of walls
+  const checks = [
+    [x-r, y], [x+r, y], [x, y-r], [x, y+r],
+    [x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r],
+  ];
+  let px=0, py=0;
+  for (const [cx,cy] of checks) {
+    if (isSolid(map, cx, cy)) {
+      const tx = Math.floor(cx/TILE)*TILE, ty2 = Math.floor(cy/TILE)*TILE;
+      // push away
+      const overX = (cx < x ? (tx+TILE-x+r) : (tx-x-r));
+      const overY = (cy < y ? (ty2+TILE-y+r) : (ty2-y-r));
+      if (Math.abs(overX) < Math.abs(overY)) px += overX;
+      else py += overY;
+    }
+  }
+  entity.x += px*0.5;
+  entity.y += py*0.5;
+}
+
+// ── DRAW HELPERS ──────────────────────────────────────────────────────────────
+function drawTile(ctx, tile, sx, sy, size) {
+  switch(tile) {
+    case 0: // grass
+      ctx.fillStyle = '#3a7a30';
+      ctx.fillRect(sx,sy,size,size);
+      // slight variation
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      ctx.fillRect(sx+2,sy+2,size-4,size-4);
+      break;
+    case 1: // stone wall
+      ctx.fillStyle = '#5a5050';
+      ctx.fillRect(sx,sy,size,size);
+      ctx.fillStyle = '#6a6060';
+      ctx.fillRect(sx+2,sy+2,size/2-2,size/2-2);
+      ctx.fillRect(sx+size/2+1,sy+size/2+1,size/2-3,size/2-3);
+      ctx.strokeStyle = '#3a3030';
+      ctx.strokeRect(sx,sy,size,size);
+      break;
+    case 2: // road/bridge
+      ctx.fillStyle = '#a08060';
+      ctx.fillRect(sx,sy,size,size);
+      ctx.fillStyle = '#907050';
+      ctx.fillRect(sx+4,sy,2,size);
+      ctx.fillRect(sx+size-6,sy,2,size);
+      break;
+    case 3: // tree
+      ctx.fillStyle = '#3a7a30';
+      ctx.fillRect(sx,sy,size,size);
+      ctx.fillStyle = '#2a6020';
+      ctx.beginPath();
+      ctx.arc(sx+size/2, sy+size/2, size*0.38, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#1a4a10';
+      ctx.beginPath();
+      ctx.arc(sx+size/2-3, sy+size/2-3, size*0.2, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    case 4: // water
+      ctx.fillStyle = '#2a5a9a';
+      ctx.fillRect(sx,sy,size,size);
+      ctx.fillStyle = 'rgba(100,180,255,0.25)';
+      ctx.fillRect(sx+2,sy+size/3,size-4,4);
+      ctx.fillRect(sx+4,sy+size*0.65,size-8,3);
+      break;
+  }
+}
+
+function drawEntity(ctx, e, camX, camY) {
+  const sx = e.x - camX, sy = e.y - camY;
+  const r = e.radius;
+
+  // Shadow
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy+r-2, r*0.8, r*0.3, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  if (e.type === 'jeanne') {
+    // Cape
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    ctx.fillStyle = '#c0002a';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, r*0.9, r*1.1, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Body (armor)
+    ctx.fillStyle = '#d0c090';
+    ctx.beginPath();
+    ctx.arc(0, 0, r*0.75, 0, Math.PI*2);
+    ctx.fill();
+    // Helmet/hair
+    ctx.fillStyle = '#c8960c';
+    ctx.beginPath();
+    ctx.arc(0, -r*0.4, r*0.45, 0, Math.PI*2);
+    ctx.fill();
+    // Cross on chest
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-1,-r*0.2,2,r*0.5);
+    ctx.fillRect(-r*0.25,-r*0.0,r*0.5,2);
+    ctx.restore();
+
+  } else if (e.type === 'ally') {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    // Tunic
+    ctx.fillStyle = '#4080c0';
+    ctx.beginPath();
+    ctx.ellipse(0,1,r*0.85,r,0,0,Math.PI*2);
+    ctx.fill();
+    // Head
+    ctx.fillStyle = '#d4a870';
+    ctx.beginPath();
+    ctx.arc(0,-r*0.35,r*0.42,0,Math.PI*2);
+    ctx.fill();
+    // Helmet
+    ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.arc(0,-r*0.45,r*0.38,Math.PI,0);
+    ctx.fill();
+    ctx.restore();
+
+  } else if (e.type === 'enemy') {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(e.angle);
+    // Dark tunic
+    ctx.fillStyle = '#803020';
+    ctx.beginPath();
+    ctx.ellipse(0,1,r*0.85,r,0,0,Math.PI*2);
+    ctx.fill();
+    // Head
+    ctx.fillStyle = '#c09070';
+    ctx.beginPath();
+    ctx.arc(0,-r*0.35,r*0.42,0,Math.PI*2);
+    ctx.fill();
+    // Helm - dark
+    ctx.fillStyle = '#404040';
+    ctx.beginPath();
+    ctx.arc(0,-r*0.45,r*0.4,Math.PI,0);
+    ctx.fill();
+    // Eye slit
+    ctx.fillStyle = '#ff4000';
+    ctx.fillRect(-r*0.2,-r*0.55,r*0.4,2);
+    ctx.restore();
+  }
+
+  // HP bar
+  if (e.hp < e.maxHp) {
+    const bw = r*2.2, bh = 3;
+    const bx = sx-bw/2, by = sy-r-7;
+    ctx.fillStyle = '#300';
+    ctx.fillRect(bx,by,bw,bh);
+    ctx.fillStyle = e.type==='enemy' ? '#e03030' : '#30c030';
+    ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),bh);
+  }
+}
+
+function drawParticle(ctx, p, camX, camY) {
+  ctx.save();
+  ctx.globalAlpha = p.life/p.maxLife;
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  ctx.arc(p.x-camX, p.y-camY, p.r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ── PARTICLE ──────────────────────────────────────────────────────────────────
+function spawnParticles(x, y, color, count=5) {
+  for (let i=0;i<count;i++) {
+    const a = Math.random()*Math.PI*2;
+    const sp = 30+Math.random()*60;
+    state.particles.push({
+      x,y,
+      vx: Math.cos(a)*sp,
+      vy: Math.sin(a)*sp,
+      r: 2+Math.random()*3,
+      color,
+      life: 400+Math.random()*300,
+      maxLife: 400+Math.random()*300,
+    });
+  }
+}
+
+// ── DISTANCE ─────────────────────────────────────────────────────────────────
+function dist(a,b) {
+  return Math.hypot(a.x-b.x, a.y-b.y);
+}
+
+function findNearest(entity, others, maxRange=Infinity) {
+  let best=null, bestD=maxRange;
+  for (const o of others) {
+    if (o.hp<=0) continue;
+    const d = dist(entity, o);
+    if (d<bestD) { bestD=d; best=o; }
+  }
+  return best;
+}
+
+// ── MOVEMENT ──────────────────────────────────────────────────────────────────
+function moveToward(entity, tx, ty, speed, dt) {
+  const dx = tx-entity.x, dy = ty-entity.y;
+  const d = Math.hypot(dx,dy);
+  if (d<2) return d;
+  entity.vx = (dx/d)*speed;
+  entity.vy = (dy/d)*speed;
+  entity.angle = Math.atan2(dx, -dy); // face direction
+  entity.x += entity.vx*(dt/1000);
+  entity.y += entity.vy*(dt/1000);
+  return d;
+}
+
+// ── AI ────────────────────────────────────────────────────────────────────────
+function updateAlly(ally, dt) {
+  if (ally.hp<=0) return;
+
+  // Check for nearby enemies
+  const nearEnemy = findNearest(ally, state.enemies, 160);
+
+  if (nearEnemy) {
+    ally.state = 'fight';
+    ally.target = nearEnemy;
+    ally.followTarget = null;
+  } else if (ally.followTarget) {
+    ally.state = 'follow';
+  } else {
+    ally.state = 'patrol';
+  }
+
+  if (ally.state === 'fight') {
+    const d = dist(ally, ally.target);
+    if (d > 16) {
+      moveToward(ally, ally.target.x, ally.target.y, ally.speed, dt);
+    } else {
+      // attack
+      ally.attackTimer = (ally.attackTimer||0) + dt;
+      if (ally.attackTimer > 800) {
+        ally.attackTimer = 0;
+        ally.target.hp -= 8 + Math.random()*5;
+        spawnParticles(ally.target.x, ally.target.y, '#ff4040', 3);
+        if (ally.target.hp<=0) {
+          spawnParticles(ally.target.x, ally.target.y, '#ff8800', 8);
+          ally.target = null;
+          ally.state = 'patrol';
+        }
+      }
+    }
+  } else if (ally.state === 'follow') {
+    const ft = ally.followTarget;
+    if (!ft || ft.hp<=0) { ally.followTarget=null; ally.state='patrol'; return; }
+    const d = dist(ally, ft);
+    if (d > 30) moveToward(ally, ft.x, ft.y, ally.speed*1.2, dt);
+    else ally.followTarget = null;
+  } else {
+    // patrol
+    ally.patrolTimer += dt;
+    if (ally.patrolTimer > 2000+Math.random()*1500) {
+      ally.patrolAngle = Math.random()*Math.PI*2;
+      ally.patrolTimer = 0;
+    }
+    const tx = ally.x + Math.cos(ally.patrolAngle)*ally.speed*(dt/1000);
+    const ty = ally.y + Math.sin(ally.patrolAngle)*ally.speed*(dt/1000);
+    if (!isSolid(state.map, tx, ty)) {
+      ally.x = tx; ally.y = ty;
+      ally.angle = ally.patrolAngle + Math.PI/2;
+    } else {
+      ally.patrolAngle += Math.PI * (0.5 + Math.random());
+    }
+  }
+
+  resolveCollision(state.map, ally);
+  clampToBounds(ally);
+}
+
+function updateEnemy(enemy, dt) {
+  if (enemy.hp<=0) return;
+
+  // Aggro: detect jeanne and allies
+  const jDist = dist(enemy, state.jeanne);
+  let nearTarget = null;
+  let nearDist = enemy.aggroRange;
+
+  if (jDist < nearDist) { nearTarget = state.jeanne; nearDist = jDist; }
+
+  for (const a of state.allies) {
+    if (a.hp<=0) continue;
+    const d = dist(enemy, a);
+    if (d < enemy.aggroRange && d < nearDist) {
+      nearTarget = a; nearDist = d;
+    }
+  }
+
+  if (nearTarget) {
+    enemy.state = 'chase';
+    enemy.target = nearTarget;
+  } else if (enemy.target && dist(enemy, enemy.target) < enemy.aggroRange*1.5 && enemy.target.hp>0) {
+    enemy.state = 'chase';
+  } else {
+    enemy.state = 'wander';
+    enemy.target = null;
+  }
+
+  if (enemy.state === 'chase' && enemy.target) {
+    const d = dist(enemy, enemy.target);
+    if (d > enemy.attackRange) {
+      moveToward(enemy, enemy.target.x, enemy.target.y, enemy.speed, dt);
+    } else {
+      enemy.attackTimer += dt;
+      if (enemy.attackTimer >= enemy.attackCooldown) {
+        enemy.attackTimer = 0;
+        const dmg = 8 + Math.random()*6;
+        enemy.target.hp -= dmg;
+        spawnParticles(enemy.target.x, enemy.target.y, '#ff2020', 3);
+        if (enemy.target.type==='jeanne') {
+          state.hp = Math.max(0, state.hp-dmg);
+          updateHpBar();
+        }
+        if (enemy.target.hp<=0) {
+          spawnParticles(enemy.target.x, enemy.target.y, '#cc8800', 8);
+          enemy.target = null;
+          enemy.state = 'wander';
+        }
+      }
+    }
+  } else {
+    enemy.wanderTimer += dt;
+    if (enemy.wanderTimer > 2500) {
+      enemy.wanderAngle = Math.random()*Math.PI*2;
+      enemy.wanderTimer = 0;
+    }
+    const tx = enemy.x + Math.cos(enemy.wanderAngle)*enemy.speed*0.4*(dt/1000);
+    const ty = enemy.y + Math.sin(enemy.wanderAngle)*enemy.speed*0.4*(dt/1000);
+    if (!isSolid(state.map, tx, ty)) {
+      enemy.x = tx; enemy.y = ty;
+      enemy.angle = enemy.wanderAngle + Math.PI/2;
+    } else {
+      enemy.wanderAngle += Math.PI*(0.5+Math.random());
+    }
+  }
+
+  resolveCollision(state.map, enemy);
+  clampToBounds(enemy);
+}
+
+function clampToBounds(e) {
+  const pad = e.radius + 4;
+  const maxX = MAP_W*TILE - pad;
+  const maxY = MAP_H*TILE - pad;
+  e.x = Math.max(pad, Math.min(maxX, e.x));
+  e.y = Math.max(pad, Math.min(maxY, e.y));
+}
+
+// ── CAMERA ────────────────────────────────────────────────────────────────────
+function updateCamera() {
+  const j = state.jeanne;
+  const camX = j.x - W/2;
+  const camY = j.y - H/2;
+  const maxCamX = MAP_W*TILE - W;
+  const maxCamY = MAP_H*TILE - H;
+  state.camera.x = Math.max(0, Math.min(maxCamX, camX));
+  state.camera.y = Math.max(0, Math.min(maxCamY, camY));
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────────────────────
+function gameLoop(timestamp) {
+  if (!state.running) return;
+  const dt = Math.min(timestamp - state.lastTime, 50);
+  state.lastTime = timestamp;
+
+  update(dt);
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+function update(dt) {
+  const j = state.jeanne;
+  if (!j || j.hp<=0) return;
+
+  // Jeanne movement - move toward click target
+  if (state.target) {
+    const d = moveToward(j, state.target.x, state.target.y, j.speed, dt);
+    if (d < 8) state.target = null;
+  }
+  resolveCollision(state.map, j);
+  clampToBounds(j);
+
+  // Frame animation
+  j.frameTimer += dt;
+  if (j.frameTimer > 150) { j.frame=(j.frame+1)%4; j.frameTimer=0; }
+
+  // Update allies
+  for (const a of state.allies) { if (a.hp>0) updateAlly(a, dt); }
+
+  // Update enemies
+  for (const e of state.enemies) { if (e.hp>0) updateEnemy(e, dt); }
+
+  // Update particles
+  for (let i=state.particles.length-1;i>=0;i--) {
+    const p = state.particles[i];
+    p.x += p.vx*(dt/1000);
+    p.y += p.vy*(dt/1000);
+    p.vx *= 0.94;
+    p.vy *= 0.94;
+    p.life -= dt;
+    if (p.life<=0) state.particles.splice(i,1);
+  }
+
+  // Update bubbles
+  for (let i=state.bubbles.length-1;i>=0;i--) {
+    state.bubbles[i].life -= dt;
+    if (state.bubbles[i].life<=0) state.bubbles.splice(i,1);
+  }
+
+  // Cooldown
+  if (state.callCooldown > 0) {
+    state.callCooldown = Math.max(0, state.callCooldown-dt);
+    document.getElementById('cooldown-bar').style.width =
+      (state.callCooldown/state.callMaxCooldown*100)+'%';
+    if (state.callCooldown===0) {
+      document.getElementById('call-btn').disabled = false;
+      document.getElementById('cooldown-bar').style.width = '100%';
+    }
+  }
+
+  // Update ally count
+  const aliveAllies = state.allies.filter(a=>a.hp>0).length;
+  document.getElementById('ally-count').textContent = aliveAllies;
+
+  // Camera
+  updateCamera();
+
+  // Win/lose check
+  checkConditions(aliveAllies);
+}
+
+function checkConditions(aliveAllies) {
+  const stageData = STAGES[state.stage];
+  const aliveEnemies = state.enemies.filter(e=>e.hp>0).length;
+
+  // Lose: jeanne dead or no allies
+  if (state.hp<=0 || aliveAllies===0) {
+    showOverlay('GAME OVER', '兵士たちは戦場に散った…<br>フランスの栄光を取り戻せ。', 'over', true);
+    return;
+  }
+
+  // Win condition
+  if (stageData.winCondition==='enemies' && aliveEnemies===0) {
+    stageWin();
+  } else if (stageData.winCondition==='reach') {
+    if (state.jeanne.x > stageData.goalX && aliveEnemies<3) stageWin();
+  }
+}
+
+function stageWin() {
+  state.running = false;
+  const isLast = state.stage >= STAGES.length-1;
+  if (isLast) {
+    showOverlay('VICTOIRE!!', 'オルレアンを解放した！<br>ジャンヌの伝説がフランスを救う。', 'clear', false);
+  } else {
+    showOverlay('STAGE CLEAR!', `敵を撃破した！<br>次の戦場へ進め。`, 'clear', true);
+  }
+}
+
+function render() {
+  const {camera: cam, map} = state;
+  ctx.clearRect(0,0,W,H);
+
+  // Draw tiles
+  const startTX = Math.floor(cam.x/TILE);
+  const startTY = Math.floor(cam.y/TILE);
+  const endTX = Math.min(MAP_W, startTX + Math.ceil(W/TILE)+1);
+  const endTY = Math.min(MAP_H, startTY + Math.ceil(H/TILE)+1);
+
+  for (let ty=startTY; ty<endTY; ty++) {
+    for (let tx=startTX; tx<endTX; tx++) {
+      const tile = map[ty][tx];
+      const sx = tx*TILE - cam.x;
+      const sy = ty*TILE - cam.y;
+      drawTile(ctx, tile, sx, sy, TILE);
+    }
+  }
+
+  // Draw goal indicator (stage 3)
+  if (STAGES[state.stage].winCondition==='reach') {
+    const gx = STAGES[state.stage].goalX - cam.x;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(240,192,64,0.7)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8,6]);
+    ctx.beginPath();
+    ctx.moveTo(gx, 52);
+    ctx.lineTo(gx, H-72);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(240,192,64,0.9)';
+    ctx.font = 'bold 11px Cinzel, serif';
+    ctx.fillText('GOAL ▶', gx-24, 65);
+    ctx.restore();
+  }
+
+  // Draw particles
+  for (const p of state.particles) drawParticle(ctx, p, cam.x, cam.y);
+
+  // Draw entities (sorted by Y)
+  const all = [...state.allies.filter(a=>a.hp>0),
+               ...state.enemies.filter(e=>e.hp>0),
+               state.jeanne].sort((a,b)=>a.y-b.y);
+  for (const e of all) drawEntity(ctx, e, cam.x, cam.y);
+
+  // Draw dead entities (fading)
+  for (const a of state.allies) {
+    if (a.hp<=0 && a._deathAlpha>0) {
+      ctx.save(); ctx.globalAlpha=a._deathAlpha||0.3;
+      drawEntity(ctx, a, cam.x, cam.y);
+      ctx.restore();
+    }
+  }
+
+  // Draw cursor/target indicator
+  if (state.target) {
+    const sx = state.target.x - cam.x;
+    const sy = state.target.y - cam.y;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(240,192,64,0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 8, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw speech bubbles
+  drawBubbles();
+
+  // Minimap
+  drawMinimap();
+}
+
+function drawBubbles() {
+  const cam = state.camera;
+  for (const b of state.bubbles) {
+    const sx = b.x - cam.x;
+    const sy = b.y - cam.y - 22;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, b.life/300);
+    const tw = ctx.measureText(b.text).width + 12;
+    ctx.fillStyle = 'rgba(240,192,64,0.95)';
+    ctx.beginPath();
+    ctx.roundRect(sx-tw/2, sy-18, tw, 20, 4);
+    ctx.fill();
+    ctx.fillStyle = '#0a0503';
+    ctx.font = 'bold 11px Cinzel, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(b.text, sx, sy-4);
+    // tail
+    ctx.fillStyle = 'rgba(240,192,64,0.95)';
+    ctx.beginPath();
+    ctx.moveTo(sx-4,sy+2);ctx.lineTo(sx+4,sy+2);ctx.lineTo(sx,sy+8);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawMinimap() {
+  const mW=90, mH=90;
+  mctx.clearRect(0,0,mW,mH);
+  const scaleX = mW/(MAP_W*TILE);
+  const scaleY = mH/(MAP_H*TILE);
+
+  // Background
+  mctx.fillStyle = '#1a2a14';
+  mctx.fillRect(0,0,mW,mH);
+
+  // Walls
+  for (let ty=0;ty<MAP_H;ty++) {
+    for (let tx=0;tx<MAP_W;tx++) {
+      const t = state.map[ty][tx];
+      if (t===1) mctx.fillStyle='#555';
+      else if (t===4) mctx.fillStyle='#2a5a9a';
+      else if (t===3) mctx.fillStyle='#2a5a20';
+      else continue;
+      mctx.fillRect(tx*TILE*scaleX, ty*TILE*scaleY, TILE*scaleX+0.5, TILE*scaleY+0.5);
+    }
+  }
+
+  // Enemies
+  mctx.fillStyle = '#e03030';
+  for (const e of state.enemies) {
+    if (e.hp<=0) continue;
+    mctx.fillRect(e.x*scaleX-1.5, e.y*scaleY-1.5, 3, 3);
+  }
+
+  // Allies
+  mctx.fillStyle = '#4080ff';
+  for (const a of state.allies) {
+    if (a.hp<=0) continue;
+    mctx.fillRect(a.x*scaleX-1.5, a.y*scaleY-1.5, 3, 3);
+  }
+
+  // Jeanne
+  mctx.fillStyle = '#f0c040';
+  const j = state.jeanne;
+  mctx.beginPath();
+  mctx.arc(j.x*scaleX, j.y*scaleY, 3, 0, Math.PI*2);
+  mctx.fill();
+}
+
+// ── HP BAR ────────────────────────────────────────────────────────────────────
+function updateHpBar() {
+  const pct = state.hp / state.maxHp * 100;
+  document.getElementById('hp-bar').style.width = pct+'%';
+  document.getElementById('hp-text').textContent = Math.ceil(state.hp);
+}
+
+// ── CALL ALLIES ───────────────────────────────────────────────────────────────
+function callAllies() {
+  if (state.callCooldown > 0) return;
+  state.callCooldown = state.callMaxCooldown;
+  document.getElementById('call-btn').disabled = true;
+  document.getElementById('cooldown-bar').style.width = '100%';
+
+  // Show bubble on Jeanne
+  state.bubbles.push({
+    x: state.jeanne.x, y: state.jeanne.y,
+    text: 'Follow Me!!', life: 1800,
+  });
+
+  // Up to 3 nearest allies follow Jeanne
+  const liveAllies = state.allies.filter(a=>a.hp>0);
+  liveAllies.sort((a,b)=>dist(a,state.jeanne)-dist(b,state.jeanne));
+  const toCall = liveAllies.slice(0, 3);
+  for (const a of toCall) {
+    a.followTarget = state.jeanne;
+    a.state = 'follow';
+    state.bubbles.push({
+      x:a.x, y:a.y, text:'Oui, Jeanne!', life:1200,
+    });
+  }
+}
+
+// ── OVERLAY ───────────────────────────────────────────────────────────────────
+function showOverlay(title, sub, type, hasNext) {
+  state.running = false;
+  const ov = document.getElementById('overlay');
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-title').className = 'overlay-title '+type;
+  document.getElementById('overlay-sub').innerHTML = sub;
+  const btns = document.getElementById('overlay-btns');
+  btns.innerHTML = '';
+
+  if (type==='clear' && hasNext) {
+    const nb = document.createElement('button');
+    nb.className = 'overlay-btn';
+    nb.textContent = 'NEXT STAGE';
+    nb.onclick = () => { ov.classList.remove('show'); loadStage(state.stage+1); };
+    btns.appendChild(nb);
+  }
+  if (type==='clear' && !hasNext) {
+    const rb = document.createElement('button');
+    rb.className = 'overlay-btn';
+    rb.textContent = 'REJOUER';
+    rb.onclick = () => { ov.classList.remove('show'); loadStage(0); };
+    btns.appendChild(rb);
+  }
+  if (type==='over') {
+    const rb = document.createElement('button');
+    rb.className = 'overlay-btn';
+    rb.textContent = 'RETRY';
+    rb.onclick = () => { ov.classList.remove('show'); loadStage(state.stage); };
+    btns.appendChild(rb);
+    const sb = document.createElement('button');
+    sb.className = 'overlay-btn';
+    sb.textContent = 'STAGE 1';
+    sb.onclick = () => { ov.classList.remove('show'); loadStage(0); };
+    btns.appendChild(sb);
+  }
+
+  ov.classList.add('show');
+}
+
+// ── LOAD STAGE ────────────────────────────────────────────────────────────────
+function loadStage(stageIdx) {
+  state.stage = stageIdx;
+  const sd = STAGES[stageIdx];
+  state.map = MAPS[stageIdx] || MAPS[0];
+
+  // Spawn jeanne
+  state.jeanne = makeJeanne(120, 260);
+  state.hp = 100; state.maxHp = 100;
+  updateHpBar();
+
+  // Spawn allies
+  state.allies = sd.allies.map(p => makeAlly(p.x, p.y));
+
+  // Spawn enemies
+  state.enemies = sd.enemies.map(p => makeEnemy(p.x, p.y));
+
+  state.particles = [];
+  state.bubbles = [];
+  state.target = null;
+  state.callCooldown = 0;
+  document.getElementById('call-btn').disabled = false;
+  document.getElementById('cooldown-bar').style.width = '100%';
+
+  document.getElementById('stage-label').textContent = sd.name;
+  document.getElementById('mission-text').textContent = sd.mission;
+  document.getElementById('ally-count').textContent = sd.allies.length;
+
+  // Announce
+  const ann = document.getElementById('stage-announce');
+  ann.textContent = sd.name;
+  ann.classList.remove('show');
+  void ann.offsetWidth;
+  ann.classList.add('show');
+
+  updateCamera();
+  state.running = true;
+  state.lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+function handleInput(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const sx = (clientX - rect.left) * scaleX;
+  const sy = (clientY - rect.top) * scaleY;
+  // Convert screen to world
+  state.target = {
+    x: sx + state.camera.x,
+    y: sy + state.camera.y,
+  };
+}
+
+canvas.addEventListener('click', e => {
+  if (!state.running) return;
+  handleInput(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('touchstart', e => {
+  if (!state.running) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  handleInput(t.clientX, t.clientY);
+}, {passive:false});
+
+canvas.addEventListener('mousemove', e => {
+  if (!state.running || !e.buttons) return;
+  handleInput(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('touchmove', e => {
+  if (!state.running) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  handleInput(t.clientX, t.clientY);
+}, {passive:false});
+
+// ── START ─────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  loadStage(0);
+}
+</script>
+</body>
+</html>
