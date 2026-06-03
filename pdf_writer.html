@@ -495,14 +495,15 @@ function showSaveLink(dataUri){
     panel.style.cssText='position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#211f1b;border:1px solid #c8a96e;padding:16px 24px;font-family:Share Tech Mono,monospace;font-size:11px;color:#e8e0d0;z-index:9999;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.7);min-width:320px';
     document.body.appendChild(panel);
   }
+  const closeBtn='<div style="margin-top:12px"><button onclick="document.getElementById(\'save-panel\').remove()" style="background:none;border:1px solid #3f3b34;color:#706858;padding:4px 12px;cursor:pointer;font-family:inherit">閉じる</button></div>';
   if(dataUri){
     panel.innerHTML='<div style="color:#c8a96e;letter-spacing:2px;margin-bottom:10px">▼ PDF 保存リンク</div>'
       +'<a href="'+dataUri+'" download="written_'+Date.now()+'.pdf" style="color:#5dade2;word-break:break-all;font-size:10px">← ここを右クリック →「名前を付けてリンク先を保存」</a>'
-      +'<div style="margin-top:12px"><button onclick="document.getElementById('save-panel').remove()" style="background:none;border:1px solid #3f3b34;color:#706858;padding:4px 12px;cursor:pointer;font-family:inherit">閉じる</button></div>';
+      +closeBtn;
   }else{
     panel.innerHTML='<div style="color:#c0392b;margin-bottom:8px">保存できませんでした</div>'
       +'<div style="color:#706858;font-size:10px">ブラウザのダウンロード制限により保存がブロックされています。<br>IT管理者にダウンロード許可を確認してください。</div>'
-      +'<div style="margin-top:12px"><button onclick="document.getElementById('save-panel').remove()" style="background:none;border:1px solid #3f3b34;color:#706858;padding:4px 12px;cursor:pointer;font-family:inherit">閉じる</button></div>';
+      +closeBtn;
   }
 }
 </script>
