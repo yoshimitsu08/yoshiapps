@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>丸材カット計算ツール</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;700&display=swap');
+
+  :root {
+    --steel: #b8c5d1;
+    --steel-dark: #7a8f9e;
+    --iron: #2c3e50;
+    --iron-deep: #1a252f;
+    --spark: #f39c12;
+    --spark-hot: #e74c3c;
+    --ok: #27ae60;
+    --bg: #111820;
+    --panel: #1c2833;
+    --panel-border: #2e4057;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Noto Sans JP', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--steel);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  /* ヘッダー */
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  header::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--spark), transparent);
+    margin-bottom: 20px;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    letter-spacing: 0.2em;
+    color: var(--spark);
+    text-transform: uppercase;
+  }
+  header p {
+    font-size: 0.78rem;
+    color: var(--steel-dark);
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* 入力パネル */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--spark);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .input-row label {
+    font-size: 0.8rem;
+    color: var(--steel-dark);
+    min-width: 120px;
+    letter-spacing: 0.05em;
+  }
+  .input-row label span {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: #4a6070;
+    margin-top: 2px;
+  }
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+  input[type="number"] {
+    background: var(--iron-deep);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    color: var(--steel);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 8px 10px;
+    width: 110px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="number"]:focus {
+    border-color: var(--spark);
+    color: #fff;
+  }
+  .unit {
+    font-size: 0.75rem;
+    color: var(--steel-dark);
+    font-family: var(--mono);
+  }
+
+  /* 計算ボタン */
+  button#calc {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 2px solid var(--spark);
+    border-radius: 3px;
+    color: var(--spark);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+  button#calc:hover {
+    background: var(--spark);
+    color: var(--iron-deep);
+  }
+
+  /* 結果パネル */
+  #result { display: none; }
+
+  .result-badge {
+    text-align: center;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-family: var(--mono);
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+  }
+  .result-badge.ok {
+    border: 2px solid var(--ok);
+    color: var(--ok);
+    background: rgba(39,174,96,0.08);
+  }
+  .result-badge.ng {
+    border: 2px solid var(--spark-hot);
+    color: var(--spark-hot);
+    background: rgba(231,76,60,0.08);
+  }
+
+  /* 切断位置 */
+  .cut-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .cut-card {
+    background: var(--iron-deep);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px;
+  }
+  .cut-card .cut-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--steel-dark);
+    margin-bottom: 8px;
+  }
+  .cut-card .cut-value {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    color: #fff;
+  }
+  .cut-card .cut-value span {
+    font-size: 0.75rem;
+    color: var(--steel-dark);
+    margin-left: 4px;
+  }
+  .cut-card .cut-sub {
+    font-size: 0.7rem;
+    color: var(--steel-dark);
+    margin-top: 4px;
+  }
+  .cut-card.h-cut { border-left: 3px solid #3498db; }
+  .cut-card.w-cut { border-left: 3px solid #9b59b6; }
+
+  /* 仕上がり寸法 */
+  .finish-row {
+    display: flex;
+    justify-content: space-around;
+    background: var(--iron-deep);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+  .finish-item { text-align: center; }
+  .finish-item .fi-label {
+    font-size: 0.65rem;
+    color: var(--steel-dark);
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .finish-item .fi-val {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    color: var(--ok);
+  }
+  .finish-item .fi-unit {
+    font-size: 0.7rem;
+    color: var(--steel-dark);
+  }
+
+  /* SVGビジュアライザ */
+  #viz-wrap {
+    background: var(--iron-deep);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+  }
+  #viz-wrap .viz-title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--steel-dark);
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+  }
+  svg#diagram { max-width: 100%; }
+
+  /* 注記 */
+  .note {
+    font-size: 0.72rem;
+    color: #4a6070;
+    margin-top: 14px;
+    line-height: 1.7;
+    letter-spacing: 0.03em;
+  }
+  .note li { margin-left: 1em; list-style: '- '; }
+
+  /* エラー */
+  .error-detail {
+    font-size: 0.78rem;
+    color: var(--steel-dark);
+    margin-top: 10px;
+    text-align: center;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>丸材 → 平材　カット計算</h1>
+  <p>4カットで円柱端材から平板を切り出す</p>
+</header>
+
+<!-- 入力 -->
+<div class="panel">
+  <div class="panel-title">▌ INPUT</div>
+
+  <div class="input-row">
+    <label>円の直径 Φ<span>material diameter</span></label>
+    <div class="input-wrap">
+      <input type="number" id="phi" value="500" min="1" step="0.1">
+      <span class="unit">mm</span>
+    </div>
+  </div>
+
+  <div class="input-row">
+    <label>欲しい幅 W<span>target width</span></label>
+    <div class="input-wrap">
+      <input type="number" id="tw" value="300" min="1" step="0.1">
+      <span class="unit">mm</span>
+    </div>
+  </div>
+
+  <div class="input-row">
+    <label>欲しい高さ H<span>target height</span></label>
+    <div class="input-wrap">
+      <input type="number" id="th" value="200" min="1" step="0.1">
+      <span class="unit">mm</span>
+    </div>
+  </div>
+</div>
+
+<button id="calc">▶ CALCULATE</button>
+
+<!-- 結果 -->
+<div id="result">
+  <div id="badge" class="result-badge"></div>
+
+  <div id="ok-detail">
+    <div class="cut-grid">
+      <div class="cut-card h-cut">
+        <div class="cut-label">■ 1カット目（高さ方向）<br>外周から切り込む距離</div>
+        <div class="cut-value" id="cut1">—<span>mm</span></div>
+        <div class="cut-sub">2カット目は反対側を同距離</div>
+      </div>
+      <div class="cut-card w-cut">
+        <div class="cut-label">■ 3カット目（幅方向）<br>外周から切り込む距離</div>
+        <div class="cut-value" id="cut3">—<span>mm</span></div>
+        <div class="cut-sub">4カット目は反対側を同距離</div>
+      </div>
+    </div>
+
+    <div class="finish-row">
+      <div class="finish-item">
+        <div class="fi-label">仕上がり幅</div>
+        <div class="fi-val" id="fw">—</div>
+        <div class="fi-unit">mm</div>
+      </div>
+      <div class="finish-item">
+        <div class="fi-label">仕上がり高さ</div>
+        <div class="fi-val" id="fh">—</div>
+        <div class="fi-unit">mm</div>
+      </div>
+      <div class="finish-item">
+        <div class="fi-label">最大取れる幅×高さ</div>
+        <div class="fi-val" id="maxwh">—</div>
+        <div class="fi-unit">mm × mm</div>
+      </div>
+    </div>
+
+    <div id="viz-wrap">
+      <div class="viz-title">CUT DIAGRAM</div>
+      <svg id="diagram" viewBox="-10 -10 220 220" width="200" height="200"></svg>
+    </div>
+
+    <ul class="note">
+      <li>ノコ刃代：1mm／カット（計4mm食います）</li>
+      <li>公差：仕上がり寸法は指定値～+2mm を合格とします</li>
+      <li>1・2カット後、平行面2面をクランプして3・4カット実施</li>
+    </ul>
+  </div>
+
+  <div id="ng-detail" style="display:none;">
+    <div class="error-detail" id="ng-msg"></div>
+  </div>
+</div>
+
+<script>
+const SAW = 1;    // ノコ刃代 mm
+const TOL = 2;    // 公差上限 mm
+
+document.getElementById('calc').addEventListener('click', calculate);
+[...document.querySelectorAll('input')].forEach(el => {
+  el.addEventListener('keydown', e => { if(e.key === 'Enter') calculate(); });
+});
+
+function calculate() {
+  const phi = parseFloat(document.getElementById('phi').value);
+  const tw  = parseFloat(document.getElementById('tw').value);
+  const th  = parseFloat(document.getElementById('th').value);
+
+  if(isNaN(phi) || isNaN(tw) || isNaN(th) || phi <= 0 || tw <= 0 || th <= 0) {
+    alert('正の数値を入力してください');
+    return;
+  }
+
+  const R = phi / 2;
+
+  // ノコ刃を含めた必要半幅・半高
+  // カット後の実寸 = tw（幅）、th（高さ）← ノコ刃代はすでに「失われる」分
+  // 必要な半幅（円から見た） = tw/2 + SAW/2
+  // ただし刃は外から入るので：切り込み量 = R - (必要な半幅)
+  // 実際に残る幅 = phi - 2*(切り込み量) - SAW*2
+  // 今回の考え方：
+  //   2カット後の残り幅 = phi - 2*d_h - 2*SAW
+  //     d_h = 外周からの距離（1カット目の送り量）
+  //   残り幅が tw 以上 tw+TOL 以下 になる d_h を求める
+
+  // W方向（3,4カット目）はH方向カット後の断面ではなく元の円で当てはまる点に注意
+  // 幾何：高さ方向 d_h カット → 残る高さ = phi - 2*d_h - 2*SAW
+  //        幅方向  d_w カット → 残る幅   = phi - 2*d_w - 2*SAW
+  // ただし幅方向の切込み位置は「円」の弦なので、
+  // そのカット位置(外周から d_w)が円内に収まるかを確認
+
+  // 仕上がり高さ = phi - 2*d_h - 2*SAW  → d_h = (phi - th_finish - 2*SAW) / 2
+  // 仕上がり幅   = phi - 2*d_w - 2*SAW  → d_w = (phi - tw_finish - 2*SAW) / 2
+  // ここで th_finish は th～th+TOL の範囲
+
+  // 最小送り（仕上がり最大 = 目標+公差上限）
+  const d_h = (phi - th - 2 * SAW) / 2;   // 1カット目 外周から
+  const d_w = (phi - tw - 2 * SAW) / 2;   // 3カット目 外周から
+
+  // 仕上がり寸法
+  const finish_h = phi - 2 * d_h - 2 * SAW;
+  const finish_w = phi - 2 * d_w - 2 * SAW;
+
+  // 幾何チェック: カット面(中心からの距離) がR以内か
+  const half_h = finish_h / 2;  // 中心から高さ面まで
+  const half_w = finish_w / 2;  // 中心から幅面まで
+  const diag = Math.sqrt(half_h * half_h + half_w * half_w);
+
+  // 最大取れる内接長方形（正方形の場合 phi/√2 × phi/√2）
+  // 任意の長方形: W^2/4 + H^2/4 <= R^2 が条件
+  const fits = (half_h * half_h + half_w * half_w) <= R * R + 0.001;
+  const dPositive = d_h > 0 && d_w > 0;
+
+  // 最大内接長方形（W=H の場合の最大辺）
+  const maxSq = Math.floor(R * Math.sqrt(2) * 10) / 10;
+
+  document.getElementById('result').style.display = 'block';
+  const badge = document.getElementById('badge');
+  const okDiv = document.getElementById('ok-detail');
+  const ngDiv = document.getElementById('ng-detail');
+
+  if(fits && dPositive) {
+    badge.className = 'result-badge ok';
+    badge.textContent = '✔ 取り出せます';
+    okDiv.style.display = 'block';
+    ngDiv.style.display = 'none';
+
+    document.getElementById('cut1').innerHTML = `${d_h.toFixed(1)}<span>mm</span>`;
+    document.getElementById('cut3').innerHTML = `${d_w.toFixed(1)}<span>mm</span>`;
+    document.getElementById('fw').textContent = finish_w.toFixed(1);
+    document.getElementById('fh').textContent = finish_h.toFixed(1);
+    document.getElementById('maxwh').textContent = `${maxSq} × ${maxSq}`;
+
+    drawDiagram(R, d_h, d_w, finish_w, finish_h);
+  } else {
+    badge.className = 'result-badge ng';
+    badge.textContent = '✘ 取り出せません';
+    okDiv.style.display = 'none';
+    ngDiv.style.display = 'block';
+
+    let msg = '';
+    if(!dPositive) {
+      if(d_h <= 0) msg += `高さ H=${th}mm に対して切り代が足りません（直径 Φ${phi} - ノコ刃代 ${2*SAW}mm = ${phi-2*SAW}mm が最大高さ）<br>`;
+      if(d_w <= 0) msg += `幅 W=${tw}mm に対して切り代が足りません（同上）<br>`;
+    } else {
+      msg = `W=${tw}mm × H=${th}mm の組合せは円に収まりません。<br>`;
+      msg += `条件：(W/2)² + (H/2)² ≤ R²<br>`;
+      msg += `計算値：${(half_w).toFixed(1)}² + ${(half_h).toFixed(1)}² = ${(half_w**2 + half_h**2).toFixed(1)} > R² = ${(R**2).toFixed(1)}<br>`;
+    }
+    msg += `<br>この直径での最大正方形：${maxSq} × ${maxSq} mm`;
+    document.getElementById('ng-msg').innerHTML = msg;
+  }
+
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function drawDiagram(R, d_h, d_w, fw, fh) {
+  const svg = document.getElementById('diagram');
+  svg.innerHTML = '';
+
+  const S = 90;  // スケール基準（SVG内のR相当ピクセル）
+  const cx = 100, cy = 100;
+  const scale = S / R;
+
+  const hw = (fw / 2) * scale;
+  const hh = (fh / 2) * scale;
+
+  // 円
+  const circle = makeSVG('circle', { cx, cy, r: S, fill: 'none', stroke: '#2e4057', 'stroke-width': 1.5 });
+  svg.appendChild(circle);
+
+  // カット線（外周から）
+  const dh_px = d_h * scale;
+  const dw_px = d_w * scale;
+
+  // 高さ方向カット線（水平）
+  [cy - S + dh_px, cy + S - dh_px].forEach((y, i) => {
+    // カット線（実際のカット位置）
+    const line = makeSVG('line', { x1: cx - S - 5, y1: y, x2: cx + S + 5, y2: y, stroke: '#3498db', 'stroke-width': 1.5, 'stroke-dasharray': '4,3' });
+    svg.appendChild(line);
+    const lbl = makeSVG('text', { x: cx + S + 7, y: y + 4, fill: '#3498db', 'font-size': '9', 'font-family': 'Share Tech Mono' });
+    lbl.textContent = (i === 0 ? '1' : '2');
+    svg.appendChild(lbl);
+  });
+
+  // 幅方向カット線（垂直）
+  [cx - S + dw_px, cx + S - dw_px].forEach((x, i) => {
+    const line = makeSVG('line', { x1: x, y1: cy - S - 5, x2: x, y2: cy + S + 5, stroke: '#9b59b6', 'stroke-width': 1.5, 'stroke-dasharray': '4,3' });
+    svg.appendChild(line);
+    const lbl = makeSVG('text', { x: x - 4, y: cy - S - 7, fill: '#9b59b6', 'font-size': '9', 'font-family': 'Share Tech Mono', 'text-anchor': 'middle' });
+    lbl.textContent = (i === 0 ? '3' : '4');
+    svg.appendChild(lbl);
+  });
+
+  // 平材（塗りつぶし矩形）
+  const rect = makeSVG('rect', {
+    x: cx - hw, y: cy - hh, width: hw * 2, height: hh * 2,
+    fill: 'rgba(243,156,18,0.15)', stroke: '#f39c12', 'stroke-width': 1.5
+  });
+  svg.appendChild(rect);
+
+  // 中心点
+  const dot = makeSVG('circle', { cx, cy, r: 2, fill: '#f39c12' });
+  svg.appendChild(dot);
+
+  // 寸法ラベル
+  const wlbl = makeSVG('text', { x: cx, y: cy + hh + 13, fill: '#f39c12', 'font-size': '9', 'text-anchor': 'middle', 'font-family': 'Share Tech Mono' });
+  wlbl.textContent = `W ${fw.toFixed(1)}`;
+  svg.appendChild(wlbl);
+
+  const hlbl = makeSVG('text', { x: cx + hw + 13, y: cy + 4, fill: '#f39c12', 'font-size': '9', 'text-anchor': 'start', 'font-family': 'Share Tech Mono' });
+  hlbl.textContent = `H ${fh.toFixed(1)}`;
+  svg.appendChild(hlbl);
+}
+
+function makeSVG(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+</script>
+</body>
+</html>
