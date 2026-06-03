@@ -435,7 +435,7 @@ document.getElementById('bsave').onclick=async()=>{
           if(st.fontFamily==='Times')font=await doc.embedFont(st.bold?StandardFonts.TimesRomanBold:StandardFonts.TimesRoman);
           else if(st.fontFamily==='Courier')font=await doc.embedFont(st.bold?StandardFonts.CourierBold:StandardFonts.Courier);
           else font=await doc.embedFont(st.bold?StandardFonts.HelveticaBold:StandardFonts.Helvetica);
-        }catch{font=await doc.embedFont(StandardFonts.Helvetica);}
+        }catch(_e){font=await doc.embedFont(StandardFonts.Helvetica);}
         const fs=st.fontSize*Math.min(sx,sy);
         const lh=fs*1.4;
         const bx=parseFloat(d.el.style.left)*sx;
@@ -455,7 +455,7 @@ document.getElementById('bsave').onclick=async()=>{
           const bytes=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
           const emb=mime==='image/png'?await doc.embedPng(bytes):await doc.embedJpg(bytes);
           page.drawImage(emb,{x:ex,y:ey,width:ew,height:eh});
-        }catch(err){console.warn('img',err);}
+        }catch(_err){console.warn('img',_err);}
       }
     }
     const out=await doc.save();
