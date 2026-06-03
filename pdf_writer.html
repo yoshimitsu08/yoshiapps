@@ -97,7 +97,7 @@ body.dov #dz{display:flex}
 <div id="app">
   <div id="header">
     <span id="htitle">PDF WRITER</span>
-    <button class="hbtn" id="bopen">📂 開く</button>
+    <label class="hbtn" id="bopen" for="fpdf" style="cursor:pointer">📂 開く</label>
     <div class="sep"></div>
     <div id="pnav">
       <button id="bprev">◀</button>
@@ -107,11 +107,11 @@ body.dov #dz{display:flex}
     <div class="sep"></div>
     <button class="hbtn on-normal" id="bmnormal" title="通常モード (Esc)">✋ 通常</button>
     <button class="hbtn" id="bmtext"   title="テキスト追加 (T)">✚ テキスト</button>
-    <button class="hbtn" id="bmimg"    title="画像追加 (I)" disabled>🖼 画像</button>
+    <label class="hbtn" id="bmimg" for="fimg" title="画像追加 (I)" style="cursor:pointer;opacity:.3;pointer-events:none">🖼 画像</label>
     <div class="sep"></div>
     <button class="hbtn" id="bsave" disabled>💾 PDF 保存</button>
-    <input type="file" id="fpdf" accept=".pdf" style="display:none">
-    <input type="file" id="fimg" accept="image/*" style="display:none">
+    <input type="file" id="fpdf" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+    <input type="file" id="fimg" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
   </div>
   <div id="toolbar">
     <span class="tbl">FONT</span>
@@ -179,10 +179,10 @@ function setMode(m){
 }
 document.getElementById('bmnormal').onclick=()=>setMode('normal');
 document.getElementById('bmtext').onclick=()=>setMode('add-text');
-document.getElementById('bmimg').onclick=()=>{document.getElementById('fimg').click()};
+// bmimg: label for fimg — no JS needed
 
 // ══ PDF読み込み ══
-document.getElementById('bopen').onclick=()=>document.getElementById('fpdf').click();
+// bopen: label for fpdf — no JS needed
 document.getElementById('fpdf').onchange=e=>{if(e.target.files[0])loadPDF(e.target.files[0])};
 document.body.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('dov')});
 document.body.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dov')});
@@ -200,7 +200,8 @@ async function loadPDF(file){
     totPages=pdfDoc.numPages; curPage=1; els=[];
     document.getElementById('sbf').textContent='FILE: '+file.name;
     document.getElementById('bsave').disabled=false;
-    document.getElementById('bmimg').disabled=false;
+    const bmimg=document.getElementById('bmimg');
+    bmimg.style.opacity='';bmimg.style.pointerEvents='';
     pw.style.display='inline-block';
     document.getElementById('wc').style.display='none';
     await renderPage(1); updPageInfo(); setMode('normal');
@@ -398,7 +399,7 @@ document.addEventListener('keydown',e=>{
   if(tag==='TEXTAREA'){if(e.key==='Escape'){document.activeElement.blur();setMode('normal');}return;}
   if(e.key==='Escape'){setMode('normal');return;}
   if((e.key==='t'||e.key==='T')&&pdfDoc){setMode('add-text');return;}
-  if((e.key==='i'||e.key==='I')&&pdfDoc){document.getElementById('fimg').click();return;}
+  if((e.key==='i'||e.key==='I')&&pdfDoc){document.getElementById('bmimg').click();return;}
   if(e.key==='Delete'||e.key==='Backspace'){if(selEl)removeEl(selEl);return;}
   if(selEl&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
     e.preventDefault();
