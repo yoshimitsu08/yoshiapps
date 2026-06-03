@@ -450,33 +450,43 @@ document.getElementById('bsave').onclick=async()=>{
         });
       }else if(d.type==='image'){
         try{
-          const ex=parseFloat(d.el.style.left)*sx,ew=d.el.offsetWidth*sx,eh=d.el.offsetHeight*sy;
-          const ey=height-parseFloat(d.el.style.top)*sy-eh;
+          // style から直接サイズを取得（offsetWidth は非表示時に0になるため）
+          const elLeft=parseFloat(d.el.style.left)||0;
+          const elTop =parseFloat(d.el.style.top )||0;
+          const elW   =parseFloat(d.el.style.width )||(d.el.offsetWidth  || 200);
+          const elH   =parseFloat(d.el.style.height)||(d.el.offsetHeight || 150);
+          const ex=elLeft*sx, ew=elW*sx, eh=elH*sy;
+          const ey=height-elTop*sy-eh;
           const b64=d.src.split(',')[1],mime=d.src.split(';')[0].split(':')[1];
-          const bytes=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
-          const emb=mime==='image/png'?await doc.embedPng(bytes):await doc.embedJpg(bytes);
+          const imgBytes=Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0));
+          let emb;
+          if(mime==='image/png'){emb=await doc.embedPng(imgBytes);}
+          else{emb=await doc.embedJpg(imgBytes);}
           page.drawImage(emb,{x:ex,y:ey,width:ew,height:eh});
-        }catch(_err){console.warn('img',_err);}
+        }catch(_err){console.warn('img embed error',_err);}
       }
     }
     const out=await doc.save();
     const blob=new Blob([out],{type:'application/pdf'});
+    const fname='written_'+Date.now()+'.pdf';
 
-    // 方法1: 別タブで開く（企業ポリシーのダウンロード制限を回避しやすい）
-    let opened=false;
+    // 方法1: aタグ download（最も確実）
+    let saved=false;
     try{
       const url=URL.createObjectURL(blob);
-      const tab=window.open(url,'_blank');
-      if(tab){opened=true;setTimeout(()=>URL.revokeObjectURL(url),60000);}
-    }catch(e){}
+      const a=document.createElement('a');
+      a.href=url; a.download=fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),10000);
+      saved=true;
+    }catch(_e2){}
 
-    // 方法2: Base64 data URI
-    if(!opened){
+    // 方法2: Base64 data URI でダウンロードリンクを表示
+    if(!saved){
       const reader=new FileReader();
-      reader.onload=ev=>{
-        const tab=window.open(ev.target.result,'_blank');
-        if(!tab){ showSaveLink(ev.target.result); }
-      };
+      reader.onload=ev=>{showSaveLink(ev.target.result,fname);};
       reader.readAsDataURL(blob);
     }
   }finally{showLd(false);}
@@ -488,7 +498,8 @@ function prog(p){document.getElementById('ldp').style.width=p+'%';}
 function updStatus(){document.getElementById('sbe').textContent='ELEMENTS: '+els.filter(e=>e.page===curPage).length;}
 
 // 別タブもブロックされた場合：ページ内にリンクを表示
-function showSaveLink(dataUri){
+function showSaveLink(dataUri,fname){
+  fname=fname||'written.pdf';
   let panel=document.getElementById('save-panel');
   if(!panel){
     panel=document.createElement('div');
@@ -499,7 +510,7 @@ function showSaveLink(dataUri){
   const closeBtn='<div style="margin-top:12px"><button onclick="document.getElementById(\'save-panel\').remove()" style="background:none;border:1px solid #3f3b34;color:#706858;padding:4px 12px;cursor:pointer;font-family:inherit">閉じる</button></div>';
   if(dataUri){
     panel.innerHTML='<div style="color:#c8a96e;letter-spacing:2px;margin-bottom:10px">▼ PDF 保存リンク</div>'
-      +'<a href="'+dataUri+'" download="written_'+Date.now()+'.pdf" style="color:#5dade2;word-break:break-all;font-size:10px">← ここを右クリック →「名前を付けてリンク先を保存」</a>'
+      +'<a href="'+dataUri+'" download="'+fname+'" style="color:#5dade2;word-break:break-all;font-size:10px">← ここを右クリック →「名前を付けてリンク先を保存」</a>'
       +closeBtn;
   }else{
     panel.innerHTML='<div style="color:#c0392b;margin-bottom:8px">保存できませんでした</div>'
