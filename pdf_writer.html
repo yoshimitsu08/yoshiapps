@@ -195,8 +195,9 @@ document.body.addEventListener('drop',e=>{
 async function loadPDF(file){
   showLd(true);
   try{
-    pdfBytes=await file.arrayBuffer();
-    pdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(pdfBytes)}).promise;
+    const rawBuf=await file.arrayBuffer();
+    pdfBytes=rawBuf.slice(0); // ArrayBufferをコピー（Edge対策）
+    pdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(pdfBytes.slice(0))}).promise;
     totPages=pdfDoc.numPages; curPage=1; els=[];
     document.getElementById('sbf').textContent='FILE: '+file.name;
     document.getElementById('bsave').disabled=false;
