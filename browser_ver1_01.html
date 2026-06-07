@@ -393,60 +393,84 @@ frame.addEventListener('error', () => {
   setStatus('err','読み込みエラー');
 });
 
-/* ── 画像抽出 ─── */
+/* ── HTMLから画像URL抽出ヘルパー ─── */
+function parseImgSrcs(html, pageUrl){
+  const base = new URL(pageUrl);
+  const result = [];
+  for(const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)){
+    const u = resolveUrl(m[1], base);
+    if(u) result.push(u);
+  }
+  for(const m of html.matchAll(/srcset=["']([^"']+)["']/gi)){
+    const first = m[1].trim().split(/[\s,]+/)[0];
+    if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+  }
+  return result;
+}
+
+function resolveUrl(src, base){
+  try {
+    if(!src || src.startsWith('data:')) return '';
+    if(src.startsWith('//'))   return base.protocol + src;
+    if(src.startsWith('http')) return src;
+    return new URL(src, base).href;
+  } catch(e){ return ''; }
+}
+
+/* ── 画像抽出（3段階フォールバック） ─── */
 async function extractImages(pageUrl){
   clearTray();
   trayEmpty.textContent = 'スキャン中...';
   imgTray.classList.add('open');
 
   let imgs = [];
+  let ok = false;
 
-  // 同オリジンの場合はDOM直接アクセス
+  // ① 同オリジン：DOM直接アクセス
   try {
     const doc = frame.contentDocument || frame.contentWindow.document;
     doc.querySelectorAll('img').forEach(img => {
       const src = img.currentSrc || img.src;
       if(src && !src.startsWith('data:') && src.length > 10) imgs.push(src);
     });
-  } catch(e){
-    // クロスオリジン：fetchでHTMLをパース
+    ok = true;
+  } catch(e){ /* クロスオリジン */ }
+
+  // ② クロスオリジン：直接fetch
+  if(!ok){
     try {
       const resp = await fetch(pageUrl, { mode:'cors', credentials:'omit' });
       if(resp.ok){
-        const html = await resp.text();
-        const base = new URL(pageUrl);
-        // src="..." / src='...'
-        for(const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)){
-          imgs.push(resolveUrl(m[1], base));
-        }
-        // srcset の最初のURL
-        for(const m of html.matchAll(/srcset=["']([^"']+)["']/gi)){
-          const first = m[1].trim().split(/[\s,]+/)[0];
-          if(first) imgs.push(resolveUrl(first, base));
-        }
+        imgs.push(...parseImgSrcs(await resp.text(), pageUrl));
+        ok = true;
       }
-    } catch(e2){ /* fetch失敗 */ }
+    } catch(e){ /* CORS拒否 */ }
+  }
+
+  // ③ allorigins.win プロキシ経由
+  if(!ok){
+    try {
+      trayEmpty.textContent = 'プロキシ経由でスキャン中...';
+      const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(pageUrl);
+      const resp = await fetch(proxyUrl);
+      if(resp.ok){
+        const json = await resp.json();
+        if(json.contents) imgs.push(...parseImgSrcs(json.contents, pageUrl));
+      }
+    } catch(e){ /* プロキシも失敗 */ }
   }
 
   // 重複除去・空除去
   imgs = [...new Set(imgs)].filter(Boolean);
 
   if(imgs.length === 0){
-    trayEmpty.textContent = '画像なし（CORS制限の可能性あり）';
+    trayEmpty.textContent = '画像なし';
     return;
   }
 
   trayEmpty.style.display = 'none';
   trayCount.textContent = imgs.length + '枚';
   imgs.forEach(src => addThumb(src));
-}
-
-function resolveUrl(src, base){
-  try {
-    if(src.startsWith('//'))   return base.protocol + src;
-    if(src.startsWith('http')) return src;
-    return new URL(src, base).href;
-  } catch(e){ return ''; }
 }
 
 function clearTray(){
