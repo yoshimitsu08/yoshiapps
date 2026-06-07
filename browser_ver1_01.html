@@ -397,14 +397,79 @@ frame.addEventListener('error', () => {
 function parseImgSrcs(html, pageUrl){
   const base = new URL(pageUrl);
   const result = [];
-  for(const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)){
-    const u = resolveUrl(m[1], base);
-    if(u) result.push(u);
+
+  // DOMParserで正式パース
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // <img src / data-src / data-original / data-lazy-src / data-url 等>
+    doc.querySelectorAll('img').forEach(img => {
+      const candidates = [
+        img.getAttribute('src'),
+        img.getAttribute('data-src'),
+        img.getAttribute('data-original'),
+        img.getAttribute('data-lazy-src'),
+        img.getAttribute('data-lazy'),
+        img.getAttribute('data-url'),
+        img.getAttribute('data-image'),
+        img.getAttribute('data-hi-res-src'),
+      ];
+      candidates.forEach(src => {
+        if(src){ const u = resolveUrl(src, base); if(u) result.push(u); }
+      });
+      // srcset
+      const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+      if(srcset){
+        const first = srcset.trim().split(/[\s,]+/)[0];
+        if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+      }
+    });
+
+    // <source srcset> (picture要素内)
+    doc.querySelectorAll('source').forEach(s => {
+      const srcset = s.getAttribute('srcset') || s.getAttribute('data-srcset');
+      if(srcset){
+        const first = srcset.trim().split(/[\s,]+/)[0];
+        if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+      }
+    });
+
+    // style属性の background-image: url(...)
+    doc.querySelectorAll('[style]').forEach(el => {
+      const style = el.getAttribute('style') || '';
+      const m = style.match(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/i);
+      if(m){ const u = resolveUrl(m[1], base); if(u) result.push(u); }
+    });
+
+    // <div data-bg / data-background 等>
+    doc.querySelectorAll('[data-bg],[data-background],[data-bgimage]').forEach(el => {
+      ['data-bg','data-background','data-bgimage'].forEach(attr => {
+        const v = el.getAttribute(attr);
+        if(v){ const u = resolveUrl(v, base); if(u) result.push(u); }
+      });
+    });
+
+  } catch(e){
+    // DOMParser失敗時は正規表現フォールバック
+    const attrs = ['src','data-src','data-original','data-lazy-src','data-lazy','data-url','data-image'];
+    for(const attr of attrs){
+      const re = new RegExp(attr + '=["']([^"']+)["']', 'gi');
+      for(const m of html.matchAll(re)){
+        const u = resolveUrl(m[1], base); if(u) result.push(u);
+      }
+    }
+    for(const m of html.matchAll(/srcset=["']([^"']+)["']/gi)){
+      const first = m[1].trim().split(/[\s,]+/)[0];
+      if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+    }
+    for(const m of html.matchAll(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/gi)){
+      const u = resolveUrl(m[1], base); if(u) result.push(u);
+    }
   }
-  for(const m of html.matchAll(/srcset=["']([^"']+)["']/gi)){
-    const first = m[1].trim().split(/[\s,]+/)[0];
-    if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
-  }
+
+  // 画像拡張子フィルタ（任意：外したければコメントアウト）
+  // return [...new Set(result)].filter(u => /\.(jpe?g|png|gif|webp|svg|bmp)(\?|$)/i.test(u));
   return result;
 }
 
