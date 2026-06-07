@@ -337,6 +337,8 @@ function normalizeUrl(raw){
 }
 
 /* ── ナビゲーション ─── */
+let loadTimer = null;
+
 function navigate(url){
   if(!url) return;
   url = normalizeUrl(url);
@@ -351,6 +353,17 @@ function navigate(url){
     histIdx = navHistory.length - 1;
   }
   updateNavBtns();
+
+  // iframeのloadイベントが来なくても5秒後に強制スキャン
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(() => {
+    if(statusDot.className === 'loading'){
+      loadingOv.classList.remove('show');
+      setStatus('ok', '読み込み完了（タイムアウト）');
+      extractImages(url);
+    }
+  }, 5000);
+
   frame.src = url;
 }
 
@@ -366,6 +379,7 @@ function setStatus(state, msg){
 
 /* ── iframeロード ─── */
 frame.addEventListener('load', () => {
+  clearTimeout(loadTimer);
   loadingOv.classList.remove('show');
   let pageUrl = '';
   try {
