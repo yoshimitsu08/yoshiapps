@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1814;--bg2:#211f1b;--bg3:#2a2722;--surface:#302d27;
+  --accent:#c8a96e;--text:#e8e0d0;--text2:#a09880;--text3:#706858;
+  --border:#3f3b34;--danger:#c86e6e;--success:#6ec88a;
+  --font-ui:'Courier New',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow:hidden}
+body{display:flex;flex-direction:column}
+
+/* ─── ツールバー ─── */
+#toolbar{
+  height:44px;display:flex;align-items:center;gap:5px;
+  padding:0 8px;background:var(--bg2);
+  border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;
+}
+.tb-btn{
+  width:32px;height:28px;background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.tb-btn:hover,.tb-btn:active{border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.tb-btn:disabled{opacity:.3;pointer-events:none}
+#url-bar{
+  flex:1;height:28px;background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);font-family:var(--font-ui);font-size:11px;
+  padding:0 8px;outline:none;min-width:0;transition:border-color .15s;
+}
+#url-bar:focus{border-color:var(--accent)}
+#go-btn{
+  height:28px;padding:0 12px;background:var(--bg3);border:1px solid var(--accent);
+  color:var(--accent);cursor:pointer;font-family:var(--font-ui);font-size:11px;
+  letter-spacing:1px;transition:background .15s,color .15s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+#go-btn:hover,#go-btn:active{background:var(--accent);color:var(--bg)}
+
+/* ─── セーブバー ─── */
+#savebar{
+  height:36px;display:flex;align-items:center;gap:6px;
+  padding:0 8px;background:var(--bg3);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#btn-start-session{
+  height:24px;padding:0 10px;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text3);cursor:pointer;font-family:var(--font-ui);font-size:10px;
+  letter-spacing:.5px;transition:all .15s;flex-shrink:0;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+#btn-start-session:hover,#btn-start-session:active{border-color:var(--accent);color:var(--accent)}
+#btn-start-session.active{border-color:var(--success);color:var(--success);background:rgba(110,200,138,.08)}
+#session-label{
+  flex:1;font-size:10px;letter-spacing:.5px;color:var(--text3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+}
+#session-label span{color:var(--accent)}
+#counter-badge{
+  flex-shrink:0;height:22px;min-width:22px;padding:0 6px;
+  background:var(--bg2);border:1px solid var(--border);
+  font-size:11px;color:var(--accent);
+  display:none;align-items:center;justify-content:center;
+}
+
+/* ─── メインビューポート ─── */
+#viewport{
+  flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden;
+}
+#browser-frame{
+  flex:1;border:none;width:100%;background:#fff;display:block;
+}
+
+/* ─── 画像トレイ ─── */
+#img-tray{
+  flex-shrink:0;height:0;overflow:hidden;
+  background:var(--bg2);border-top:1px solid var(--border);
+  transition:height .25s ease;display:flex;flex-direction:column;
+}
+#img-tray.open{height:110px}
+#tray-header{
+  height:22px;display:flex;align-items:center;padding:0 8px;gap:8px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#tray-title{font-size:9px;letter-spacing:2px;color:var(--text3);flex:1}
+#tray-count{font-size:9px;color:var(--accent)}
+#btn-tray-close{
+  width:18px;height:18px;background:none;border:none;
+  color:var(--text3);cursor:pointer;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+#btn-tray-close:hover{color:var(--text)}
+#tray-scroll{
+  flex:1;overflow-x:auto;overflow-y:hidden;
+  display:flex;align-items:center;gap:6px;padding:6px 8px;
+  -webkit-overflow-scrolling:touch;
+}
+#tray-scroll::-webkit-scrollbar{height:3px}
+#tray-scroll::-webkit-scrollbar-track{background:var(--bg)}
+#tray-scroll::-webkit-scrollbar-thumb{background:var(--border)}
+.tray-thumb{
+  flex-shrink:0;width:72px;height:72px;position:relative;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg3);overflow:hidden;
+  transition:border-color .15s;-webkit-tap-highlight-color:transparent;
+}
+.tray-thumb:hover,.tray-thumb:active{border-color:var(--accent)}
+.tray-thumb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.tray-thumb-overlay{
+  position:absolute;inset:0;background:rgba(200,169,110,0);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;opacity:0;transition:all .15s;
+}
+.tray-thumb:hover .tray-thumb-overlay,
+.tray-thumb:active .tray-thumb-overlay{background:rgba(200,169,110,.25);opacity:1}
+#tray-empty{font-size:10px;color:var(--text3);letter-spacing:1px;padding:0 4px;white-space:nowrap}
+
+/* ─── ステータスバー ─── */
+#statusbar{
+  height:20px;display:flex;align-items:center;gap:8px;
+  padding:0 8px;background:var(--bg2);border-top:1px solid var(--border);
+  flex-shrink:0;font-size:9px;letter-spacing:.5px;color:var(--text3);
+}
+#status-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#status-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0;
+  transition:background .3s;
+}
+#status-dot.loading{background:var(--accent);animation:pulse .8s infinite}
+#status-dot.ok{background:var(--success)}
+#status-dot.err{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── ローディングオーバーレイ ─── */
+#loading-overlay{
+  position:absolute;inset:0;background:rgba(26,24,20,.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:5;opacity:0;pointer-events:none;transition:opacity .2s;
+  flex-direction:column;gap:10px;
+}
+#loading-overlay.show{opacity:1;pointer-events:auto}
+.spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.loading-label{font-size:10px;letter-spacing:2px;color:var(--text3)}
+
+/* ─── ホーム画面 ─── */
+#home-screen{
+  position:absolute;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;z-index:4;
+}
+.home-title{font-size:20px;letter-spacing:5px;color:var(--accent)}
+.home-sub{font-size:9px;letter-spacing:3px;color:var(--text3)}
+.home-hint{margin-top:16px;font-size:9px;letter-spacing:.5px;color:var(--text3);text-align:center;line-height:2}
+
+/* ─── トースト ─── */
+#toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:var(--bg3);border:1px solid var(--success);color:var(--success);
+  padding:6px 18px;font-size:11px;letter-spacing:1px;
+  opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9999;white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:var(--danger);color:var(--danger)}
+
+/* ─── モーダル ─── */
+#modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
+  display:none;align-items:center;justify-content:center;
+}
+#modal-overlay.show{display:flex}
+#modal-box{
+  background:var(--bg2);border:1px solid var(--border);padding:24px 20px;
+  width:min(320px,90vw);display:flex;flex-direction:column;gap:14px;
+}
+.modal-title{font-size:11px;letter-spacing:2px;color:var(--accent)}
+.modal-label{font-size:10px;color:var(--text3);letter-spacing:.5px}
+#modal-input{
+  width:100%;height:32px;background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);font-family:var(--font-ui);font-size:12px;padding:0 10px;
+  outline:none;transition:border-color .15s;
+}
+#modal-input:focus{border-color:var(--accent)}
+.modal-preview{font-size:10px;color:var(--text3);letter-spacing:.5px}
+.modal-preview span{color:var(--accent)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btn{
+  height:28px;padding:0 16px;background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;font-family:var(--font-ui);font-size:10px;
+  letter-spacing:1px;transition:all .15s;-webkit-tap-highlight-color:transparent;
+}
+.modal-btn.primary{border-color:var(--accent);color:var(--accent)}
+.modal-btn:hover{background:var(--surface)}
+.modal-btn.primary:hover{background:var(--accent);color:var(--bg)}
+
+/* ─── 右クリックメニュー ─── */
+#ctx-menu{
+  position:fixed;background:var(--bg2);border:1px solid var(--border);
+  min-width:150px;z-index:9998;display:none;box-shadow:0 4px 16px rgba(0,0,0,.5);
+}
+#ctx-menu.show{display:block}
+.ctx-item{padding:8px 14px;font-size:11px;color:var(--text2);cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s,color .1s}
+.ctx-item:last-child{border-bottom:none}
+.ctx-item:hover{background:var(--surface);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ツールバー -->
+<div id="toolbar">
+  <button class="tb-btn" id="btn-back" title="戻る" disabled>◀</button>
+  <button class="tb-btn" id="btn-fwd"  title="進む" disabled>▶</button>
+  <button class="tb-btn" id="btn-reload" title="更新">↺</button>
+  <button class="tb-btn" id="btn-home" title="ホーム">⌂</button>
+  <input id="url-bar" type="text" placeholder="URLを入力…" autocomplete="off" spellcheck="false">
+  <button id="go-btn">GO</button>
+</div>
+
+<!-- セーブバー -->
+<div id="savebar">
+  <button id="btn-start-session">📌 ここから開始</button>
+  <div id="session-label">セッション未開始</div>
+  <div id="counter-badge">1</div>
+</div>
+
+<!-- メインビューポート -->
+<div id="viewport">
+  <div id="home-screen">
+    <div class="home-title">BROWSER</div>
+    <div class="home-sub">in-page web viewer</div>
+    <div class="home-hint">
+      URLを入力してGOを押してください<br>
+      ページ読込後、下部トレイに画像が自動表示されます<br>
+      <span style="font-size:9px;color:var(--border)">※ X-Frame-Options により表示できないサイトがあります</span>
+    </div>
+  </div>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-label">LOADING...</div>
+  </div>
+  <iframe id="browser-frame"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+    referrerpolicy="no-referrer"
+    title="browser"></iframe>
+</div>
+
+<!-- 画像トレイ -->
+<div id="img-tray">
+  <div id="tray-header">
+    <div id="tray-title">IMAGES</div>
+    <div id="tray-count"></div>
+    <button id="btn-tray-close">✕</button>
+  </div>
+  <div id="tray-scroll">
+    <div id="tray-empty">画像なし</div>
+  </div>
+</div>
+
+<!-- ステータスバー -->
+<div id="statusbar">
+  <div id="status-dot"></div>
+  <div id="status-text">待機中</div>
+</div>
+
+<!-- トースト -->
+<div id="toast"></div>
+
+<!-- セッション開始モーダル -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-title">📌 保存セッションを開始</div>
+    <div class="modal-label">ファイル名のプレフィックスを入力してください</div>
+    <input id="modal-input" type="text" placeholder="例: 現場A" maxlength="50" autocomplete="off">
+    <div class="modal-preview">保存ファイル名：<span id="modal-preview-text">—</span></div>
+    <div class="modal-btns">
+      <button class="modal-btn" id="modal-cancel">キャンセル</button>
+      <button class="modal-btn primary" id="modal-ok">開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 右クリックメニュー -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-copy-url">🔗 URLをコピー</div>
+  <div class="ctx-item" id="ctx-reload">↺ 更新</div>
+  <div class="ctx-item" id="ctx-open-tab">↗ 別タブで開く</div>
+</div>
+
+<script>
+/* ── DOM参照 ─── */
+const frame        = document.getElementById('browser-frame');
+const urlBar       = document.getElementById('url-bar');
+const goBtn        = document.getElementById('go-btn');
+const btnBack      = document.getElementById('btn-back');
+const btnFwd       = document.getElementById('btn-fwd');
+const btnReload    = document.getElementById('btn-reload');
+const btnHome      = document.getElementById('btn-home');
+const homeScreen   = document.getElementById('home-screen');
+const loadingOv    = document.getElementById('loading-overlay');
+const statusDot    = document.getElementById('status-dot');
+const statusTxt    = document.getElementById('status-text');
+const toast        = document.getElementById('toast');
+const imgTray      = document.getElementById('img-tray');
+const trayScroll   = document.getElementById('tray-scroll');
+const trayCount    = document.getElementById('tray-count');
+const trayEmpty    = document.getElementById('tray-empty');
+const btnTrayClose = document.getElementById('btn-tray-close');
+const btnStart     = document.getElementById('btn-start-session');
+const sessionLabel = document.getElementById('session-label');
+const counterBadge = document.getElementById('counter-badge');
+const modalOverlay = document.getElementById('modal-overlay');
+const modalInput   = document.getElementById('modal-input');
+const modalPreview = document.getElementById('modal-preview-text');
+const modalOk      = document.getElementById('modal-ok');
+const modalCancel  = document.getElementById('modal-cancel');
+const ctxMenu      = document.getElementById('ctx-menu');
+
+/* ── 状態 ─── */
+let navHistory = [];
+let histIdx    = -1;
+let session    = { active: false, prefix: '', counter: 1 };
+
+/* ── URL正規化 ─── */
+function normalizeUrl(raw){
+  raw = raw.trim();
+  if(!raw) return '';
+  if(/^https?:\/\//i.test(raw)) return raw;
+  if(/^[a-z0-9.-]+\.[a-z]{2,}/i.test(raw)) return 'https://' + raw;
+  return 'https://www.google.com/search?q=' + encodeURIComponent(raw);
+}
+
+/* ── ナビゲーション ─── */
+let loadTimer = null;
+
+function navigate(url){
+  if(!url) return;
+  url = normalizeUrl(url);
+  urlBar.value = url;
+  homeScreen.style.display = 'none';
+  setStatus('loading','ロード中...');
+  loadingOv.classList.add('show');
+  clearTray();
+  if(histIdx < 0 || navHistory[histIdx] !== url){
+    navHistory = navHistory.slice(0, histIdx + 1);
+    navHistory.push(url);
+    histIdx = navHistory.length - 1;
+  }
+  updateNavBtns();
+
+  // iframeのloadイベントが来なくても5秒後に強制スキャン
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(() => {
+    if(statusDot.className === 'loading'){
+      loadingOv.classList.remove('show');
+      setStatus('ok', '読み込み完了（タイムアウト）');
+      extractImages(url);
+    }
+  }, 5000);
+
+  frame.src = url;
+}
+
+function updateNavBtns(){
+  btnBack.disabled = histIdx <= 0;
+  btnFwd.disabled  = histIdx >= navHistory.length - 1;
+}
+
+function setStatus(state, msg){
+  statusDot.className = state;
+  statusTxt.textContent = msg;
+}
+
+/* ── iframeロード ─── */
+frame.addEventListener('load', () => {
+  clearTimeout(loadTimer);
+  loadingOv.classList.remove('show');
+  let pageUrl = '';
+  try {
+    pageUrl = frame.contentWindow.location.href;
+    if(pageUrl && pageUrl !== 'about:blank'){
+      urlBar.value = pageUrl;
+      if(navHistory[histIdx] !== pageUrl){
+        navHistory = navHistory.slice(0, histIdx + 1);
+        navHistory.push(pageUrl);
+        histIdx = navHistory.length - 1;
+        updateNavBtns();
+      }
+      setStatus('ok', pageUrl);
+    } else { setStatus('ok','読み込み完了'); return; }
+  } catch(e){
+    // クロスオリジン
+    pageUrl = urlBar.value;
+    setStatus('ok','読み込み完了');
+  }
+  if(pageUrl && pageUrl !== 'about:blank') extractImages(pageUrl);
+});
+
+frame.addEventListener('error', () => {
+  loadingOv.classList.remove('show');
+  setStatus('err','読み込みエラー');
+});
+
+/* ── HTMLから画像URL抽出ヘルパー ─── */
+function parseImgSrcs(html, pageUrl){
+  const base = new URL(pageUrl);
+  const result = [];
+
+  // DOMParserで正式パース
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // <img src / data-src / data-original / data-lazy-src / data-url 等>
+    doc.querySelectorAll('img').forEach(img => {
+      const candidates = [
+        img.getAttribute('src'),
+        img.getAttribute('data-src'),
+        img.getAttribute('data-original'),
+        img.getAttribute('data-lazy-src'),
+        img.getAttribute('data-lazy'),
+        img.getAttribute('data-url'),
+        img.getAttribute('data-image'),
+        img.getAttribute('data-hi-res-src'),
+      ];
+      candidates.forEach(src => {
+        if(src){ const u = resolveUrl(src, base); if(u) result.push(u); }
+      });
+      // srcset
+      const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+      if(srcset){
+        const first = srcset.trim().split(/[\s,]+/)[0];
+        if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+      }
+    });
+
+    // <source srcset> (picture要素内)
+    doc.querySelectorAll('source').forEach(s => {
+      const srcset = s.getAttribute('srcset') || s.getAttribute('data-srcset');
+      if(srcset){
+        const first = srcset.trim().split(/[\s,]+/)[0];
+        if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+      }
+    });
+
+    // style属性の background-image: url(...)
+    doc.querySelectorAll('[style]').forEach(el => {
+      const style = el.getAttribute('style') || '';
+      const m = style.match(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/i);
+      if(m){ const u = resolveUrl(m[1], base); if(u) result.push(u); }
+    });
+
+    // <div data-bg / data-background 等>
+    doc.querySelectorAll('[data-bg],[data-background],[data-bgimage]').forEach(el => {
+      ['data-bg','data-background','data-bgimage'].forEach(attr => {
+        const v = el.getAttribute(attr);
+        if(v){ const u = resolveUrl(v, base); if(u) result.push(u); }
+      });
+    });
+
+  } catch(e){
+    // DOMParser失敗時は正規表現フォールバック
+    const attrs = ['src','data-src','data-original','data-lazy-src','data-lazy','data-url','data-image'];
+    for(const attr of attrs){
+      const re = new RegExp(attr + '=["']([^"']+)["']', 'gi');
+      for(const m of html.matchAll(re)){
+        const u = resolveUrl(m[1], base); if(u) result.push(u);
+      }
+    }
+    for(const m of html.matchAll(/srcset=["']([^"']+)["']/gi)){
+      const first = m[1].trim().split(/[\s,]+/)[0];
+      if(first){ const u = resolveUrl(first, base); if(u) result.push(u); }
+    }
+    for(const m of html.matchAll(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/gi)){
+      const u = resolveUrl(m[1], base); if(u) result.push(u);
+    }
+  }
+
+  // 画像拡張子フィルタ（任意：外したければコメントアウト）
+  // return [...new Set(result)].filter(u => /\.(jpe?g|png|gif|webp|svg|bmp)(\?|$)/i.test(u));
+  return result;
+}
+
+function resolveUrl(src, base){
+  try {
+    if(!src || src.startsWith('data:')) return '';
+    if(src.startsWith('//'))   return base.protocol + src;
+    if(src.startsWith('http')) return src;
+    return new URL(src, base).href;
+  } catch(e){ return ''; }
+}
+
+/* ── 画像抽出（3段階フォールバック） ─── */
+async function extractImages(pageUrl){
+  clearTray();
+  trayEmpty.textContent = 'スキャン中...';
+  imgTray.classList.add('open');
+
+  let imgs = [];
+  let ok = false;
+
+  // ① 同オリジン：DOM直接アクセス
+  try {
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    doc.querySelectorAll('img').forEach(img => {
+      const src = img.currentSrc || img.src;
+      if(src && !src.startsWith('data:') && src.length > 10) imgs.push(src);
+    });
+    ok = true;
+  } catch(e){ /* クロスオリジン */ }
+
+  // ② クロスオリジン：直接fetch
+  if(!ok){
+    try {
+      const resp = await fetch(pageUrl, { mode:'cors', credentials:'omit' });
+      if(resp.ok){
+        imgs.push(...parseImgSrcs(await resp.text(), pageUrl));
+        ok = true;
+      }
+    } catch(e){ /* CORS拒否 */ }
+  }
+
+  // ③ allorigins.win プロキシ経由
+  if(!ok){
+    try {
+      trayEmpty.textContent = 'プロキシ経由でスキャン中...';
+      const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(pageUrl);
+      const resp = await fetch(proxyUrl);
+      if(resp.ok){
+        const json = await resp.json();
+        if(json.contents) imgs.push(...parseImgSrcs(json.contents, pageUrl));
+      }
+    } catch(e){ /* プロキシも失敗 */ }
+  }
+
+  // 重複除去・空除去
+  imgs = [...new Set(imgs)].filter(Boolean);
+
+  if(imgs.length === 0){
+    trayEmpty.textContent = '画像なし';
+    return;
+  }
+
+  trayEmpty.style.display = 'none';
+  trayCount.textContent = imgs.length + '枚';
+  imgs.forEach(src => addThumb(src));
+}
+
+function clearTray(){
+  trayScroll.innerHTML = '';
+  trayScroll.appendChild(trayEmpty);
+  trayEmpty.style.display = 'block';
+  trayEmpty.textContent = '画像なし';
+  trayCount.textContent = '';
+  imgTray.classList.remove('open');
+}
+
+function addThumb(src){
+  const div = document.createElement('div');
+  div.className = 'tray-thumb';
+
+  const img = document.createElement('img');
+  img.loading = 'lazy';
+  img.alt = '';
+  img.onerror = () => {
+    div.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--border)">🖼</div><div class="tray-thumb-overlay">💾</div>';
+  };
+  img.src = src;
+
+  const ov = document.createElement('div');
+  ov.className = 'tray-thumb-overlay';
+  ov.textContent = '💾';
+
+  div.appendChild(img);
+  div.appendChild(ov);
+
+  // クリック保存
+  div.addEventListener('click', () => saveImage(src));
+  // 長押し保存（スマホ）
+  let pressTimer;
+  div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => saveImage(src), 500); }, {passive:true});
+  div.addEventListener('touchend',   () => clearTimeout(pressTimer), {passive:true});
+  div.addEventListener('touchmove',  () => clearTimeout(pressTimer), {passive:true});
+
+  trayScroll.appendChild(div);
+}
+
+/* ── 画像保存 ─── */
+async function saveImage(imgUrl){
+  // 拡張子抽出
+  const rawExt = imgUrl.split('?')[0].split('.').pop().toLowerCase();
+  const ext = /^(jpg|jpeg|png|gif|webp|svg|bmp)$/.test(rawExt) ? rawExt : 'jpg';
+
+  let filename;
+  if(session.active){
+    filename = session.prefix + '_' + session.counter + '.' + ext;
+    session.counter++;
+    updateSessionUI();
+  } else {
+    filename = imgUrl.split('/').pop().split('?')[0] || ('image.' + ext);
+  }
+
+  try {
+    const resp = await fetch(imgUrl, { mode:'cors' });
+    if(!resp.ok) throw new Error('fetch fail');
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
+  } catch(e){
+    const a = document.createElement('a');
+    a.href = imgUrl; a.download = filename; a.target = '_blank'; a.click();
+  }
+  showToast('✓ ' + filename);
+}
+
+/* ── セッション管理 ─── */
+function updateSessionUI(){
+  if(session.active){
+    btnStart.classList.add('active');
+    btnStart.textContent = '📌 セッション中';
+    sessionLabel.innerHTML = '<span>' + session.prefix + '</span>_' + session.counter + '.* で保存';
+    counterBadge.textContent = session.counter;
+    counterBadge.style.display = 'flex';
+  } else {
+    btnStart.classList.remove('active');
+    btnStart.textContent = '📌 ここから開始';
+    sessionLabel.textContent = 'セッション未開始';
+    counterBadge.style.display = 'none';
+  }
+}
+
+btnStart.addEventListener('click', () => {
+  modalInput.value = session.active ? session.prefix : '';
+  updateModalPreview();
+  modalOverlay.classList.add('show');
+  setTimeout(() => modalInput.focus(), 100);
+});
+
+modalInput.addEventListener('input', updateModalPreview);
+function updateModalPreview(){
+  const v = modalInput.value.trim();
+  modalPreview.textContent = v ? v + '_1.*' : '—';
+}
+
+function startSession(){
+  const v = modalInput.value.trim();
+  if(!v){ modalInput.focus(); return; }
+  session = { active: true, prefix: v, counter: 1 };
+  updateSessionUI();
+  closeModal();
+  showToast('✓ セッション開始：' + v + '_1〜');
+}
+function closeModal(){ modalOverlay.classList.remove('show'); }
+
+modalOk.addEventListener('click', startSession);
+modalCancel.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', e => { if(e.target === modalOverlay) closeModal(); });
+modalInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter') startSession();
+  if(e.key === 'Escape') closeModal();
+});
+
+/* ── ナビゲーションボタン ─── */
+goBtn.addEventListener('click', () => navigate(urlBar.value));
+urlBar.addEventListener('keydown', e => { if(e.key === 'Enter') navigate(urlBar.value); });
+
+btnBack.addEventListener('click', () => {
+  if(histIdx > 0){
+    histIdx--; updateNavBtns();
+    const u = navHistory[histIdx];
+    frame.src = u; urlBar.value = u;
+    setStatus('loading','ロード中...'); loadingOv.classList.add('show'); clearTray();
+  }
+});
+btnFwd.addEventListener('click', () => {
+  if(histIdx < navHistory.length - 1){
+    histIdx++; updateNavBtns();
+    const u = navHistory[histIdx];
+    frame.src = u; urlBar.value = u;
+    setStatus('loading','ロード中...'); loadingOv.classList.add('show'); clearTray();
+  }
+});
+btnReload.addEventListener('click', () => {
+  if(frame.src && frame.src !== 'about:blank'){
+    loadingOv.classList.add('show'); setStatus('loading','更新中...'); clearTray(); frame.src = frame.src;
+  }
+});
+btnHome.addEventListener('click', () => {
+  frame.src = 'about:blank'; urlBar.value = '';
+  homeScreen.style.display = 'flex';
+  setStatus('','待機中'); clearTray();
+  navHistory = []; histIdx = -1; updateNavBtns();
+});
+btnTrayClose.addEventListener('click', () => imgTray.classList.remove('open'));
+
+/* ── トースト ─── */
+let toastTimer;
+function showToast(msg, isErr = false){
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.className = 'show' + (isErr ? ' err' : '');
+  toastTimer = setTimeout(() => { toast.className = ''; }, 2500);
+}
+
+/* ── 右クリックメニュー ─── */
+document.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth  - 160) + 'px';
+  ctxMenu.style.top  = Math.min(e.clientY, window.innerHeight - 100) + 'px';
+  ctxMenu.classList.add('show');
+});
+document.addEventListener('click', () => ctxMenu.classList.remove('show'));
+
+document.getElementById('ctx-copy-url').addEventListener('click', () => {
+  if(urlBar.value) navigator.clipboard.writeText(urlBar.value).then(() => showToast('✓ URLをコピー'));
+});
+document.getElementById('ctx-reload').addEventListener('click', () => {
+  if(frame.src && frame.src !== 'about:blank'){ frame.src = frame.src; loadingOv.classList.add('show'); setStatus('loading','更新中...'); clearTray(); }
+});
+document.getElementById('ctx-open-tab').addEventListener('click', () => {
+  if(urlBar.value) window.open(urlBar.value, '_blank');
+});
+
+urlBar.focus();
+</script>
+</body>
+</html>
