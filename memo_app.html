@@ -873,22 +873,18 @@ function selectNote(id) {
 
 $('btn-new-note').onclick = () => {
   if (isDirty && currentNoteId) saveCurrentNote();
-  const newRef = notesRef.push({
-    title: '',
-    content: '',
-    tags: [],
-    folderId: currentFolder === '__all__' || currentFolder === '__unfiled__' ? '' : currentFolder,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  });
+  const now = Date.now();
+  const folderId = currentFolder === '__all__' || currentFolder === '__unfiled__' ? '' : currentFolder;
+  const newData = { title: '', content: '', tags: [], folderId, createdAt: now, updatedAt: now };
+  const newRef = notesRef.push(newData);
   currentNoteId = newRef.key;
-  // wait for listener to update allNotes
-  setTimeout(() => {
-    loadNoteIntoEditor(currentNoteId, true);
-    renderNoteList();
-    titleInput.focus();
-    $('note-list-panel').classList.remove('mobile-visible');
-  }, 200);
+  // ローカルキャッシュに即反映（Firebaseリスナー待ちによるズレを防ぐ）
+  allNotes[currentNoteId] = newData;
+  loadNoteIntoEditor(currentNoteId, true);
+  renderNoteList();
+  renderSidebarCounts();
+  titleInput.focus();
+  $('note-list-panel').classList.remove('mobile-visible');
 };
 
 $('btn-delete-note').onclick = () => {
