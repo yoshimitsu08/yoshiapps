@@ -26,8 +26,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .open-btn{position:relative;border:1px solid var(--accent);padding:18px 48px;font-size:12px;letter-spacing:4px;color:var(--accent);background:none;cursor:pointer;transition:background .15s,color .15s;z-index:1;display:block;width:220px;text-align:center;margin-bottom:16px}
 .open-btn:hover{background:var(--accent);color:var(--bg)}
 .open-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.open-btn-drive{border:1px solid var(--text3);padding:18px 48px;font-size:12px;letter-spacing:4px;color:var(--text2);background:none;cursor:pointer;transition:background .15s,color .15s;z-index:1;width:220px;text-align:center}
-.open-btn-drive:hover{border-color:var(--accent);color:var(--accent)}
+.open-btn-sub{border:1px solid var(--text3);padding:18px 48px;font-size:12px;letter-spacing:4px;color:var(--text2);background:none;cursor:pointer;transition:all .15s;z-index:1;width:220px;text-align:center}
+.open-btn-sub:hover{border-color:var(--accent);color:var(--accent)}
 
 /* VIEWER */
 #screen-viewer{background:#111;justify-content:center;align-items:center}
@@ -85,6 +85,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 @keyframes rln{from{opacity:.3;transform:translateY(-3%)}to{opacity:1;transform:translateY(0)}}
 @keyframes rlp{from{opacity:.3;transform:translateY(3%)}to{opacity:1;transform:translateY(0)}}
 </style>
+<script src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="a73hkqpjkk2ut2u"></script>
 </head>
 <body>
 
@@ -97,12 +98,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <input type="file" id="file-input" accept=".pdf,application/pdf">
     OPEN LOCAL →
   </button>
-  <button class="open-btn-drive" id="btn-drive-open">
-    ▲ GOOGLE DRIVE
-  </button>
-  <button class="open-btn-drive" id="btn-dropbox-open" style="margin-top:0;border-color:#0061ff;color:#4a90d9;">
-    ■ DROPBOX
-  </button>
+  <button class="open-btn-sub" id="btn-dropbox-open">■ DROPBOX</button>
 </div>
 
 <!-- VIEWER -->
@@ -124,7 +120,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div id="hud-bot">
     <button class="hud-btn" id="btn-open2">⊞ ローカル</button>
     <input type="file" id="file-input2" accept=".pdf,application/pdf" style="display:none">
-    <button class="hud-btn" id="btn-drive2">▲ Drive</button>
     <button class="hud-btn" id="btn-dropbox2">■ Dropbox</button>
     <div class="hud-spacer"></div>
     <button class="hud-btn" id="btn-prev">← 前</button>
@@ -178,7 +173,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <div id="toast"></div>
 
-<script src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="a73hkqpjkk2ut2u"></script>
 <script>
 // ── PDF.js CDN ──
 (function(){
@@ -240,107 +234,12 @@ function openDropboxChooser(){
   });
 }
 
-// ── Google API ──
-const GAPI_CLIENT_ID='320242001573-c0rcqjq8p5ur0tuivcvgd40mcqkbldcd.apps.googleusercontent.com';
-const GAPI_KEY='AIzaSyCPx0UFfXf2yWgvRz9L0oU5FDVTyk9dWM0';
-let gapiReady=false, pickerReady=false, gapiInited=false, gisInited=false;
-let tokenClient=null, accessToken=null;
-
-function loadGoogleAPIs(){
-  // gapi
-  const s1=document.createElement('script');
-  s1.src='https://apis.google.com/js/api.js';
-  s1.onload=()=>{
-    gapi.load('client:picker',()=>{
-      gapi.client.init({}).then(()=>{
-        gapiReady=true; pickerReady=true;
-      });
-    });
-  };
-  document.head.appendChild(s1);
-  // gis
-  const s2=document.createElement('script');
-  s2.src='https://accounts.google.com/gsi/client';
-  s2.onload=()=>{
-    tokenClient=google.accounts.oauth2.initTokenClient({
-      client_id:GAPI_CLIENT_ID,
-      scope:'https://www.googleapis.com/auth/drive.readonly',
-      callback:''// 後でセット
-    });
-    gisInited=true;
-  };
-  document.head.appendChild(s2);
-}
-
-function openDrivePicker(){
-  if(!gisInited||!gapiReady){
-    toast('Google APIを読み込み中です。しばらくお待ちください');return;
-  }
-  const showPicker=()=>{
-    const picker=new google.picker.PickerBuilder()
-      .addView(new google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setMimeTypes('application/pdf'))
-      .setOAuthToken(accessToken)
-      .setDeveloperKey(GAPI_KEY)
-      .setCallback(pickerCallback)
-      .build();
-    picker.setVisible(true);
-  };
-
-  if(accessToken){
-    showPicker();
-  } else {
-    tokenClient.callback=(resp)=>{
-      if(resp.error){toast('Googleログインに失敗しました');return;}
-      accessToken=resp.access_token;
-      showPicker();
-    };
-    tokenClient.requestAccessToken({prompt:'consent'});
-  }
-}
-
-async function pickerCallback(data){
-  if(data.action!==google.picker.Action.PICKED)return;
-  const file=data.docs[0];
-  const fname=file.name;
-  const fileId=file.id;
-  toast('ダウンロード中...');
-  showLoading(true);
-  switchTo('viewer');
-  document.getElementById('hud-fname').textContent=fname;
-  try{
-    const resp=await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      {headers:{Authorization:`Bearer ${accessToken}`}}
-    );
-    if(!resp.ok)throw new Error('Drive APIエラー: '+resp.status);
-    const ab=await resp.arrayBuffer();
-    const task=pdfjsLib.getDocument({data:new Uint8Array(ab)});
-    task.onProgress=p=>{if(p.total)lbar(p.loaded/p.total*85);};
-    pdfDoc=await task.promise;
-    total=pdfDoc.numPages;
-    curPage=1;
-    pageCache.clear();
-    lbar(100);
-    await renderPage(curPage);
-    showLoading(false);
-    prefetch(curPage);
-    hudShow(); hudScheduleHide();
-  }catch(err){
-    showLoading(false);
-    toast('読み込みエラー: '+err.message);
-    console.error(err);
-  }
-}
-
 // ── STATE ──
 let pdfDoc=null, curPage=1, total=0, busy=false;
 
 // ── PAGE CACHE（先読み込み） ──
-// key: ページ番号, value: ImageBitmap または offscreenCanvas
 const pageCache=new Map();
-const CACHE_AHEAD=1; // 前後何ページ先読みするか
+const CACHE_AHEAD=1;
 
 async function renderToCache(num){
   if(!pdfDoc||pageCache.has(num))return;
@@ -348,13 +247,11 @@ async function renderToCache(num){
   try{
     const page=await pdfDoc.getPage(num);
     const vp0=page.getViewport({scale:1});
-    const vw=window.innerWidth, vh=window.innerHeight;
+    const vw=window.innerWidth;
     const ov=Math.max(-20,Math.min(30,parseFloat(cfg.ov)||0));
     const dpr=window.devicePixelRatio||1;
-    const scaleW=vw/vp0.width*(1+ov*2/100);
-    const scale=scaleW*dpr;
+    const scale=vw/vp0.width*(1+ov*2/100)*dpr;
     const vp=page.getViewport({scale});
-
     const oc=document.createElement('canvas');
     oc.width=Math.floor(vp.width);
     oc.height=Math.floor(vp.height);
@@ -366,12 +263,10 @@ async function renderToCache(num){
 }
 
 function prefetch(current){
-  // 前後ページを非同期で先読み（エラーは無視）
   for(let d=1;d<=CACHE_AHEAD;d++){
     renderToCache(current+d);
     renderToCache(current-d);
   }
-  // 遠いページのキャッシュを解放（メモリ節約）
   for(const k of pageCache.keys()){
     if(Math.abs(k-current)>CACHE_AHEAD+2) pageCache.delete(k);
   }
@@ -389,15 +284,12 @@ function saveCfg(){ localStorage.setItem(CFG_KEY,JSON.stringify(cfg)); }
 function init(){
   loadCfg();
   applyUI();
-  loadGoogleAPIs();
 
   document.getElementById('file-input').onchange=e=>openFile(e.target.files[0]);
   document.getElementById('file-input2').onchange=e=>{openFile(e.target.files[0]);e.target.value='';};
   document.getElementById('btn-open2').onclick=()=>document.getElementById('file-input2').click();
-  document.getElementById('btn-drive-open').onclick=openDrivePicker;
   document.getElementById('btn-dropbox-open').onclick=openDropboxChooser;
   document.getElementById('btn-dropbox2').onclick=openDropboxChooser;
-  document.getElementById('btn-drive2').onclick=openDrivePicker;
   document.getElementById('btn-prev').onclick=()=>go(-1);
   document.getElementById('btn-next').onclick=()=>go(1);
   document.getElementById('btn-cfg').onclick=()=>document.getElementById('settings').classList.add('open');
@@ -465,14 +357,13 @@ function closeSettings(){
 
 // ── FILE OPEN ──
 async function openFile(file){
-  if(!file){return;}
+  if(!file)return;
   if(!file.name.toLowerCase().endsWith('.pdf')&&file.type&&file.type!=='application/pdf'){
     toast('PDFファイルを選択してください');return;
   }
   document.getElementById('hud-fname').textContent=file.name;
   showLoading(true);
   switchTo('viewer');
-
   try{
     const ab=await file.arrayBuffer();
     const task=pdfjsLib.getDocument({data:new Uint8Array(ab)});
@@ -502,7 +393,6 @@ async function renderPage(num,anim=''){
     const canvas=document.getElementById('pdf-canvas');
     const dpr=window.devicePixelRatio||1;
 
-    // キャッシュヒット → 即座にコピーして表示
     if(pageCache.has(num)){
       const cached=pageCache.get(num);
       canvas.width=cached.width;
@@ -510,30 +400,24 @@ async function renderPage(num,anim=''){
       canvas.style.width=Math.floor(cached.width/dpr)+'px';
       canvas.style.height=Math.floor(cached.height/dpr)+'px';
       canvas.getContext('2d').drawImage(cached,0,0);
-    } else {
-      // キャッシュなし → 通常描画
+    }else{
       const page=await pdfDoc.getPage(num);
       const vp0=page.getViewport({scale:1});
-      const vw=window.innerWidth, vh=window.innerHeight;
+      const vw=window.innerWidth;
       const ov=Math.max(-20,Math.min(30,parseFloat(cfg.ov)||0));
-      const scaleW=vw/vp0.width*(1+ov*2/100);
-      const scale=scaleW*dpr;
+      const scale=vw/vp0.width*(1+ov*2/100)*dpr;
       const vp=page.getViewport({scale});
-
       canvas.width=Math.floor(vp.width);
       canvas.height=Math.floor(vp.height);
       canvas.style.width=Math.floor(vp.width/dpr)+'px';
       canvas.style.height=Math.floor(vp.height/dpr)+'px';
       await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-
-      // 描画したものをキャッシュにも保存
       const oc=document.createElement('canvas');
       oc.width=canvas.width; oc.height=canvas.height;
       oc.getContext('2d').drawImage(canvas,0,0);
       pageCache.set(num,oc);
     }
 
-    // アニメーション
     if(anim){
       const wrap=document.getElementById('canvas-wrap');
       wrap.className='';
@@ -561,37 +445,32 @@ async function go(dir){
   if(cfg.dir==='h') anim=dir>0?'slide-next':'slide-prev';
   else anim=dir>0?'reel-next':'reel-prev';
   await renderPage(curPage,anim);
-  prefetch(curPage); // ページ移動後に次の先読みをトリガー
+  prefetch(curPage);
   hudShow(); hudScheduleHide();
 }
 
 // ── SWIPE ──
 function setupSwipe(){
   const el=document.getElementById('canvas-wrap');
-  let sx=0,sy=0,moved=false;
+  let sx=0,sy=0;
   el.addEventListener('touchstart',e=>{
-    sx=e.touches[0].clientX; sy=e.touches[0].clientY; moved=false;
-  },{passive:true});
-  el.addEventListener('touchmove',e=>{
-    moved=true;
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
   },{passive:true});
   el.addEventListener('touchend',e=>{
     const dx=e.changedTouches[0].clientX-sx;
     const dy=e.changedTouches[0].clientY-sy;
     const adx=Math.abs(dx), ady=Math.abs(dy);
-
     if(adx<12&&ady<12){
       const top=document.getElementById('hud-top');
       if(top.classList.contains('hidden')){hudShow();hudScheduleHide();}
       else{clearTimeout(hudT);hudHide();}
       return;
     }
-
     if(cfg.dir==='h'){
       if(adx<40||adx<ady*0.8)return;
       const toNext=cfg.rev==='0'?(dx>0):(dx<0);
       go(toNext?1:-1);
-    } else {
+    }else{
       if(ady<40||ady<adx*0.8)return;
       go(dy<0?1:-1);
     }
