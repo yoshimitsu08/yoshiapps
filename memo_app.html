@@ -152,7 +152,35 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 }
 .stab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
-#sidebar-panel { flex: 1; overflow-y: auto; padding: 8px 0; }
+#sidebar-panel { flex: 1; overflow-y: auto; overflow-x: auto; padding: 8px 0; }
+
+/* フォルダツリー横スクロール用ラッパー */
+#folder-tree-wrap { min-width: 100%; width: max-content; padding-bottom: 4px; }
+
+/* アコーディオン */
+.folder-children { display: none; }
+.folder-children.open { display: block; }
+.folder-row {
+  display: flex; align-items: center;
+  padding: 6px 8px 6px 0; cursor: pointer;
+  font-size: .88rem; color: var(--text2);
+  transition: background .12s, color .12s;
+  white-space: nowrap; user-select: none;
+  border-radius: 4px;
+}
+.folder-row:hover { background: var(--bg3); color: var(--text); }
+.folder-row.active { background: var(--surface); color: var(--accent); font-weight: 600; }
+.folder-toggle {
+  width: 20px; flex-shrink: 0; text-align: center;
+  font-size: .65rem; color: var(--text3); transition: transform .15s;
+}
+.folder-toggle.open { transform: rotate(90deg); }
+.folder-toggle.leaf { visibility: hidden; }
+.folder-icon { margin-right: 4px; font-size: .9rem; }
+.folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.folder-count { font-size: .7rem; color: var(--text3); margin-left: 4px; margin-right: 4px; }
+.folder-actions { display: none; gap: 2px; flex-shrink: 0; }
+.folder-row:hover .folder-actions { display: flex; }
 
 /* folder/tag list */
 .sidebar-section-title {
@@ -481,7 +509,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
             <span class="sidebar-item-label">📄 未分類</span>
             <span class="sidebar-item-count" id="count-unfiled"></span>
           </div>
-          <div id="folder-list"></div>
+          <div id="folder-tree-wrap"><div id="folder-list"></div></div>
           <div style="padding:8px 14px 4px;">
             <button class="topbar-btn" id="btn-add-folder" style="width:100%;font-size:.8rem;">＋ フォルダ追加</button>
           </div>
@@ -604,6 +632,12 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   <div class="modal">
     <h2 id="modal-folder-title">フォルダ名</h2>
     <input class="modal-input" id="modal-folder-input" type="text" placeholder="フォルダ名を入力" maxlength="40">
+    <div style="margin-bottom:12px;">
+      <label style="font-size:.8rem;color:var(--text3);display:block;margin-bottom:4px;">親フォルダ</label>
+      <select class="modal-input" id="modal-folder-parent" style="margin-bottom:0;">
+        <option value="">なし（ルート）</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="modal-btn" id="modal-folder-cancel">キャンセル</button>
       <button class="modal-btn primary" id="modal-folder-ok">OK</button>
@@ -744,27 +778,93 @@ document.querySelectorAll('.stab').forEach(btn => {
   };
 });
 
-// ===== FOLDER SIDEBAR =====
-function renderFolderSidebar() {
-  folderList.innerHTML = '';
-  Object.entries(allFolders).sort((a,b) => (a[1].name||'').localeCompare(b[1].name||'')).forEach(([fid, f]) => {
-    const div = document.createElement('div');
-    div.className = 'sidebar-item' + (currentFolder === fid ? ' active' : '');
-    div.dataset.folder = fid;
-    const count = Object.values(allNotes).filter(n => n.folderId === fid).length;
-    div.innerHTML = `<span class="sidebar-item-label">📁 ${esc(f.name)}</span>
-      <span class="sidebar-item-count">${count||''}</span>
-      <span class="sidebar-item-actions">
+// ===== FOLDER SIDEBAR (階層対応) =====
+let expandedFolders = new Set(); // 展開中フォルダID
+
+function getChildren(parentId) {
+  return Object.entries(allFolders)
+    .filter(([, f]) => (f.parentId || '') === (parentId || ''))
+    .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
+}
+
+function getNoteCount(fid) {
+  // このフォルダ自身＋子孫フォルダのメモ数
+  const descendants = getAllDescendants(fid);
+  descendants.add(fid);
+  return Object.values(allNotes).filter(n => descendants.has(n.folderId)).length;
+}
+
+function getAllDescendants(fid) {
+  const result = new Set();
+  const queue = [fid];
+  while (queue.length) {
+    const cur = queue.shift();
+    Object.entries(allFolders).filter(([, f]) => f.parentId === cur).forEach(([id]) => {
+      result.add(id);
+      queue.push(id);
+    });
+  }
+  return result;
+}
+
+function renderFolderTree(parentId, container, depth) {
+  const children = getChildren(parentId);
+  children.forEach(([fid, f]) => {
+    const hasChildren = getChildren(fid).length > 0;
+    const isExpanded  = expandedFolders.has(fid);
+    const isActive    = currentFolder === fid;
+    const count       = getNoteCount(fid);
+    const indent      = depth * 16;
+
+    // 行
+    const row = document.createElement('div');
+    row.className = 'folder-row' + (isActive ? ' active' : '');
+    row.dataset.folder = fid;
+    row.style.paddingLeft = (8 + indent) + 'px';
+    row.innerHTML = `
+      <span class="folder-toggle ${hasChildren ? (isExpanded ? 'open' : '') : 'leaf'}">▶</span>
+      <span class="folder-icon">📁</span>
+      <span class="folder-name">${esc(f.name)}</span>
+      <span class="folder-count">${count || ''}</span>
+      <span class="folder-actions">
+        <button class="sidebar-icon-btn" data-action="addsub" data-fid="${fid}" title="サブフォルダ追加">＋</button>
         <button class="sidebar-icon-btn" data-action="rename" data-fid="${fid}" title="名前変更">✏</button>
         <button class="sidebar-icon-btn" data-action="delfolder" data-fid="${fid}" title="削除">🗑</button>
       </span>`;
-    div.onclick = (e) => {
-      if (e.target.closest('.sidebar-icon-btn')) return;
+
+    // トグルクリック
+    const toggle = row.querySelector('.folder-toggle');
+    toggle.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!hasChildren) return;
+      if (expandedFolders.has(fid)) expandedFolders.delete(fid);
+      else expandedFolders.add(fid);
+      renderFolderSidebar();
+    });
+
+    // 行クリック（フォルダ選択）
+    row.addEventListener('click', e => {
+      if (e.target.closest('.sidebar-icon-btn') || e.target.closest('.folder-toggle')) return;
+      // 子があれば展開もする
+      if (hasChildren) expandedFolders.add(fid);
       setCurrentFolder(fid);
-      // closeSidebarはsetCurrentFolder内で処理
-    };
-    folderList.appendChild(div);
+    });
+
+    container.appendChild(row);
+
+    // 子フォルダ
+    if (hasChildren) {
+      const childWrap = document.createElement('div');
+      childWrap.className = 'folder-children' + (isExpanded ? ' open' : '');
+      renderFolderTree(fid, childWrap, depth + 1);
+      container.appendChild(childWrap);
+    }
   });
+}
+
+function renderFolderSidebar() {
+  folderList.innerHTML = '';
+  renderFolderTree('', folderList, 0);
   renderSidebarCounts();
 }
 
@@ -772,15 +872,21 @@ function renderSidebarCounts() {
   $('count-all').textContent     = Object.keys(allNotes).length || '';
   $('count-unfiled').textContent = Object.values(allNotes).filter(n => !n.folderId).length || '';
   document.querySelectorAll('[data-folder]').forEach(el => {
-    el.classList.toggle('active', el.dataset.folder === currentFolder);
+    const isActive = el.dataset.folder === currentFolder;
+    el.classList.toggle('active', isActive);
+    if (el.classList.contains('folder-row')) {
+      el.classList.toggle('active', isActive);
+    }
   });
 }
 
 folderList.addEventListener('click', e => {
   const btn = e.target.closest('.sidebar-icon-btn');
   if (!btn) return;
+  e.stopPropagation();
   const { action, fid } = btn.dataset;
-  if (action === 'rename') openFolderModal('rename', fid);
+  if (action === 'addsub')   openFolderModal('add', null, fid);
+  if (action === 'rename')   openFolderModal('rename', fid);
   if (action === 'delfolder') confirmDeleteFolder(fid);
 });
 
@@ -815,14 +921,34 @@ function setCurrentFolder(fid) {
 }
 
 // ===== FOLDER MODAL =====
-let folderModalMode = 'add', folderModalTarget = null;
-$('btn-add-folder').onclick = () => openFolderModal('add', null);
-function openFolderModal(mode, fid) {
-  folderModalMode = mode; folderModalTarget = fid;
+let folderModalMode = 'add', folderModalTarget = null, folderModalParent = null;
+$('btn-add-folder').onclick = () => openFolderModal('add', null, null);
+function openFolderModal(mode, fid, parentId) {
+  folderModalMode = mode; folderModalTarget = fid; folderModalParent = parentId || null;
   $('modal-folder-title').textContent = mode === 'add' ? 'フォルダ追加' : 'フォルダ名変更';
   $('modal-folder-input').value = mode === 'rename' ? (allFolders[fid]?.name || '') : '';
+  // 親フォルダセレクトを更新
+  const sel = $('modal-folder-parent');
+  sel.innerHTML = '<option value="">なし（ルート）</option>';
+  Object.entries(allFolders).sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||'')).forEach(([id, f]) => {
+    if (id === fid) return; // 自分自身は除外
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = getFullPath(id);
+    sel.appendChild(opt);
+  });
+  sel.value = parentId || (mode === 'rename' ? (allFolders[fid]?.parentId || '') : '');
   $('modal-folder').style.display = 'flex';
   $('modal-folder-input').focus();
+}
+function getFullPath(fid) {
+  const parts = [];
+  let cur = fid;
+  let guard = 0;
+  while (cur && guard++ < 10) {
+    parts.unshift(allFolders[cur]?.name || cur);
+    cur = allFolders[cur]?.parentId || '';
+  }
+  return parts.join(' / ');
 }
 $('modal-folder-cancel').onclick = () => $('modal-folder').style.display = 'none';
 $('modal-folder-ok').onclick     = saveFolderModal;
@@ -830,24 +956,33 @@ $('modal-folder-input').onkeydown = e => { if (e.key === 'Enter') saveFolderModa
 function saveFolderModal() {
   const name = $('modal-folder-input').value.trim();
   if (!name) return;
+  const parentId = $('modal-folder-parent').value || '';
   if (folderModalMode === 'add') {
-    foldersRef.push({ name });
+    foldersRef.push({ name, parentId });
   } else {
-    foldersRef.child(folderModalTarget).update({ name });
+    foldersRef.child(folderModalTarget).update({ name, parentId });
   }
+  // 追加・変更したフォルダを自動展開
+  if (parentId) expandedFolders.add(parentId);
   $('modal-folder').style.display = 'none';
 }
 function confirmDeleteFolder(fid) {
-  $('modal-confirm-msg').textContent = `フォルダ「${allFolders[fid]?.name}」を削除しますか？（メモは未分類に移動）`;
+  const name = allFolders[fid]?.name || '';
+  const descendants = getAllDescendants(fid);
+  const hasChildren = descendants.size > 0;
+  $('modal-confirm-msg').textContent = `フォルダ「${name}」を削除しますか？${hasChildren ? '（サブフォルダも含めて削除。' : '（'}メモは未分類に移動）`;
   $('modal-confirm').style.display = 'flex';
   $('modal-confirm-ok').onclick = () => {
-    // move notes to unfiled
-    Object.entries(allNotes).filter(([,n]) => n.folderId === fid).forEach(([nid]) => {
+    // 対象フォルダ＋子孫全部のメモを未分類へ
+    const targets = new Set([fid, ...descendants]);
+    Object.entries(allNotes).filter(([,n]) => targets.has(n.folderId)).forEach(([nid]) => {
       notesRef.child(nid).update({ folderId: '' });
     });
-    foldersRef.child(fid).remove();
+    // フォルダ削除
+    targets.forEach(id => foldersRef.child(id).remove());
+    expandedFolders.delete(fid);
     $('modal-confirm').style.display = 'none';
-    if (currentFolder === fid) setCurrentFolder('__all__');
+    if (targets.has(currentFolder)) setCurrentFolder('__all__');
   };
 }
 $('modal-confirm-cancel').onclick = () => $('modal-confirm').style.display = 'none';
@@ -855,11 +990,20 @@ $('modal-confirm-cancel').onclick = () => $('modal-confirm').style.display = 'no
 // ===== FOLDER SELECT (in editor) =====
 function renderFolderSelect() {
   folderSelect.innerHTML = '<option value="">未分類</option>';
-  Object.entries(allFolders).sort((a,b) => (a[1].name||'').localeCompare(b[1].name||'')).forEach(([fid, f]) => {
-    const opt = document.createElement('option');
-    opt.value = fid; opt.textContent = f.name;
-    folderSelect.appendChild(opt);
-  });
+  // ルートから順に表示（ツリー順）
+  function addOptions(parentId, depth) {
+    Object.entries(allFolders)
+      .filter(([,f]) => (f.parentId||'') === (parentId||''))
+      .sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''))
+      .forEach(([fid, f]) => {
+        const opt = document.createElement('option');
+        opt.value = fid;
+        opt.textContent = '　'.repeat(depth) + f.name;
+        folderSelect.appendChild(opt);
+        addOptions(fid, depth + 1);
+      });
+  }
+  addOptions('', 0);
   if (currentNoteId && allNotes[currentNoteId]) {
     folderSelect.value = allNotes[currentNoteId].folderId || '';
   }
