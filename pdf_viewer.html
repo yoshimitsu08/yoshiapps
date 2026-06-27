@@ -71,7 +71,25 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .s-close{width:100%;padding:12px;background:none;border:1px solid var(--accent);color:var(--accent);font-family:var(--font-ui);font-size:12px;letter-spacing:3px;cursor:pointer;transition:all .15s;margin-top:4px}
 .s-close:hover{background:var(--accent);color:var(--bg)}
 
-/* TOAST */
+/* SEEKBAR */
+#seekbar-wrap{position:absolute;bottom:56px;left:0;right:0;z-index:10;padding:0 14px;transition:opacity .3s}
+#seekbar-wrap.hidden{opacity:0;pointer-events:none}
+#seekbar{width:100%;height:3px;-webkit-appearance:none;appearance:none;background:var(--border);outline:none;cursor:pointer;border-radius:0}
+#seekbar::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer}
+#seekbar::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:none;cursor:pointer}
+
+/* PAGE INPUT */
+#page-input-wrap{position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:40;display:none;align-items:center;justify-content:center}
+#page-input-wrap.open{display:flex}
+.pi-box{background:var(--bg2);border:1px solid var(--border);padding:24px;text-align:center;min-width:200px}
+.pi-lbl{font-size:10px;letter-spacing:3px;color:var(--text3);margin-bottom:12px}
+.pi-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-ui);font-size:28px;padding:10px;text-align:center;outline:none;margin-bottom:4px}
+.pi-input:focus{border-color:var(--accent)}
+.pi-hint{font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:16px}
+.pi-btns{display:flex;gap:8px}
+.pi-btn{flex:1;padding:10px;background:none;border:1px solid var(--border);color:var(--text2);font-family:var(--font-ui);font-size:11px;letter-spacing:2px;cursor:pointer}
+.pi-btn.ok{border-color:var(--accent);color:var(--accent)}
+
 #toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(8px);font-size:11px;letter-spacing:2px;padding:8px 20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;z-index:99}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -114,7 +132,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
   <div id="hud-top">
     <div class="hud-filename" id="hud-fname">—</div>
-    <div class="hud-page" id="hud-page">— / —</div>
+    <div class="hud-page" id="hud-page" style="cursor:pointer" title="タップでページ移動">— / —</div>
   </div>
 
   <div id="hud-bot">
@@ -126,6 +144,24 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button class="hud-btn" id="btn-next">次 →</button>
     <div class="hud-spacer"></div>
     <button class="hud-btn" id="btn-cfg">⚙</button>
+  </div>
+
+  <!-- SEEKBAR -->
+  <div id="seekbar-wrap">
+    <input type="range" id="seekbar" min="1" max="1" value="1">
+  </div>
+
+  <!-- PAGE INPUT -->
+  <div id="page-input-wrap">
+    <div class="pi-box">
+      <div class="pi-lbl">GO TO PAGE</div>
+      <input class="pi-input" type="number" id="pi-input" inputmode="numeric" min="1">
+      <div class="pi-hint" id="pi-hint">1 〜 — ページ</div>
+      <div class="pi-btns">
+        <button class="pi-btn" id="pi-cancel">CANCEL</button>
+        <button class="pi-btn ok" id="pi-ok">GO →</button>
+      </div>
+    </div>
   </div>
 
   <!-- SETTINGS -->
@@ -239,7 +275,7 @@ let pdfDoc=null, curPage=1, total=0, busy=false;
 
 // ── PAGE CACHE（先読み込み） ──
 const pageCache=new Map();
-const CACHE_AHEAD=1;
+const CACHE_AHEAD=3;
 
 async function renderToCache(num){
   if(!pdfDoc||pageCache.has(num))return;
@@ -290,7 +326,29 @@ function init(){
   document.getElementById('btn-open2').onclick=()=>document.getElementById('file-input2').click();
   document.getElementById('btn-dropbox-open').onclick=openDropboxChooser;
   document.getElementById('btn-dropbox2').onclick=openDropboxChooser;
-  document.getElementById('btn-prev').onclick=()=>go(-1);
+  // seekbar
+  const seekbar=document.getElementById('seekbar');
+  seekbar.addEventListener('input',()=>{
+    document.getElementById('hud-page').textContent=`${seekbar.value} / ${total}`;
+  });
+  seekbar.addEventListener('change',async()=>{
+    const n=parseInt(seekbar.value);
+    if(n!==curPage){curPage=n;await renderPage(curPage);prefetch(curPage);hudShow();hudScheduleHide();}
+  });
+
+  // page input modal
+  document.getElementById('hud-page').onclick=()=>openPageInput();
+  document.getElementById('pi-cancel').onclick=closePageInput;
+  document.getElementById('pi-ok').onclick=commitPageInput;
+  document.getElementById('pi-input').addEventListener('keydown',e=>{
+    if(e.key==='Enter')commitPageInput();
+    if(e.key==='Escape')closePageInput();
+  });
+  document.getElementById('page-input-wrap').addEventListener('click',e=>{
+    if(e.target===document.getElementById('page-input-wrap'))closePageInput();
+  });
+
+
   document.getElementById('btn-next').onclick=()=>go(1);
   document.getElementById('btn-cfg').onclick=()=>document.getElementById('settings').classList.add('open');
   document.getElementById('btn-cfg-close').onclick=closeSettings;
@@ -427,12 +485,45 @@ async function renderPage(num,anim=''){
     }
 
     document.getElementById('hud-page').textContent=`${num} / ${total}`;
+    updateSeekbar();
   }catch(err){
     console.error('render error',err);
     toast('描画エラー');
   }finally{
     busy=false;
   }
+}
+
+// ── SEEKBAR ──
+function updateSeekbar(){
+  const sb=document.getElementById('seekbar');
+  sb.max=total;
+  sb.value=curPage;
+}
+
+// ── PAGE INPUT ──
+function openPageInput(){
+  if(!pdfDoc)return;
+  const inp=document.getElementById('pi-input');
+  inp.max=total;
+  inp.value=curPage;
+  document.getElementById('pi-hint').textContent=`1 〜 ${total} ページ`;
+  document.getElementById('page-input-wrap').classList.add('open');
+  setTimeout(()=>inp.select(),50);
+}
+function closePageInput(){
+  document.getElementById('page-input-wrap').classList.remove('open');
+}
+async function commitPageInput(){
+  const n=parseInt(document.getElementById('pi-input').value);
+  closePageInput();
+  if(isNaN(n)||n<1||n>total){toast(`1〜${total}のページ番号を入力してください`);return;}
+  if(n===curPage)return;
+  curPage=n;
+  await renderPage(curPage);
+  prefetch(curPage);
+  updateSeekbar();
+  hudShow(); hudScheduleHide();
 }
 
 // ── NAVIGATION ──
@@ -482,10 +573,12 @@ let hudT=null;
 function hudShow(){
   document.getElementById('hud-top').classList.remove('hidden');
   document.getElementById('hud-bot').classList.remove('hidden');
+  document.getElementById('seekbar-wrap').classList.remove('hidden');
 }
 function hudHide(){
   document.getElementById('hud-top').classList.add('hidden');
   document.getElementById('hud-bot').classList.add('hidden');
+  document.getElementById('seekbar-wrap').classList.add('hidden');
 }
 function hudScheduleHide(){
   if(cfg.hud!=='1')return;
