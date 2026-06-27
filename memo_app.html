@@ -758,6 +758,8 @@ function setCurrentFolder(fid) {
   $('note-list-context-label').textContent = label;
   renderNoteList();
   renderSidebarCounts();
+  // モバイル：フォルダタップでメモ一覧パネルを表示
+  $('note-list-panel').classList.add('mobile-visible');
 }
 
 // ===== FOLDER MODAL =====
