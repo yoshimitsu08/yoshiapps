@@ -49,6 +49,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
 .folder-name-input{font-family:var(--font-ui);font-size:12px;background:var(--bg3);border:1px solid var(--accent);color:var(--text);padding:1px 4px;width:100%;outline:none}
 .folder-actions{display:none;gap:2px;align-items:center;flex-shrink:0}
 .folder-row:hover .folder-actions{display:flex}
+.folder-row.show-actions .folder-actions{display:flex}
 .f-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:2px 3px;font-family:var(--font-ui);transition:color .15s;line-height:1}
 .f-btn:hover{color:var(--accent)}
 .f-btn.del:hover{color:var(--danger)}
@@ -477,10 +478,30 @@ function renderFolderLevel(container,parentId,depth){
     const row=document.createElement('div');
     row.className='folder-row'+(activeFolderId===folder.id?' selected':'');
     row.style.paddingLeft=(12+depth*12)+'px';
+    // 長押し（700ms）でアクションを表示
+    let longPressTimer=null;
+    const startLongPress=e=>{
+      if(e.target.closest('.f-btn'))return;
+      longPressTimer=setTimeout(()=>{
+        // 他のフォルダのshow-actionsを解除
+        document.querySelectorAll('.folder-row.show-actions').forEach(r=>r.classList.remove('show-actions'));
+        row.classList.add('show-actions');
+      },700);
+    };
+    const cancelLongPress=()=>{clearTimeout(longPressTimer);longPressTimer=null;};
+    row.addEventListener('mousedown',startLongPress);
+    row.addEventListener('touchstart',startLongPress,{passive:true});
+    row.addEventListener('mouseup',cancelLongPress);
+    row.addEventListener('mouseleave',cancelLongPress);
+    row.addEventListener('touchend',cancelLongPress);
+    row.addEventListener('touchcancel',cancelLongPress);
     row.onclick=e=>{
       if(e.target.closest('.f-btn'))return;
+      if(row.classList.contains('show-actions')){
+        // アクション表示中はタップで閉じる
+        row.classList.remove('show-actions');return;
+      }
       toggleFolder(folder.id);
-      // スマホでファイルを選んだらサイドバーを閉じる
     };
     const arrow=document.createElement('span');arrow.className='folder-arrow'+(expandedFolders[folder.id]?' open':'');arrow.textContent='▶';
     const dot=document.createElement('span');dot.className='folder-color-dot';dot.style.background=folder.color||FOLDER_COLORS[0];
@@ -561,6 +582,10 @@ function showColorPicker(fid,anchor){
 document.addEventListener('click',e=>{
   const p=document.getElementById('color-picker-popup');
   if(p.style.display!=='none'&&!p.contains(e.target))p.style.display='none';
+  // folder-row以外をクリックしたらshow-actionsを解除
+  if(!e.target.closest('.folder-row')){
+    document.querySelectorAll('.folder-row.show-actions').forEach(r=>r.classList.remove('show-actions'));
+  }
 });
 
 function getAllDescendantFolderIds(fid){
@@ -672,29 +697,42 @@ function handleInput(){
   save();
 }
 function handleKey(e){
-  // Shift+Ctrl+H → 水平線挿入（e.codeで入力モード問わず反応）
-  if(e.shiftKey&&(e.ctrlKey||e.metaKey)&&e.code==='KeyH'){
+  // Shift+Ctrl+H → 水平線挿入（IME入力中は無視）
+  if(e.shiftKey&&(e.ctrlKey||e.metaKey)&&e.code==='KeyH'&&!e.isComposing){
     e.preventDefault();insertHR();return;
   }
   // Ctrl+F → 検索パネル
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyF'){
     e.preventDefault();toggleSearch();return;
   }
-  // BackspaceでHRを削除
+  // BackspaceでHR（およびHR+br）を削除
   if(e.key==='Backspace'){
     const sel=window.getSelection();
     if(sel&&sel.rangeCount){
       const range=sel.getRangeAt(0);
       if(range.collapsed){
+        // カーソル直前のノードを取得
+        let prev=null;
         const node=range.startContainer;
         const offset=range.startOffset;
-        let prev=null;
-        if(offset===0&&node.nodeType===Node.TEXT_NODE){
+        if(offset===0){
+          // ノードの前の兄弟を見る
           prev=node.previousSibling;
-        } else if(offset===0&&node.nodeType===Node.ELEMENT_NODE){
-          prev=node.previousSibling;
+        } else if(node.nodeType===Node.ELEMENT_NODE){
+          prev=node.childNodes[offset-1];
         }
-        if(prev&&prev.tagName==='HR'){
+        // prev が BR で、その前が HR なら両方削除
+        if(prev&&prev.nodeName==='BR'){
+          const beforeBr=prev.previousSibling;
+          if(beforeBr&&beforeBr.nodeName==='HR'){
+            e.preventDefault();
+            beforeBr.remove();
+            prev.remove();
+            handleInput();return;
+          }
+        }
+        // prev が HR なら削除
+        if(prev&&prev.nodeName==='HR'){
           e.preventDefault();
           prev.remove();
           handleInput();return;
