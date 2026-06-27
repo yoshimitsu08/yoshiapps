@@ -100,6 +100,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <button class="open-btn-drive" id="btn-drive-open">
     ▲ GOOGLE DRIVE
   </button>
+  <button class="open-btn-drive" id="btn-dropbox-open" style="margin-top:0;border-color:#0061ff;color:#4a90d9;">
+    ■ DROPBOX
+  </button>
 </div>
 
 <!-- VIEWER -->
@@ -122,6 +125,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button class="hud-btn" id="btn-open2">⊞ ローカル</button>
     <input type="file" id="file-input2" accept=".pdf,application/pdf" style="display:none">
     <button class="hud-btn" id="btn-drive2">▲ Drive</button>
+    <button class="hud-btn" id="btn-dropbox2">■ Dropbox</button>
     <div class="hud-spacer"></div>
     <button class="hud-btn" id="btn-prev">← 前</button>
     <button class="hud-btn" id="btn-next">次 →</button>
@@ -174,6 +178,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <div id="toast"></div>
 
+<script src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="a73hkqpjkk2ut2u"></script>
 <script>
 // ── PDF.js CDN ──
 (function(){
@@ -196,6 +201,44 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   };
   document.head.appendChild(s);
 })();
+
+// ── DROPBOX ──
+function openDropboxChooser(){
+  Dropbox.choose({
+    success: async function(files){
+      const file=files[0];
+      const url=file.link.replace('www.dropbox.com','dl.dropboxusercontent.com');
+      toast('ダウンロード中...');
+      showLoading(true);
+      switchTo('viewer');
+      document.getElementById('hud-fname').textContent=file.name;
+      try{
+        const resp=await fetch(url);
+        if(!resp.ok)throw new Error('Dropbox取得エラー: '+resp.status);
+        const ab=await resp.arrayBuffer();
+        const task=pdfjsLib.getDocument({data:new Uint8Array(ab)});
+        task.onProgress=p=>{if(p.total)lbar(p.loaded/p.total*85);};
+        pdfDoc=await task.promise;
+        total=pdfDoc.numPages;
+        curPage=1;
+        pageCache.clear();
+        lbar(100);
+        await renderPage(curPage);
+        showLoading(false);
+        prefetch(curPage);
+        hudShow(); hudScheduleHide();
+      }catch(err){
+        showLoading(false);
+        toast('読み込みエラー: '+err.message);
+        console.error(err);
+      }
+    },
+    cancel: function(){},
+    linkType: 'direct',
+    multiselect: false,
+    extensions: ['.pdf'],
+  });
+}
 
 // ── Google API ──
 const GAPI_CLIENT_ID='320242001573-c0rcqjq8p5ur0tuivcvgd40mcqkbldcd.apps.googleusercontent.com';
@@ -352,6 +395,8 @@ function init(){
   document.getElementById('file-input2').onchange=e=>{openFile(e.target.files[0]);e.target.value='';};
   document.getElementById('btn-open2').onclick=()=>document.getElementById('file-input2').click();
   document.getElementById('btn-drive-open').onclick=openDrivePicker;
+  document.getElementById('btn-dropbox-open').onclick=openDropboxChooser;
+  document.getElementById('btn-dropbox2').onclick=openDropboxChooser;
   document.getElementById('btn-drive2').onclick=openDrivePicker;
   document.getElementById('btn-prev').onclick=()=>go(-1);
   document.getElementById('btn-next').onclick=()=>go(1);
