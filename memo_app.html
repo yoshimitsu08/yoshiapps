@@ -815,6 +815,9 @@ folderSelect.onchange = () => {
   notesRef.child(currentNoteId).update({ folderId: folderSelect.value });
   // update local cache
   if (allNotes[currentNoteId]) allNotes[currentNoteId].folderId = folderSelect.value;
+  // 一覧に即反映
+  renderNoteList();
+  renderSidebarCounts();
 };
 
 // ===== NOTE LIST =====
