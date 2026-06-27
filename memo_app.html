@@ -495,7 +495,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
     </div>
 
     <!-- NOTE LIST -->
-    <div id="note-list-panel" class="mobile-visible">
+    <div id="note-list-panel">
       <div id="note-list-collapsed-label" id="note-list-collapsed-label" title="クリックで開く">📄 メモ</div>
       <div id="note-list-header">
         <div id="note-list-header-row">
@@ -712,6 +712,10 @@ auth.onAuthStateChanged(user => {
 
 // ===== FIREBASE LISTENERS =====
 function startListeners() {
+  // モバイル初期表示：フォルダSBをオープンにして3段遷移の起点にする
+  if (isMobile()) {
+    $('sidebar').classList.add('open');
+  }
   notesRef.on('value', snap => {
     allNotes = snap.val() || {};
     renderNoteList();
@@ -757,7 +761,7 @@ function renderFolderSidebar() {
     div.onclick = (e) => {
       if (e.target.closest('.sidebar-icon-btn')) return;
       setCurrentFolder(fid);
-      closeSidebar();
+      // closeSidebarはsetCurrentFolder内で処理
     };
     folderList.appendChild(div);
   });
@@ -788,7 +792,7 @@ $('sidebar-panel').addEventListener('click', e => {
   const item = e.target.closest('[data-folder]');
   if (!item || e.target.closest('.sidebar-icon-btn')) return;
   setCurrentFolder(item.dataset.folder);
-  closeSidebar();
+  // closeSidebarはsetCurrentFolder内のisMobile()分岐で呼ばれる
 });
 
 function setCurrentFolder(fid) {
