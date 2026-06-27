@@ -146,6 +146,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
 .settings-opt:hover{border-color:var(--text2);color:var(--text)}
 .settings-opt.active{border-color:var(--accent);color:var(--accent)}
 
+/* 検索・置換パネル */
+#search-panel{
+  display:none;flex-direction:column;gap:6px;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:8px 12px;flex-shrink:0;
+}
+.search-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.search-input{
+  background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-ui);font-size:12px;padding:4px 8px;
+  outline:none;flex:1;min-width:120px;
+}
+.search-input:focus{border-color:var(--accent);}
+.search-btn{
+  background:none;border:1px solid var(--border);color:var(--text2);
+  font-family:var(--font-ui);font-size:11px;padding:4px 10px;
+  cursor:pointer;white-space:nowrap;transition:all .15s;
+}
+.search-btn:hover{border-color:var(--accent);color:var(--accent);}
+.search-btn.primary{border-color:var(--accent);color:var(--accent);}
+#search-status{font-family:var(--font-ui);font-size:11px;color:var(--text3);min-width:80px;}
+mark.search-highlight{background:#f0d080;color:#2a2420;border-radius:2px;}
+mark.search-current{background:#e08020;color:#fff;border-radius:2px;}
+
 /* ── スマホ対応 ── */
 @media(max-width:600px){
   #sidebar{
@@ -215,9 +239,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
       <button class="tb-btn" onclick="triggerImageInsert()">⊞</button>
       <input type="file" id="img-input" accept="image/*" style="display:none" onchange="insertImage(event)">
       <div class="tb-sep"></div>
+      <button class="tb-btn" onclick="doUndo()" title="元に戻す (Ctrl+Z)">↩</button>
+      <button class="tb-btn" onclick="doRedo()" title="やり直す (Ctrl+Y)">↪</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" onclick="toggleSearch()" title="検索・置換 (Ctrl+F)">🔍</button>
+      <div class="tb-sep"></div>
       <span id="char-count">0 / 50,000</span>
     </div>
     <div id="editor-wrapper">
+      <!-- 検索・置換パネル -->
+      <div id="search-panel">
+        <div class="search-row">
+          <input id="search-input" class="search-input" placeholder="検索..." oninput="doSearch()" onkeydown="if(event.key==='Enter'){event.shiftKey?searchPrev():searchNext();} if(event.key==='Escape')closeSearch();">
+          <button class="search-btn" onclick="searchPrev()">↑</button>
+          <button class="search-btn" onclick="searchNext()">↓</button>
+          <span id="search-status"></span>
+          <button class="search-btn" onclick="closeSearch()">✕</button>
+        </div>
+        <div class="search-row">
+          <input id="replace-input" class="search-input" placeholder="置換後..." onkeydown="if(event.key==='Escape')closeSearch();">
+          <button class="search-btn primary" onclick="doReplace()">置換</button>
+          <button class="search-btn" onclick="doReplaceAll()">すべて置換</button>
+        </div>
+      </div>
       <div id="empty-state">
         <div class="big">✦</div>
         <p>メニューからフォルダを<br>作成してください</p>
@@ -628,9 +672,35 @@ function handleInput(){
   save();
 }
 function handleKey(e){
-  // Shift+Ctrl+H → 水平線挿入
-  if(e.shiftKey&&(e.ctrlKey||e.metaKey)&&e.key==='H'){
+  // Shift+Ctrl+H → 水平線挿入（e.codeで入力モード問わず反応）
+  if(e.shiftKey&&(e.ctrlKey||e.metaKey)&&e.code==='KeyH'){
     e.preventDefault();insertHR();return;
+  }
+  // Ctrl+F → 検索パネル
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyF'){
+    e.preventDefault();toggleSearch();return;
+  }
+  // BackspaceでHRを削除
+  if(e.key==='Backspace'){
+    const sel=window.getSelection();
+    if(sel&&sel.rangeCount){
+      const range=sel.getRangeAt(0);
+      if(range.collapsed){
+        const node=range.startContainer;
+        const offset=range.startOffset;
+        let prev=null;
+        if(offset===0&&node.nodeType===Node.TEXT_NODE){
+          prev=node.previousSibling;
+        } else if(offset===0&&node.nodeType===Node.ELEMENT_NODE){
+          prev=node.previousSibling;
+        }
+        if(prev&&prev.tagName==='HR'){
+          e.preventDefault();
+          prev.remove();
+          handleInput();return;
+        }
+      }
+    }
   }
   if(e.key==='Enter'){
     e.preventDefault();
@@ -704,6 +774,177 @@ function showModal(title,msg,type,onConfirm){
   confirm.textContent=type==='danger'?'削除する':'OK';
   confirm.onclick=()=>{mc.innerHTML='';onConfirm();};
   btns.append(cancel,confirm);box.appendChild(btns);ov.appendChild(box);mc.appendChild(ov);
+}
+
+// ─── UNDO / REDO ───
+const undoStack=[];
+const redoStack=[];
+let lastSavedContent='';
+let undoTimer=null;
+
+function pushUndo(){
+  const ec=document.getElementById('editor-content');
+  const current=ec.innerHTML;
+  if(undoStack.length===0||undoStack[undoStack.length-1]!==current){
+    undoStack.push(current);
+    if(undoStack.length>100)undoStack.shift();
+    redoStack.length=0;
+  }
+}
+
+function doUndo(){
+  const ec=document.getElementById('editor-content');
+  if(undoStack.length<=1)return;
+  redoStack.push(undoStack.pop());
+  ec.innerHTML=undoStack[undoStack.length-1]||'';
+  updateCharCount();save();
+}
+
+function doRedo(){
+  const ec=document.getElementById('editor-content');
+  if(redoStack.length===0)return;
+  const next=redoStack.pop();
+  undoStack.push(next);
+  ec.innerHTML=next;
+  updateCharCount();save();
+}
+
+// handleInputにundoスタック積み込みを追加（既存のhandleInputを上書き）
+const _origHandleInput=handleInput;
+function handleInput(){
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(pushUndo,500);
+  updateCharCount();
+  if((document.getElementById('editor-content').innerText||'').length>MAX_CHARS){document.execCommand('undo');return;}
+  save();
+}
+
+// editor-content にCtrl+Z/Y をグローバルでキャッチ
+document.addEventListener('keydown',e=>{
+  const inEditor=e.target.id==='editor-content';
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyZ'&&inEditor){
+    e.preventDefault();doUndo();
+  }
+  if(((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyY')||
+     ((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.code==='KeyZ')){
+    if(inEditor){e.preventDefault();doRedo();}
+  }
+});
+
+// ─── 検索・置換 ───
+let searchMatches=[];
+let searchIndex=-1;
+
+function toggleSearch(){
+  const panel=document.getElementById('search-panel');
+  if(panel.style.display==='none'||!panel.style.display){
+    panel.style.display='flex';
+    document.getElementById('search-input').focus();
+    document.getElementById('search-input').select();
+  } else {
+    closeSearch();
+  }
+}
+
+function closeSearch(){
+  document.getElementById('search-panel').style.display='none';
+  clearHighlights();
+  searchMatches=[];searchIndex=-1;
+  updateSearchStatus('');
+}
+
+function doSearch(){
+  const query=document.getElementById('search-input').value;
+  if(!query){clearHighlights();updateSearchStatus('');return;}
+  const ec=document.getElementById('editor-content');
+  clearHighlights();
+  const html=ec.innerHTML;
+  const escaped=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const regex=new RegExp(escaped,'gi');
+  let match,count=0,newHtml=html,offset=0;
+  // テキストノードを走査してハイライト
+  const walker=document.createTreeWalker(ec,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  while(walker.nextNode())nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    if(!node.parentNode)return;
+    const text=node.textContent;
+    const parts=[];let last=0;let found=false;
+    let m;
+    const re=new RegExp(escaped,'gi');
+    while((m=re.exec(text))!==null){
+      if(m.index>last)parts.push(document.createTextNode(text.slice(last,m.index)));
+      const mark=document.createElement('mark');
+      mark.className='search-highlight';
+      mark.textContent=m[0];
+      parts.push(mark);
+      last=m.index+m[0].length;
+      count++;found=true;
+    }
+    if(found){
+      if(last<text.length)parts.push(document.createTextNode(text.slice(last)));
+      const frag=document.createDocumentFragment();
+      parts.forEach(p=>frag.appendChild(p));
+      node.parentNode.replaceChild(frag,node);
+    }
+  });
+  searchMatches=Array.from(ec.querySelectorAll('.search-highlight'));
+  searchIndex=searchMatches.length>0?0:-1;
+  if(searchIndex>=0)scrollToMatch(searchIndex);
+  updateSearchStatus(searchMatches.length>0?`${searchIndex+1} / ${searchMatches.length} 件`:`0 件`);
+}
+
+function scrollToMatch(idx){
+  searchMatches.forEach((m,i)=>m.classList.toggle('search-current',i===idx));
+  if(searchMatches[idx])searchMatches[idx].scrollIntoView({block:'center'});
+}
+
+function searchNext(){
+  if(searchMatches.length===0)return;
+  searchIndex=(searchIndex+1)%searchMatches.length;
+  scrollToMatch(searchIndex);
+  updateSearchStatus(`${searchIndex+1} / ${searchMatches.length} 件`);
+}
+
+function searchPrev(){
+  if(searchMatches.length===0)return;
+  searchIndex=(searchIndex-1+searchMatches.length)%searchMatches.length;
+  scrollToMatch(searchIndex);
+  updateSearchStatus(`${searchIndex+1} / ${searchMatches.length} 件`);
+}
+
+function clearHighlights(){
+  const ec=document.getElementById('editor-content');
+  ec.querySelectorAll('.search-highlight').forEach(m=>{
+    const text=document.createTextNode(m.textContent);
+    m.parentNode.replaceChild(text,m);
+  });
+  ec.normalize();
+}
+
+function doReplace(){
+  if(searchMatches.length===0||searchIndex<0)return;
+  const rep=document.getElementById('replace-input').value;
+  const current=searchMatches[searchIndex];
+  current.replaceWith(document.createTextNode(rep));
+  searchMatches.splice(searchIndex,1);
+  if(searchMatches.length===0){searchIndex=-1;updateSearchStatus('0 件');}
+  else{searchIndex=Math.min(searchIndex,searchMatches.length-1);scrollToMatch(searchIndex);updateSearchStatus(`${searchIndex+1} / ${searchMatches.length} 件`);}
+  save();
+}
+
+function doReplaceAll(){
+  if(searchMatches.length===0)return;
+  const rep=document.getElementById('replace-input').value;
+  const count=searchMatches.length;
+  searchMatches.forEach(m=>m.replaceWith(document.createTextNode(rep)));
+  searchMatches=[];searchIndex=-1;
+  updateSearchStatus(`${count} 件を置換しました`);
+  save();
+}
+
+function updateSearchStatus(msg){
+  document.getElementById('search-status').textContent=msg;
 }
 
 // ─── INIT ───
