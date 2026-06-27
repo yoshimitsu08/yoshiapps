@@ -47,9 +47,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
 .folder-arrow.open{transform:rotate(90deg)}
 .folder-name{font-family:var(--font-ui);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .folder-name-input{font-family:var(--font-ui);font-size:12px;background:var(--bg3);border:1px solid var(--accent);color:var(--text);padding:1px 4px;width:100%;outline:none}
-.folder-actions{display:none;gap:2px;align-items:center;flex-shrink:0}
-.folder-row:hover .folder-actions{display:flex}
-.folder-row.show-actions .folder-actions{display:flex}
+.folder-actions{display:none}
+.folder-row.show-actions .folder-actions{display:none}
+
+/* フローティングメニュー */
+#folder-float-menu{
+  position:fixed;z-index:200;
+  background:var(--bg3);border:1px solid var(--border);
+  box-shadow:0 4px 16px rgba(0,0,0,.25);
+  display:none;flex-direction:column;min-width:140px;
+  overflow:hidden;
+}
+.float-menu-item{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;cursor:pointer;
+  font-family:var(--font-ui);font-size:12px;color:var(--text2);
+  border-bottom:1px solid var(--border);transition:background .15s,color .15s;
+}
+.float-menu-item:last-child{border-bottom:none;}
+.float-menu-item:hover{background:var(--surface);color:var(--text);}
+.float-menu-item.danger:hover{color:var(--danger);}
+.float-menu-icon{font-size:13px;width:16px;text-align:center;}
 .f-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:2px 3px;font-family:var(--font-ui);transition:color .15s;line-height:1}
 .f-btn:hover{color:var(--accent)}
 .f-btn.del:hover{color:var(--danger)}
@@ -61,8 +79,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
 .file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-actions{display:none;gap:3px;flex-shrink:0}
 .file-item:hover .file-actions{display:flex}
-.new-file-btn{display:block;text-align:center;padding:5px;font-family:var(--font-ui);font-size:10px;color:var(--text3);cursor:pointer;transition:all .15s;letter-spacing:1px;margin:2px 10px 2px 28px;border:1px dashed var(--border)}
-.new-file-btn:hover{color:var(--accent);border-color:var(--accent)}
 
 /* スマホ用サイドバーオーバーレイ */
 #sidebar-overlay{
@@ -215,7 +231,7 @@ mark.search-current{background:#e08020;color:#fff;border-radius:2px;}
     <div id="sidebar-header">
       <div class="sh-row">
         <span class="sh-title">Folders</span>
-        <button class="sh-btn" onclick="createFolder(null)">＋ New</button>
+        <button class="sh-btn" onclick="createFolder(null)">＋ フォルダ追加</button>
       </div>
       <div id="folder-status">—</div>
       <div class="sh-row">
@@ -283,6 +299,7 @@ mark.search-current{background:#e08020;color:#fff;border-radius:2px;}
 </div>
 
 <div id="color-picker-popup" style="display:none"></div>
+<div id="folder-float-menu"></div>
 <div id="modal-container"></div>
 
 <script>
@@ -478,14 +495,12 @@ function renderFolderLevel(container,parentId,depth){
     const row=document.createElement('div');
     row.className='folder-row'+(activeFolderId===folder.id?' selected':'');
     row.style.paddingLeft=(12+depth*12)+'px';
-    // 長押し（700ms）でアクションを表示
+    // 長押し（700ms）でフローティングメニューを表示
     let longPressTimer=null;
     const startLongPress=e=>{
       if(e.target.closest('.f-btn'))return;
       longPressTimer=setTimeout(()=>{
-        // 他のフォルダのshow-actionsを解除
-        document.querySelectorAll('.folder-row.show-actions').forEach(r=>r.classList.remove('show-actions'));
-        row.classList.add('show-actions');
+        showFolderMenu(folder.id,row);
       },700);
     };
     const cancelLongPress=()=>{clearTimeout(longPressTimer);longPressTimer=null;};
@@ -497,10 +512,7 @@ function renderFolderLevel(container,parentId,depth){
     row.addEventListener('touchcancel',cancelLongPress);
     row.onclick=e=>{
       if(e.target.closest('.f-btn'))return;
-      if(row.classList.contains('show-actions')){
-        // アクション表示中はタップで閉じる
-        row.classList.remove('show-actions');return;
-      }
+      hideFolderMenu();
       toggleFolder(folder.id);
     };
     const arrow=document.createElement('span');arrow.className='folder-arrow'+(expandedFolders[folder.id]?' open':'');arrow.textContent='▶';
@@ -526,9 +538,7 @@ function renderFolderLevel(container,parentId,depth){
         fa.appendChild(mkBtn('✕','削除',true,e=>{e.stopPropagation();deleteFile(file.id);}));
         fi.append(icon,nm,fa);fl.appendChild(fi);
       });
-      const add=document.createElement('div');add.className='new-file-btn';add.textContent='＋ ファイル追加';
-      add.onclick=()=>createFile(folder.id);
-      fl.appendChild(add);div.appendChild(fl);
+      div.appendChild(fl);
       renderFolderLevel(div,folder.id,depth+1);
     }
     container.appendChild(div);
@@ -582,9 +592,10 @@ function showColorPicker(fid,anchor){
 document.addEventListener('click',e=>{
   const p=document.getElementById('color-picker-popup');
   if(p.style.display!=='none'&&!p.contains(e.target))p.style.display='none';
-  // folder-row以外をクリックしたらshow-actionsを解除
-  if(!e.target.closest('.folder-row')){
-    document.querySelectorAll('.folder-row.show-actions').forEach(r=>r.classList.remove('show-actions'));
+  // フローティングメニュー：メニュー外クリックで閉じる
+  const fm=document.getElementById('folder-float-menu');
+  if(fm.style.display!=='none'&&!fm.contains(e.target)&&!e.target.closest('.folder-row')){
+    hideFolderMenu();
   }
 });
 
@@ -814,7 +825,53 @@ function showModal(title,msg,type,onConfirm){
   btns.append(cancel,confirm);box.appendChild(btns);ov.appendChild(box);mc.appendChild(ov);
 }
 
-// ─── UNDO / REDO ───
+// ─── フォルダ フローティングメニュー ───
+let floatTargetFolderId=null;
+
+function showFolderMenu(folderId, rowEl){
+  floatTargetFolderId=folderId;
+  const menu=document.getElementById('folder-float-menu');
+  const folder=data.folders.find(f=>f.id===folderId);
+  const nameEl=rowEl.querySelector('.folder-name');
+
+  menu.innerHTML='';
+  const items=[
+    {icon:'📁',label:'サブフォルダ追加',danger:false,action:()=>createFolder(folderId)},
+    {icon:'📄',label:'ファイル追加',danger:false,action:()=>createFile(folderId)},
+    {icon:'✎',label:'名前変更',danger:false,action:()=>startRename(folderId,nameEl)},
+    {icon:'◉',label:'色変更',danger:false,action:()=>{
+      hideFolderMenu();
+      // color pickerをメニュー位置付近に出す
+      showColorPicker(folderId,rowEl);
+    }},
+    {icon:'✕',label:'削除',danger:true,action:()=>deleteFolder(folderId)},
+  ];
+  items.forEach(item=>{
+    const el=document.createElement('div');
+    el.className='float-menu-item'+(item.danger?' danger':'');
+    el.innerHTML=`<span class="float-menu-icon">${item.icon}</span>${item.label}`;
+    el.onclick=(e)=>{e.stopPropagation();hideFolderMenu();item.action();};
+    menu.appendChild(el);
+  });
+
+  // 位置計算：サイドバーの右端、フォルダ行と同じY
+  const sidebarW=document.getElementById('sidebar').getBoundingClientRect().right;
+  const rowRect=rowEl.getBoundingClientRect();
+  menu.style.display='flex';
+  const menuH=menu.offsetHeight;
+  const winH=window.innerHeight;
+  let top=rowRect.top;
+  if(top+menuH>winH-8)top=winH-menuH-8;
+  menu.style.left=sidebarW+'px';
+  menu.style.top=top+'px';
+}
+
+function hideFolderMenu(){
+  document.getElementById('folder-float-menu').style.display='none';
+  floatTargetFolderId=null;
+}
+
+
 const undoStack=[];
 const redoStack=[];
 let lastSavedContent='';
