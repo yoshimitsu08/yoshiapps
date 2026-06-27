@@ -112,7 +112,35 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   width: var(--sidebar-w); background: var(--bg2);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
-  transition: transform .2s;
+  transition: width .2s, transform .2s;
+}
+/* PC: サイドバー縮小（アイコンのみ） */
+#sidebar.collapsed {
+  width: 48px;
+}
+#sidebar.collapsed #sidebar-tabs { display: none; }
+#sidebar.collapsed #sidebar-panel { overflow: hidden; }
+#sidebar.collapsed .sidebar-section-title { display: none; }
+#sidebar.collapsed .sidebar-item-label { display: none; }
+#sidebar.collapsed .sidebar-item-count { display: none; }
+#sidebar.collapsed .sidebar-item-actions { display: none !important; }
+#sidebar.collapsed .sidebar-item { justify-content: center; padding: 10px 0; font-size: 1rem; }
+#sidebar.collapsed #btn-add-folder { display: none; }
+#sidebar.collapsed + #note-list-panel { border-left: none; }
+
+/* PC: ノートリスト縮小（タイトルのみ） */
+#note-list-panel {
+  width: 220px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; background: var(--bg);
+  transition: width .2s;
+}
+#note-list-panel.collapsed {
+  width: 40px; overflow: hidden;
+}
+#note-list-panel.collapsed #note-list-header { display: none; }
+#note-list-panel.collapsed #note-list { display: none; }
+#note-list-panel.collapsed #note-list-collapsed-label {
+  display: flex;
 }
 #sidebar-tabs {
   display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
@@ -150,10 +178,6 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .sidebar-icon-btn:hover { background: var(--border); color: var(--text); }
 
 /* note list */
-#note-list-panel {
-  width: 220px; border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; flex-shrink: 0; background: var(--bg);
-}
 #note-list-header {
   padding: 10px 12px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
@@ -366,17 +390,22 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 /* ===== MOBILE ===== */
 @media (max-width: 680px) {
   #btn-menu { display: flex; }
+  /* モバイルはサイドバーをスライドオーバーレイ */
   #sidebar {
     position: fixed; top: 52px; left: 0; bottom: 0; z-index: 50;
+    width: var(--sidebar-w) !important;
     transform: translateX(-100%); box-shadow: 4px 0 16px rgba(0,0,0,.1);
   }
   #sidebar.open { transform: translateX(0); }
+  #sidebar.collapsed { width: var(--sidebar-w) !important; }
+  /* ノートリストもオーバーレイ */
   #note-list-panel {
     position: fixed; top: 52px; left: 0; right: 0; bottom: 0; z-index: 40;
-    width: 100%; border-right: none;
+    width: 100% !important; border-right: none;
     display: none;
   }
   #note-list-panel.mobile-visible { display: flex; }
+  #note-list-panel.collapsed { width: 100% !important; }
   #editor-area { width: 100%; }
   #mobile-back {
     display: flex; align-items: center; gap: 6px;
@@ -386,6 +415,18 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 }
 @media (min-width: 681px) {
   #mobile-back { display: none; }
+  /* PC: サイドバー折り畳みトグルボタン */
+  #btn-menu { display: none; }
+}
+
+/* 縮小ノートリストの縦ラベル */
+#note-list-collapsed-label {
+  display: none;
+  writing-mode: vertical-rl; text-orientation: mixed;
+  font-size: .72rem; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .1em;
+  align-items: center; justify-content: center;
+  width: 100%; padding: 12px 0; cursor: pointer;
 }
 </style>
 </head>
@@ -455,6 +496,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 
     <!-- NOTE LIST -->
     <div id="note-list-panel" class="mobile-visible">
+      <div id="note-list-collapsed-label" id="note-list-collapsed-label" title="クリックで開く">📄 メモ</div>
       <div id="note-list-header">
         <div id="note-list-header-row">
           <span id="note-list-context-label">すべて</span>
@@ -758,8 +800,14 @@ function setCurrentFolder(fid) {
   $('note-list-context-label').textContent = label;
   renderNoteList();
   renderSidebarCounts();
-  // モバイル：フォルダタップでメモ一覧パネルを表示
-  $('note-list-panel').classList.add('mobile-visible');
+  if (isMobile()) {
+    // モバイル：フォルダ→ノートリスト遷移
+    closeSidebar();
+    $('note-list-panel').classList.add('mobile-visible');
+  } else {
+    // PC：サイドバー縮小+ノートリスト展開（list状態）
+    setPcLayout('list');
+  }
 }
 
 // ===== FOLDER MODAL =====
@@ -870,8 +918,14 @@ function selectNote(id) {
   currentNoteId = id;
   loadNoteIntoEditor(id, true);
   renderNoteList();
-  // mobile: show editor
-  $('note-list-panel').classList.remove('mobile-visible');
+  if (isMobile()) {
+    // モバイル：ノートリストを隠して編集画面へ
+    $('note-list-panel').classList.remove('mobile-visible');
+    closeSidebar();
+  } else {
+    // PC：編集状態（両サイドバー縮小）へ
+    setPcLayout('edit');
+  }
 }
 
 $('btn-new-note').onclick = () => {
@@ -1228,14 +1282,71 @@ $('btn-replace-all').onclick = () => {
   markDirty();
 };
 
-// ===== MOBILE SIDEBAR =====
-$('btn-menu').onclick = () => $('sidebar').classList.toggle('open');
-function closeSidebar() { $('sidebar').classList.remove('open'); }
-document.addEventListener('click', e => {
-  if (!e.target.closest('#sidebar') && !e.target.closest('#btn-menu')) closeSidebar();
+// ===== LAYOUT STATE MANAGEMENT =====
+// PC: 3状態 → 'full'（両方全開）| 'list'（SBアイコン+リスト全開）| 'edit'（両方縮小）
+// Mobile: 3段遷移 → フォルダSB | ノートリスト | 編集画面
+
+const isMobile = () => window.innerWidth <= 680;
+
+function setPcLayout(state) {
+  if (isMobile()) return;
+  const sb = $('sidebar');
+  const nl = $('note-list-panel');
+  if (state === 'full') {
+    sb.classList.remove('collapsed');
+    nl.classList.remove('collapsed');
+  } else if (state === 'list') {
+    sb.classList.add('collapsed');
+    nl.classList.remove('collapsed');
+  } else if (state === 'edit') {
+    sb.classList.add('collapsed');
+    nl.classList.add('collapsed');
+  }
+}
+
+// PC: サイドバークリックで展開
+$('sidebar').addEventListener('click', e => {
+  if (isMobile()) return;
+  if ($('sidebar').classList.contains('collapsed')) {
+    setPcLayout('full');
+  }
 });
 
-// mobile back button
+// PC: ノートリスト縮小ラベルクリックで展開
+$('note-list-collapsed-label').onclick = () => {
+  if (!isMobile()) setPcLayout('list');
+};
+
+// PC: ノートリストクリックで list 状態へ
+$('note-list-panel').addEventListener('click', e => {
+  if (isMobile()) return;
+  if (!e.target.closest('#note-list-collapsed-label')) {
+    setPcLayout('list');
+  }
+});
+
+// PC: 編集エリアクリックで edit 状態へ
+$('editor-area').addEventListener('click', e => {
+  if (isMobile()) return;
+  setPcLayout('edit');
+});
+
+// ===== MOBILE SIDEBAR =====
+$('btn-menu').onclick = () => {
+  if (isMobile()) {
+    // モバイル：フォルダSBをオーバーレイ表示
+    $('sidebar').classList.toggle('open');
+  }
+};
+
+function closeSidebar() { $('sidebar').classList.remove('open'); }
+document.addEventListener('click', e => {
+  if (isMobile() && !e.target.closest('#sidebar') && !e.target.closest('#btn-menu')) {
+    closeSidebar();
+  }
+});
+
+// mobile back button（編集→ノートリスト）
 $('mobile-back').onclick = () => {
   $('note-list-panel').classList.add('mobile-visible');
 };
