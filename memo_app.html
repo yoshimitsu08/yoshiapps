@@ -1307,6 +1307,14 @@ document.addEventListener('keydown', e => {
 });
 
 function openSearchPanel() {
+  // モバイルでファイル一覧や他の画面から検索を開いた場合、編集画面に切り替える
+  if (isMobile() && !$('editor-area').classList.contains('mobile-visible')) {
+    if (!currentNoteId) {
+      showToast('先にメモを選択してください');
+      return;
+    }
+    setMobileScreen('editor');
+  }
   searchPanel.classList.add('open');
   searchInput.focus();
 }
@@ -1570,7 +1578,7 @@ function setMobileScreen(screen) {
     mss.style.display  = '';
     mbs.style.display  = '';
     mbd.style.display  = '';
-    srch.style.display = 'none';
+    srch.style.display = '';   // 編集画面でも検索ボタンは表示
     avtr.style.display = 'none';
     // タイトル同期
     ttlI.value = $('note-title-input').value;
