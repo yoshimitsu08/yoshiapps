@@ -15,57 +15,57 @@
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body)}
 
-/* HEADER */
-header{
-  padding:10px 0 8px;text-align:center;border-bottom:1px solid var(--border);position:relative;
-}
-header::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(200,169,110,.07) 0%,transparent 70%);
-  pointer-events:none;
-}
-.h-label{font-family:var(--font-ui);font-size:9px;letter-spacing:3px;color:var(--text3);text-transform:uppercase;margin-bottom:2px}
-.h-title{font-family:var(--font-ui);font-size:18px;letter-spacing:4px;color:var(--accent);font-weight:normal;margin-bottom:1px}
-.h-sub{font-family:var(--font-ui);font-size:9px;letter-spacing:2px;color:var(--text3)}
-
-/* MAIN */
-main{max-width:540px;margin:0 auto;padding:10px 12px 12px}
-
-/* SECTION LABEL */
-.sec-label{
-  font-family:var(--font-ui);font-size:9px;letter-spacing:3px;color:var(--text3);
-  text-transform:uppercase;margin-bottom:5px;padding-bottom:4px;
+/* ═══ トップバー ═══ */
+.topbar{
+  display:flex;align-items:center;
   border-bottom:1px solid var(--border);
+  background:var(--bg2);
+  height:44px;
+  gap:0;
+}
+.topbar-title{
+  font-family:var(--font-ui);font-size:13px;letter-spacing:3px;
+  color:var(--accent);padding:0 12px;
+  border-right:1px solid var(--border);
+  height:100%;display:flex;align-items:center;
+  flex-shrink:0;
 }
 
-/* SEGMENT (選択ボタン群) */
-.seg-wrap{display:flex;gap:0;margin-bottom:10px;border:1px solid var(--border);}
-.seg-btn{
-  flex:1;padding:6px 8px;text-align:center;cursor:pointer;
-  font-family:var(--font-ui);font-size:12px;letter-spacing:2px;
-  color:var(--text2);background:var(--bg2);border:none;
-  transition:background .15s,color .15s;
+/* トグルボタン */
+.toggle-wrap{
+  display:flex;align-items:center;height:100%;
   border-right:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;gap:6px;
+  flex:1;
 }
-.seg-btn:last-child{border-right:none}
-.seg-btn.active{background:var(--surface);color:var(--accent);}
-.seg-btn .seg-icon{font-size:14px;line-height:1}
-.seg-btn .seg-lbl{font-size:11px;letter-spacing:1px}
+.toggle-btn{
+  flex:1;height:100%;border:none;background:none;cursor:pointer;
+  font-family:var(--font-ui);font-size:11px;letter-spacing:1px;
+  color:var(--text3);transition:background .15s,color .15s;
+  padding:0 4px;
+}
+.toggle-btn.active{background:var(--surface);color:var(--accent);}
+.toggle-divider{
+  width:1px;height:60%;background:var(--border);flex-shrink:0;
+}
 
-/* 材質セレクト */
-.mat-wrap{display:flex;gap:0;margin-bottom:10px;border:1px solid var(--border);}
-.mat-btn{
-  flex:1;padding:6px 8px;text-align:center;cursor:pointer;
-  font-family:var(--font-ui);font-size:12px;letter-spacing:2px;
-  color:var(--text2);background:var(--bg2);border:none;
-  transition:background .15s,color .15s;
-  border-right:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;gap:6px;
+/* ステッパー（個数） */
+.stepper{
+  display:flex;align-items:center;height:100%;
+  flex-shrink:0;
 }
-.mat-btn:last-child{border-right:none}
-.mat-btn.active{background:var(--surface);color:var(--accent);}
-.mat-btn .mat-sub{font-size:10px;color:var(--text3)}
+.stepper-btn{
+  width:36px;height:100%;border:none;background:none;cursor:pointer;
+  font-family:var(--font-ui);font-size:16px;color:var(--text2);
+  transition:color .15s,background .15s;
+}
+.stepper-btn:active{background:var(--surface);color:var(--accent)}
+.stepper-val{
+  font-family:var(--font-ui);font-size:13px;color:var(--accent);
+  min-width:28px;text-align:center;
+}
+
+/* ═══ MAIN ═══ */
+main{max-width:540px;margin:0 auto;padding:12px 12px 12px}
 
 /* 入力グループ */
 .input-group{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
@@ -89,8 +89,7 @@ main{max-width:540px;margin:0 auto;padding:10px 12px 12px}
   flex:1;background:transparent;border:none;outline:none;
   color:var(--text);font-family:var(--font-ui);
   font-size:20px;padding:10px 12px;
-  width:100%;
-  -webkit-appearance:none;
+  width:100%;-webkit-appearance:none;
 }
 .input-field::placeholder{color:var(--text3);font-size:14px}
 .input-field::-webkit-outer-spin-button,
@@ -102,14 +101,21 @@ main{max-width:540px;margin:0 auto;padding:10px 12px 12px}
   border-left:1px solid var(--border);flex-shrink:0;
 }
 
+/* 数式バッジ */
+.formula-badge{
+  font-family:var(--font-ui);font-size:9px;color:var(--text3);
+  letter-spacing:1px;text-align:center;margin-bottom:8px;
+  padding:5px 8px;border:1px solid var(--border);background:var(--bg3);
+}
+
 /* 計算ボタン */
 .calc-btn{
-  width:100%;padding:12px;
+  width:100%;padding:14px;
   background:none;border:1px solid var(--accent);
   color:var(--accent);font-family:var(--font-ui);
   font-size:13px;letter-spacing:4px;cursor:pointer;
   transition:background .15s,color .15s;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
 .calc-btn:hover{background:var(--accent);color:var(--bg)}
 .calc-btn:active{opacity:.8}
@@ -146,55 +152,40 @@ main{max-width:540px;margin:0 auto;padding:10px 12px 12px}
 }
 .reset-btn:hover{border-color:var(--danger);color:var(--danger)}
 
-/* 数式表示 */
-.formula-badge{
-  font-family:var(--font-ui);font-size:9px;color:var(--text3);
-  letter-spacing:1px;text-align:center;margin-bottom:8px;
-  padding:5px 8px;border:1px solid var(--border);background:var(--bg3);
-}
-
-/* FOOTER */
 footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:9px;letter-spacing:2px;color:var(--text3)}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="h-label">tools</div>
-  <div class="h-title">WEIGHT</div>
-  <div class="h-sub">重量計算</div>
-</header>
+<!-- ═══ トップバー：タイトル・形状・材質・個数 ═══ -->
+<div class="topbar">
+
+  <div class="topbar-title">WEIGHT</div>
+
+  <!-- 形状トグル -->
+  <div class="toggle-wrap" id="shape-toggle">
+    <button class="toggle-btn active" data-shape="rect" onclick="setShape('rect')">■ 直方体</button>
+    <div class="toggle-divider"></div>
+    <button class="toggle-btn" data-shape="cyl" onclick="setShape('cyl')">● 円柱</button>
+  </div>
+
+  <!-- 材質トグル -->
+  <div class="toggle-wrap" id="mat-toggle" style="flex:0.7">
+    <button class="toggle-btn active" data-mat="iron" onclick="setMat('iron')">鉄</button>
+    <div class="toggle-divider"></div>
+    <button class="toggle-btn" data-mat="copper" onclick="setMat('copper')">銅</button>
+  </div>
+
+  <!-- 個数ステッパー -->
+  <div class="stepper">
+    <button class="stepper-btn" onclick="stepQty(-1)">－</button>
+    <div class="stepper-val" id="qty-val">1</div>
+    <button class="stepper-btn" onclick="stepQty(1)">＋</button>
+  </div>
+
+</div>
 
 <main>
-
-  <!-- 形状 -->
-  <div class="sec-label">形状</div>
-  <div class="seg-wrap" id="shape-seg">
-    <button class="seg-btn active" data-shape="rect" onclick="setShape('rect')">
-      <span class="seg-icon">■</span>
-      <span class="seg-lbl">直方体</span>
-    </button>
-    <button class="seg-btn" data-shape="cyl" onclick="setShape('cyl')">
-      <span class="seg-icon">●</span>
-      <span class="seg-lbl">円柱／円筒</span>
-    </button>
-  </div>
-
-  <!-- 材質 -->
-  <div class="sec-label">材質</div>
-  <div class="mat-wrap" id="mat-seg">
-    <button class="mat-btn active" data-mat="iron" onclick="setMat('iron')">
-      鉄
-      <span class="mat-sub">比重 7.85</span>
-    </button>
-    <button class="mat-btn" data-mat="copper" onclick="setMat('copper')">
-      銅
-      <span class="mat-sub">比重 8.96</span>
-    </button>
-  </div>
-
-  <!-- 入力 -->
-  <div class="sec-label">寸法入力 <span style="font-size:9px;color:var(--text3)">(mm)</span></div>
 
   <!-- 直方体入力 -->
   <div class="input-group" id="input-rect">
@@ -234,17 +225,8 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
     </div>
   </div>
 
-  <!-- 員数 -->
-  <div class="input-group">
-    <div class="input-row">
-      <div class="input-lbl"><span>×</span>員数</div>
-      <input class="input-field" id="qty" type="number" inputmode="numeric" placeholder="1" min="1" step="1" value="1">
-      <div class="input-unit">個</div>
-    </div>
-  </div>
-
   <!-- 数式バッジ -->
-  <div class="formula-badge" id="formula-badge">T × W × L × 比重 × 員数 ÷ 1000³</div>
+  <div class="formula-badge" id="formula-badge">T × W × L × 比重 × 員数 ÷ 1,000³</div>
 
   <!-- 計算ボタン -->
   <button class="calc-btn" onclick="calc()">CALCULATE →</button>
@@ -265,16 +247,17 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
 
 </main>
 
-<footer>— weight calc ver 1.01 —</footer>
+<footer>— weight calc —</footer>
 
 <script>
 let shape = 'rect';
 let mat = 'iron';
+let qty = 1;
 const density = { iron: 7.85, copper: 8.96 };
 
 function setShape(s) {
   shape = s;
-  document.querySelectorAll('#shape-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === s));
+  document.querySelectorAll('#shape-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === s));
   document.getElementById('input-rect').style.display = s === 'rect' ? 'flex' : 'none';
   document.getElementById('input-cyl').style.display  = s === 'cyl'  ? 'flex' : 'none';
   updateFormula();
@@ -283,17 +266,21 @@ function setShape(s) {
 
 function setMat(m) {
   mat = m;
-  document.querySelectorAll('#mat-seg .mat-btn').forEach(b => b.classList.toggle('active', b.dataset.mat === m));
+  document.querySelectorAll('#mat-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mat === m));
+  clearResult();
+}
+
+function stepQty(d) {
+  qty = Math.max(1, qty + d);
+  document.getElementById('qty-val').textContent = qty;
   clearResult();
 }
 
 function updateFormula() {
   const el = document.getElementById('formula-badge');
-  if (shape === 'rect') {
-    el.textContent = 'T × W × L × 比重 × 員数 ÷ 1,000³';
-  } else {
-    el.textContent = 'π/4 × (φ外² − φ内²) × L × 比重 × 員数 ÷ 1,000³';
-  }
+  el.textContent = shape === 'rect'
+    ? 'T × W × L × 比重 × 員数 ÷ 1,000³'
+    : 'π/4 × (φ外² − φ内²) × L × 比重 × 員数 ÷ 1,000³';
 }
 
 function clearResult() {
@@ -303,13 +290,11 @@ function clearResult() {
 }
 
 function fmt(v) {
-  // 小数点以下3桁まで、末尾ゼロを除去
   return parseFloat(v.toFixed(4)).toLocaleString('ja-JP', { maximumFractionDigits: 4 });
 }
 
 function calc() {
-  const rho = density[mat]; // g/cm³
-  const qty = parseFloat(document.getElementById('qty').value) || 1;
+  const rho = density[mat];
   let vol_mm3 = 0;
 
   if (shape === 'rect') {
@@ -327,7 +312,6 @@ function calc() {
     vol_mm3 = (Math.PI / 4) * (OD * OD - ID * ID) * L;
   }
 
-  // mm³ → cm³ ÷ 1000, × rho(g/cm³) → g, ÷ 1000 → kg
   const unit_kg = vol_mm3 / 1000 * rho / 1000;
   const total_kg = unit_kg * qty;
 
@@ -344,14 +328,16 @@ function resetAll() {
   ['rect-t','rect-w','rect-l','cyl-od','cyl-id','cyl-l'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('qty').value = '1';
+  qty = 1;
+  document.getElementById('qty-val').textContent = '1';
   clearResult();
 }
 
 // Enterキーで計算
-document.addEventListener('keydown', e => { if (e.key === 'Enter') calc(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.isComposing === false) calc();
+});
 
-// 初期化
 updateFormula();
 </script>
 </body>
