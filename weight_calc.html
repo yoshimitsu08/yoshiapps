@@ -226,9 +226,7 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
     <div class="result-val" id="result-val">—</div>
     <div class="result-unit" id="result-unit">kg</div>
     <div class="result-detail" id="result-detail" style="display:none">
-      <div class="d-row"><span>単重</span><span class="d-val" id="d-unit-wt">—</span></div>
-      <div class="d-row"><span>員数</span><span class="d-val" id="d-qty">—</span></div>
-      <div class="d-row"><span>合計</span><span class="d-val" id="d-total">—</span></div>
+      <div class="d-row"><span id="d-detail">—</span></div>
     </div>
   </div>
 
@@ -312,9 +310,7 @@ function calc() {
 
   document.getElementById('result-val').textContent = fmt(total_kg);
   document.getElementById('result-unit').textContent = 'kg';
-  document.getElementById('d-unit-wt').textContent = fmt(unit_kg) + ' kg';
-  document.getElementById('d-qty').textContent = qty + ' 個';
-  document.getElementById('d-total').textContent = fmt(total_kg) + ' kg';
+  document.getElementById('d-detail').textContent = fmt(unit_kg) + ' kg × ' + qty + ' 個';
   document.getElementById('result-detail').style.display = 'block';
   document.getElementById('result-wrap').classList.add('has-val');
 
