@@ -250,6 +250,22 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   flex: 1; border: none; outline: none; font-size: 1.05rem; font-weight: 700;
   color: var(--text); background: transparent; font-family: inherit;
 }
+/* モバイル：editor-topbarを非表示、タイトルはtopbarに表示 */
+@media (max-width: 680px) {
+  #editor-topbar { display: none; }
+  #topbar-title-input {
+    flex: 1; border: none; outline: none; font-size: .95rem; font-weight: 700;
+    color: var(--text); background: transparent; font-family: inherit;
+    min-width: 0;
+  }
+}
+@media (min-width: 681px) {
+  #topbar-title-input { display: none; }
+  #mobile-save-status { display: none !important; }
+  #mobile-btn-save    { display: none !important; }
+  #mobile-btn-delete  { display: none !important; }
+  #mobile-back-topbar { display: none !important; }
+}
 #save-status { font-size: .75rem; color: var(--text3); white-space: nowrap; }
 #btn-save-manual {
   background: var(--accent); color: #fff; border: none; border-radius: 6px;
@@ -494,7 +510,14 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect y="2" width="18" height="2" rx="1" fill="currentColor"/><rect y="8" width="18" height="2" rx="1" fill="currentColor"/><rect y="14" width="18" height="2" rx="1" fill="currentColor"/></svg>
     </button>
     <button id="mobile-folder-back" style="display:none;background:none;border:none;color:var(--accent);font-size:.9rem;font-weight:600;cursor:pointer;padding:0 4px 0 0;">‹ フォルダ</button>
+    <button id="mobile-back-topbar" style="display:none;background:none;border:none;color:var(--accent);font-size:.9rem;font-weight:600;cursor:pointer;padding:0 4px 0 0;">‹ 一覧</button>
     <span id="topbar-title">Memo</span>
+    <input id="topbar-title-input" type="text" placeholder="タイトル" autocomplete="off" style="display:none;">
+    <!-- モバイル編集時のみ表示するボタン群 -->
+    <span id="mobile-save-status" style="display:none;font-size:.75rem;color:var(--text3);white-space:nowrap;"></span>
+    <button id="mobile-btn-save" style="display:none;" class="topbar-btn" onclick="saveCurrentNote()">保存</button>
+    <button id="mobile-btn-delete" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--danger);cursor:pointer;font-size:.85rem;">🗑</button>
+    <!-- 通常時 -->
     <button class="topbar-btn" id="btn-open-search" title="検索・置換 (Ctrl+F)">🔍 検索</button>
     <div style="position:relative;">
       <img id="user-avatar" src="" alt="user" onerror="this.style.display='none'">
@@ -563,9 +586,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       <!-- Editor (hidden until note selected) -->
       <div id="editor-inner" style="display:none; flex-direction:column; height:100%; overflow:hidden; flex:1;">
 
-        <!-- editor top -->
+        <!-- editor top（PC用：モバイルではtopbarを使う） -->
         <div id="editor-topbar">
-          <button id="mobile-back" title="一覧へ戻る">‹ 一覧</button>
           <input id="note-title-input" type="text" placeholder="タイトル" autocomplete="off">
           <span id="save-status">—</span>
           <button id="btn-save-manual">保存</button>
@@ -1123,6 +1145,7 @@ function loadNoteIntoEditor(id, resetDirty) {
   const n = allNotes[id];
   if (!n) return;
   titleInput.value  = n.title || '';
+  $('topbar-title-input').value = n.title || '';
   editorEl.innerHTML = n.content || '';
   folderSelect.value = n.folderId || '';
   renderTagChips(n.tags || []);
@@ -1266,6 +1289,7 @@ function saveCurrentNote() {
 
 function setSaveStatus(msg) {
   saveStatus.textContent = msg;
+  $('mobile-save-status').textContent = msg;
 }
 
 // ===== SEARCH & REPLACE =====
@@ -1499,35 +1523,74 @@ function setMobileScreen(screen) {
   const sb  = $('sidebar');
   const nl  = $('note-list-panel');
   const ea  = $('editor-area');
-  const fbk = $('mobile-folder-back');
-  const mbk = $('mobile-back');
+  const fbk  = $('mobile-folder-back');
+  const mbkT = $('mobile-back-topbar');
+  const ttl  = $('topbar-title');
+  const ttlI = $('topbar-title-input');
+  const mss  = $('mobile-save-status');
+  const mbs  = $('mobile-btn-save');
+  const mbd  = $('mobile-btn-delete');
+  const srch = $('btn-open-search');
+  const avtr = $('user-avatar');
 
   if (screen === 'folder') {
     sb.classList.remove('mobile-hidden');
     nl.classList.remove('mobile-visible');
     ea.classList.remove('mobile-visible');
-    fbk.style.display = 'none';
-    mbk.style.display = 'none';
+    fbk.style.display  = 'none';
+    mbkT.style.display = 'none';
+    ttl.style.display  = '';
+    ttlI.style.display = 'none';
+    mss.style.display  = 'none';
+    mbs.style.display  = 'none';
+    mbd.style.display  = 'none';
+    srch.style.display = '';
+    avtr.style.display = '';
   } else if (screen === 'list') {
     sb.classList.add('mobile-hidden');
     nl.classList.add('mobile-visible');
     ea.classList.remove('mobile-visible');
-    fbk.style.display = 'flex';
-    mbk.style.display = 'none';
+    fbk.style.display  = 'flex';
+    mbkT.style.display = 'none';
+    ttl.style.display  = '';
+    ttlI.style.display = 'none';
+    mss.style.display  = 'none';
+    mbs.style.display  = 'none';
+    mbd.style.display  = 'none';
+    srch.style.display = '';
+    avtr.style.display = '';
   } else if (screen === 'editor') {
     sb.classList.add('mobile-hidden');
     nl.classList.remove('mobile-visible');
     ea.classList.add('mobile-visible');
-    fbk.style.display = 'none';
-    mbk.style.display = 'flex';
+    fbk.style.display  = 'none';
+    mbkT.style.display = 'flex';
+    ttl.style.display  = 'none';
+    ttlI.style.display = '';
+    mss.style.display  = '';
+    mbs.style.display  = '';
+    mbd.style.display  = '';
+    srch.style.display = 'none';
+    avtr.style.display = 'none';
+    // タイトル同期
+    ttlI.value = $('note-title-input').value;
   }
 }
 
 // フォルダ画面に戻る
 $('mobile-folder-back').onclick = () => setMobileScreen('folder');
 
-// ノートリスト画面に戻る（編集→一覧）
-$('mobile-back').onclick = () => setMobileScreen('list');
+// ノートリスト画面に戻る（topbarの‹一覧）
+$('mobile-back-topbar').onclick = () => setMobileScreen('list');
+
+// topbarタイトル入力とeditorタイトル入力を同期
+$('topbar-title-input').addEventListener('input', () => {
+  $('note-title-input').value = $('topbar-title-input').value;
+  markDirty();
+});
+
+// モバイル削除ボタン
+$('mobile-btn-delete').onclick = () => $('btn-delete-note').click();
 
 function closeSidebar() { /* PC互換のため残す（処理不要） */ }
 
