@@ -7,10 +7,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#1a1814;--bg2:#211f1b;--bg3:#2a2722;
-  --surface:#302d27;--surface2:#3a3730;
-  --accent:#c8a96e;--text:#e8e0d0;--text2:#a09880;--text3:#706858;
-  --border:#3f3b34;--ok:#7ec8a8;--danger:#c06040;
+  --bg:#f5f2ed;--bg2:#edeae4;--bg3:#e2ddd6;
+  --surface:#d8d2c8;
+  --accent:#8a6a2e;--text:#2a2520;--text2:#6a5e50;--text3:#a09880;
+  --border:#c8c0b4;--ok:#3a8a64;--danger:#b04030;
   --font-ui:'Courier New',monospace;--font-body:'Georgia',serif;
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body)}
@@ -157,37 +157,30 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
 </head>
 <body>
 
-<!-- ═══ トップバー：タイトル・形状・材質・個数 ═══ -->
 <div class="topbar">
-
   <div class="topbar-title">WEIGHT</div>
 
-  <!-- 形状トグル -->
   <div class="toggle-wrap" id="shape-toggle">
     <button class="toggle-btn active" data-shape="rect" onclick="setShape('rect')">■ 直方体</button>
     <div class="toggle-divider"></div>
     <button class="toggle-btn" data-shape="cyl" onclick="setShape('cyl')">● 円柱</button>
   </div>
 
-  <!-- 材質トグル -->
   <div class="toggle-wrap" id="mat-toggle" style="flex:0.7">
     <button class="toggle-btn active" data-mat="iron" onclick="setMat('iron')">鉄</button>
     <div class="toggle-divider"></div>
     <button class="toggle-btn" data-mat="copper" onclick="setMat('copper')">銅</button>
   </div>
 
-  <!-- 個数ステッパー -->
   <div class="stepper">
     <button class="stepper-btn" onclick="stepQty(-1)">－</button>
     <div class="stepper-val" id="qty-val">1</div>
     <button class="stepper-btn" onclick="stepQty(1)">＋</button>
   </div>
-
 </div>
 
 <main>
 
-  <!-- 直方体入力 -->
   <div class="input-group" id="input-rect">
     <div class="input-row">
       <div class="input-lbl"><span>T</span>厚み</div>
@@ -206,7 +199,6 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
     </div>
   </div>
 
-  <!-- 円柱／円筒入力 -->
   <div class="input-group" id="input-cyl" style="display:none">
     <div class="input-row">
       <div class="input-lbl"><span>φ</span>外径</div>
@@ -225,13 +217,10 @@ footer{text-align:center;padding:10px;border-top:1px solid var(--border);font-fa
     </div>
   </div>
 
-  <!-- 数式バッジ -->
   <div class="formula-badge" id="formula-badge">T × W × L × 比重 × 員数 ÷ 1,000³</div>
 
-  <!-- 計算ボタン -->
   <button class="calc-btn" onclick="calc()">CALCULATE →</button>
 
-  <!-- 結果 -->
   <div class="result-wrap" id="result-wrap">
     <div class="result-label">WEIGHT</div>
     <div class="result-val" id="result-val">—</div>
@@ -255,6 +244,12 @@ let mat = 'iron';
 let qty = 1;
 const density = { iron: 7.85, copper: 8.96 };
 
+function firstInput() {
+  return shape === 'rect'
+    ? document.getElementById('rect-t')
+    : document.getElementById('cyl-od');
+}
+
 function setShape(s) {
   shape = s;
   document.querySelectorAll('#shape-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === s));
@@ -277,8 +272,7 @@ function stepQty(d) {
 }
 
 function updateFormula() {
-  const el = document.getElementById('formula-badge');
-  el.textContent = shape === 'rect'
+  document.getElementById('formula-badge').textContent = shape === 'rect'
     ? 'T × W × L × 比重 × 員数 ÷ 1,000³'
     : 'π/4 × (φ外² − φ内²) × L × 比重 × 員数 ÷ 1,000³';
 }
@@ -290,7 +284,8 @@ function clearResult() {
 }
 
 function fmt(v) {
-  return parseFloat(v.toFixed(4)).toLocaleString('ja-JP', { maximumFractionDigits: 4 });
+  // 小数点第一位まで
+  return parseFloat(v.toFixed(1)).toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function calc() {
@@ -322,6 +317,9 @@ function calc() {
   document.getElementById('d-total').textContent = fmt(total_kg) + ' kg';
   document.getElementById('result-detail').style.display = 'block';
   document.getElementById('result-wrap').classList.add('has-val');
+
+  // 計算後、最初の入力欄にフォーカス移動
+  setTimeout(() => { firstInput().focus(); firstInput().select(); }, 50);
 }
 
 function resetAll() {
@@ -331,7 +329,18 @@ function resetAll() {
   qty = 1;
   document.getElementById('qty-val').textContent = '1';
   clearResult();
+  firstInput().focus();
 }
+
+// 全選択
+document.querySelectorAll('.input-field').forEach(el => {
+  el.addEventListener('focus', function() { this.select(); });
+  // iOS対策：touchstartでもselectを仕込む
+  el.addEventListener('touchend', function() {
+    const self = this;
+    setTimeout(() => { self.select(); }, 30);
+  });
+});
 
 // Enterキーで計算
 document.addEventListener('keydown', e => {
