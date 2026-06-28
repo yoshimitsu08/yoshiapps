@@ -417,33 +417,49 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 
 /* ===== MOBILE ===== */
 @media (max-width: 680px) {
-  #btn-menu { display: flex; }
-  /* モバイルはサイドバーをスライドオーバーレイ */
+  /* モバイル3画面遷移：全画面を3枚並べてスライド */
+  #main {
+    position: relative; overflow: hidden;
+  }
+  /* サイドバー：1枚目（フォルダ画面） */
   #sidebar {
-    position: fixed; top: 52px; left: 0; bottom: 0; z-index: 50;
-    width: var(--sidebar-w) !important;
-    transform: translateX(-100%); box-shadow: 4px 0 16px rgba(0,0,0,.1);
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 100% !important; z-index: 10;
+    transform: translateX(0); transition: transform .25s ease;
+    border-right: none;
   }
-  #sidebar.open { transform: translateX(0); }
-  #sidebar.collapsed { width: var(--sidebar-w) !important; }
-  /* ノートリストもオーバーレイ */
+  #sidebar.mobile-hidden { transform: translateX(-100%); }
+  /* collapsed無効化 */
+  #sidebar.collapsed { width: 100% !important; }
+  /* ノートリスト：2枚目 */
   #note-list-panel {
-    position: fixed; top: 52px; left: 0; right: 0; bottom: 0; z-index: 40;
-    width: 100% !important; border-right: none;
-    display: none;
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 100% !important; border-right: none; z-index: 20;
+    transform: translateX(100%); transition: transform .25s ease;
+    display: flex !important;
   }
-  #note-list-panel.mobile-visible { display: flex; }
+  #note-list-panel.mobile-visible { transform: translateX(0); }
   #note-list-panel.collapsed { width: 100% !important; }
-  #editor-area { width: 100%; }
-  #mobile-back {
-    display: flex; align-items: center; gap: 6px;
-    background: none; border: none; color: var(--accent); font-size: .88rem;
-    cursor: pointer; padding: 0; margin-right: 4px;
+  /* 編集エリア：3枚目 */
+  #editor-area {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100% !important; z-index: 30;
+    transform: translateX(100%); transition: transform .25s ease;
   }
+  #editor-area.mobile-visible { transform: translateX(0); }
+  /* topbar: 戻るボタン */
+  #btn-menu { display: none !important; }
+  #mobile-back {
+    display: flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--accent); font-size: .9rem;
+    cursor: pointer; padding: 0; margin-right: 4px; font-weight: 600;
+  }
+  /* サイドバーに戻るボタン不要（1枚目なので） */
+  #mobile-folder-back { display: flex; }
 }
 @media (min-width: 681px) {
   #mobile-back { display: none; }
-  /* PC: サイドバー折り畳みトグルボタン */
+  #mobile-folder-back { display: none !important; }
   #btn-menu { display: none; }
 }
 
@@ -477,6 +493,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
     <button id="btn-menu" title="メニュー">
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect y="2" width="18" height="2" rx="1" fill="currentColor"/><rect y="8" width="18" height="2" rx="1" fill="currentColor"/><rect y="14" width="18" height="2" rx="1" fill="currentColor"/></svg>
     </button>
+    <button id="mobile-folder-back" style="display:none;background:none;border:none;color:var(--accent);font-size:.9rem;font-weight:600;cursor:pointer;padding:0 4px 0 0;">‹ フォルダ</button>
     <span id="topbar-title">Memo</span>
     <button class="topbar-btn" id="btn-open-search" title="検索・置換 (Ctrl+F)">🔍 検索</button>
     <div style="position:relative;">
@@ -746,10 +763,9 @@ auth.onAuthStateChanged(user => {
 
 // ===== FIREBASE LISTENERS =====
 function startListeners() {
-  // モバイル初期表示：フォルダSBをオープンにして3段遷移の起点にする
-  if (isMobile()) {
-    $('sidebar').classList.add('open');
-  }
+  // モバイル初期表示：フォルダ画面から開始
+  if (isMobile()) setMobileScreen('folder');
+
   notesRef.on('value', snap => {
     allNotes = snap.val() || {};
     renderNoteList();
@@ -911,9 +927,7 @@ function setCurrentFolder(fid) {
   renderNoteList();
   renderSidebarCounts();
   if (isMobile()) {
-    // モバイル：フォルダ→ノートリスト遷移
-    closeSidebar();
-    $('note-list-panel').classList.add('mobile-visible');
+    setMobileScreen('list');
   } else {
     // PC：サイドバー縮小+ノートリスト展開（list状態）
     setPcLayout('list');
@@ -1067,9 +1081,7 @@ function selectNote(id) {
   loadNoteIntoEditor(id, true);
   renderNoteList();
   if (isMobile()) {
-    // モバイル：ノートリストを隠して編集画面へ
-    $('note-list-panel').classList.remove('mobile-visible');
-    closeSidebar();
+    setMobileScreen('editor');
   } else {
     // PC：編集状態（両サイドバー縮小）へ
     setPcLayout('edit');
@@ -1089,7 +1101,7 @@ $('btn-new-note').onclick = () => {
   renderNoteList();
   renderSidebarCounts();
   titleInput.focus();
-  $('note-list-panel').classList.remove('mobile-visible');
+  if (isMobile()) setMobileScreen('editor');
 };
 
 $('btn-delete-note').onclick = () => {
@@ -1102,7 +1114,7 @@ $('btn-delete-note').onclick = () => {
     showEditor(false);
     $('modal-confirm').style.display = 'none';
     showToast('削除しました');
-    $('note-list-panel').classList.add('mobile-visible');
+    if (isMobile()) setMobileScreen('list');
   };
 };
 
@@ -1479,25 +1491,45 @@ $('editor-area').addEventListener('click', e => {
   setPcLayout('edit');
 });
 
-// ===== MOBILE SIDEBAR =====
-$('btn-menu').onclick = () => {
-  if (isMobile()) {
-    // モバイル：フォルダSBをオーバーレイ表示
-    $('sidebar').classList.toggle('open');
-  }
-};
+// ===== MOBILE 3画面遷移 =====
+// 画面: 'folder'(1枚目) | 'list'(2枚目) | 'editor'(3枚目)
 
-function closeSidebar() { $('sidebar').classList.remove('open'); }
-document.addEventListener('click', e => {
-  if (isMobile() && !e.target.closest('#sidebar') && !e.target.closest('#btn-menu')) {
-    closeSidebar();
-  }
-});
+function setMobileScreen(screen) {
+  if (!isMobile()) return;
+  const sb  = $('sidebar');
+  const nl  = $('note-list-panel');
+  const ea  = $('editor-area');
+  const fbk = $('mobile-folder-back');
+  const mbk = $('mobile-back');
 
-// mobile back button（編集→ノートリスト）
-$('mobile-back').onclick = () => {
-  $('note-list-panel').classList.add('mobile-visible');
-};
+  if (screen === 'folder') {
+    sb.classList.remove('mobile-hidden');
+    nl.classList.remove('mobile-visible');
+    ea.classList.remove('mobile-visible');
+    fbk.style.display = 'none';
+    mbk.style.display = 'none';
+  } else if (screen === 'list') {
+    sb.classList.add('mobile-hidden');
+    nl.classList.add('mobile-visible');
+    ea.classList.remove('mobile-visible');
+    fbk.style.display = 'flex';
+    mbk.style.display = 'none';
+  } else if (screen === 'editor') {
+    sb.classList.add('mobile-hidden');
+    nl.classList.remove('mobile-visible');
+    ea.classList.add('mobile-visible');
+    fbk.style.display = 'none';
+    mbk.style.display = 'flex';
+  }
+}
+
+// フォルダ画面に戻る
+$('mobile-folder-back').onclick = () => setMobileScreen('folder');
+
+// ノートリスト画面に戻る（編集→一覧）
+$('mobile-back').onclick = () => setMobileScreen('list');
+
+function closeSidebar() { /* PC互換のため残す（処理不要） */ }
 
 // ===== HELPERS =====
 function esc(str) {
