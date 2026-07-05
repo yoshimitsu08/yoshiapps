@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PDF Reorder - ページ並び替え</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f4ee;
+    --bg2: #ffffff;
+    --bg3: #efe9dc;
+    --surface: #e8e1d2;
+    --accent: #b8863f;
+    --accent2: #d4a95f;
+    --text: #3a352c;
+    --text2: #78705f;
+    --text3: #a89f8c;
+    --border: #ddd4c0;
+    --ok: #5a9a72;
+    --danger: #c0503a;
+    --font-ui: 'Courier New', monospace;
+    --font-body: 'Georgia', serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding-bottom: 90px;
+  }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 {
+    font-family: var(--font-ui);
+    font-size: 16px;
+    letter-spacing: 0.05em;
+    margin: 0;
+    color: var(--text);
+  }
+
+  header h1 span { color: var(--accent); }
+
+  .page-count {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--bg3);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  #dropzone {
+    margin: 20px 16px;
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    background: var(--bg2);
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--text2);
+    font-size: 14px;
+    transition: border-color .15s, background .15s;
+  }
+
+  #dropzone.drag { border-color: var(--accent); background: #fbf6ea; }
+
+  #dropzone .icon { font-size: 34px; margin-bottom: 10px; color: var(--accent2); }
+
+  #dropzone button {
+    margin-top: 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  #fileInput { display: none; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 4px 16px 16px;
+  }
+
+  .thumb {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    position: relative;
+    cursor: grab;
+    transition: transform .12s, box-shadow .12s, opacity .12s;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .thumb.dragging {
+    opacity: 0.35;
+  }
+
+  .thumb.drop-target {
+    box-shadow: 0 0 0 3px var(--accent2);
+  }
+
+  .thumb canvas {
+    width: 100%;
+    display: block;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: #fff;
+    pointer-events: none;
+  }
+
+  .thumb .num {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  .thumb .del {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .thumb.loading canvas {
+    min-height: 140px;
+    background: repeating-linear-gradient(45deg, var(--bg3), var(--bg3) 10px, var(--surface) 10px, var(--surface) 20px);
+  }
+
+  footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    z-index: 20;
+  }
+
+  footer button {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  #resetBtn {
+    background: var(--bg3);
+    color: var(--text2);
+    flex: 0 0 90px;
+  }
+
+  #saveBtn {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  #saveBtn:disabled, #resetBtn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .empty-hint {
+    text-align: center;
+    color: var(--text3);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  .toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 0.92; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PDF<span>Reorder</span></h1>
+  <div class="page-count" id="pageCount">0 pages</div>
+</header>
+
+<div id="dropzone">
+  <div class="icon">📄</div>
+  <div>PDFファイルをドラッグ＆ドロップ</div>
+  <div class="empty-hint">またはタップして選択</div>
+  <button id="pickBtn">ファイルを選ぶ</button>
+  <input type="file" id="fileInput" accept="application/pdf">
+</div>
+
+<div id="grid"></div>
+
+<footer style="display:none;" id="footer">
+  <button id="resetBtn">やり直し</button>
+  <button id="saveBtn">並び替えて保存</button>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const pickBtn = document.getElementById('pickBtn');
+const grid = document.getElementById('grid');
+const footer = document.getElementById('footer');
+const pageCountEl = document.getElementById('pageCount');
+const saveBtn = document.getElementById('saveBtn');
+const resetBtn = document.getElementById('resetBtn');
+const toast = document.getElementById('toast');
+
+let originalArrayBuffer = null; // 元のPDFバイナリ（保存時に再利用）
+let pages = [];   // { id, originalIndex, canvasEl }
+let pageIdCounter = 0;
+let draggingEl = null;
+let originalFileName = 'document';
+
+function showToast(msg, ms = 2200) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), ms);
+}
+
+pickBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+['dragenter', 'dragover'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+});
+['dragleave', 'drop'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+  });
+});
+dropzone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+async function handleFile(file) {
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    showToast('PDFファイルを選んでください');
+    return;
+  }
+  originalFileName = file.name.replace(/\.pdf$/i, '');
+  showToast('読み込み中...', 60000);
+  try {
+    const buf = await file.arrayBuffer();
+    originalArrayBuffer = buf.slice(0);
+    await renderThumbnails(buf.slice(0));
+    toast.classList.remove('show');
+  } catch (err) {
+    console.error(err);
+    showToast('読み込みに失敗しました');
+  }
+}
+
+async function renderThumbnails(arrayBuffer) {
+  grid.innerHTML = '';
+  pages = [];
+  pageIdCounter = 0;
+
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const numPages = pdf.numPages;
+  pageCountEl.textContent = numPages + ' pages';
+
+  for (let i = 1; i <= numPages; i++) {
+    const id = pageIdCounter++;
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb loading';
+    thumb.draggable = true;
+    thumb.dataset.id = id;
+
+    const canvas = document.createElement('canvas');
+    const numEl = document.createElement('div');
+    numEl.className = 'num';
+    numEl.textContent = '#' + i;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removePage(id);
+    });
+
+    thumb.appendChild(canvas);
+    thumb.appendChild(numEl);
+    thumb.appendChild(delBtn);
+    grid.appendChild(thumb);
+
+    pages.push({ id, originalIndex: i - 1, el: thumb, numEl });
+
+    renderPageThumb(pdf, i, canvas, thumb);
+  }
+
+  footer.style.display = numPages ? 'flex' : 'none';
+  dropzone.style.display = 'none';
+  attachDnD();
+}
+
+async function renderPageThumb(pdf, pageNum, canvas, thumbEl) {
+  try {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1 });
+    const targetWidth = 260;
+    const scale = targetWidth / viewport.width;
+    const scaledViewport = page.getViewport({ scale });
+
+    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height;
+
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+    thumbEl.classList.remove('loading');
+  } catch (err) {
+    console.error('render error', err);
+  }
+}
+
+function removePage(id) {
+  const idx = pages.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  pages[idx].el.remove();
+  pages.splice(idx, 1);
+  renumber();
+  pageCountEl.textContent = pages.length + ' pages';
+  if (pages.length === 0) {
+    footer.style.display = 'none';
+  }
+}
+
+function renumber() {
+  pages.forEach((p, i) => {
+    p.numEl.textContent = '#' + (i + 1);
+  });
+}
+
+// --- ドラッグ&ドロップ（PC: dragstart系 / スマホ: pointer系）---
+function attachDnD() {
+  grid.querySelectorAll('.thumb').forEach(el => {
+    el.addEventListener('dragstart', onDragStart);
+    el.addEventListener('dragend', onDragEnd);
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('drop', onDropThumb);
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+  });
+}
+
+function onDragStart(e) {
+  draggingEl = e.currentTarget;
+  draggingEl.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', draggingEl.dataset.id); } catch (_e) {}
+}
+
+function onDragEnd(e) {
+  if (draggingEl) draggingEl.classList.remove('dragging');
+  draggingEl = null;
+  grid.querySelectorAll('.thumb').forEach(t => t.classList.remove('drop-target'));
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  const target = e.currentTarget;
+  if (target === draggingEl) return;
+  grid.querySelectorAll('.thumb').forEach(t => t.classList.remove('drop-target'));
+  target.classList.add('drop-target');
+}
+
+function onDropThumb(e) {
+  e.preventDefault();
+  const target = e.currentTarget;
+  target.classList.remove('drop-target');
+  if (!draggingEl || target === draggingEl) return;
+  reorderDom(draggingEl, target);
+}
+
+function reorderDom(fromEl, toEl) {
+  const fromId = parseInt(fromEl.dataset.id);
+  const toId = parseInt(toEl.dataset.id);
+  const fromIdx = pages.findIndex(p => p.id === fromId);
+  const toIdx = pages.findIndex(p => p.id === toId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  const [moved] = pages.splice(fromIdx, 1);
+  pages.splice(toIdx, 0, moved);
+
+  // DOM反映
+  if (toIdx === 0) {
+    grid.insertBefore(fromEl, grid.firstChild);
+  } else {
+    const refEl = pages[toIdx - 1].el;
+    refEl.after(fromEl);
+  }
+  renumber();
+}
+
+// --- スマホ用: 長押し不要のシンプルなポインタードラッグ ---
+let touchDragEl = null;
+let touchStartY = 0, touchStartX = 0;
+let touchMoved = false;
+let placeholder = null;
+
+function onTouchStart(e) {
+  const el = e.currentTarget;
+  const touch = e.touches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  touchMoved = false;
+
+  const onMove = (ev) => {
+    const t = ev.touches[0];
+    const dx = Math.abs(t.clientX - touchStartX);
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (!touchMoved && (dx > 10 || dy > 10)) {
+      touchMoved = true;
+      startTouchDrag(el);
+    }
+    if (touchMoved) {
+      ev.preventDefault();
+      updateTouchDrag(t.clientX, t.clientY);
+    }
+  };
+
+  const onEnd = () => {
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+    if (touchMoved) endTouchDrag();
+  };
+
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd);
+}
+
+function startTouchDrag(el) {
+  touchDragEl = el;
+  el.classList.add('dragging');
+  el.style.position = 'fixed';
+  el.style.zIndex = '100';
+  el.style.width = el.getBoundingClientRect().width + 'px';
+  const rect = el.getBoundingClientRect();
+  el._offsetX = rect.left;
+  el._offsetY = rect.top;
+  el._grabX = touchStartX - rect.left;
+  el._grabY = touchStartY - rect.top;
+
+  placeholder = document.createElement('div');
+  placeholder.style.visibility = 'hidden';
+  placeholder.style.height = rect.height + 'px';
+  el.after(placeholder);
+  grid.insertBefore(el, placeholder);
+  document.body.appendChild(el);
+}
+
+function updateTouchDrag(x, y) {
+  if (!touchDragEl) return;
+  touchDragEl.style.left = (x - touchDragEl._grabX) + 'px';
+  touchDragEl.style.top = (y - touchDragEl._grabY) + 'px';
+
+  touchDragEl.style.display = 'none';
+  const elAtPoint = document.elementFromPoint(x, y);
+  touchDragEl.style.display = '';
+
+  const overThumb = elAtPoint ? elAtPoint.closest('.thumb') : null;
+  grid.querySelectorAll('.thumb').forEach(t => t.classList.remove('drop-target'));
+
+  if (overThumb && overThumb !== touchDragEl && overThumb !== placeholder) {
+    overThumb.classList.add('drop-target');
+    const rect = overThumb.getBoundingClientRect();
+    const before = (y - rect.top) < rect.height / 2;
+    if (before) {
+      grid.insertBefore(placeholder, overThumb);
+    } else {
+      overThumb.after(placeholder);
+    }
+  }
+}
+
+function endTouchDrag() {
+  if (!touchDragEl) return;
+  touchDragEl.classList.remove('dragging');
+  touchDragEl.style.position = '';
+  touchDragEl.style.zIndex = '';
+  touchDragEl.style.left = '';
+  touchDragEl.style.top = '';
+  touchDragEl.style.width = '';
+
+  grid.insertBefore(touchDragEl, placeholder);
+  placeholder.remove();
+  placeholder = null;
+
+  // pages配列をDOM順に同期
+  syncPagesFromDom();
+  renumber();
+  touchDragEl = null;
+}
+
+function syncPagesFromDom() {
+  const domIds = Array.from(grid.querySelectorAll('.thumb')).map(el => parseInt(el.dataset.id));
+  const map = new Map(pages.map(p => [p.id, p]));
+  pages = domIds.map(id => map.get(id));
+}
+
+// --- 保存 ---
+saveBtn.addEventListener('click', async () => {
+  if (!originalArrayBuffer || pages.length === 0) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中...';
+  try {
+    const { PDFDocument } = PDFLib;
+    const srcDoc = await PDFDocument.load(originalArrayBuffer.slice(0));
+    const newDoc = await PDFDocument.create();
+
+    const indices = pages.map(p => p.originalIndex);
+    const copiedPages = await newDoc.copyPages(srcDoc, indices);
+    copiedPages.forEach(p => newDoc.addPage(p));
+
+    const bytes = await newDoc.save();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    const now = new Date();
+    const ts = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0')
+      + '_' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${originalFileName}_reordered_${ts}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+    showToast('保存しました');
+  } catch (err) {
+    console.error(err);
+    showToast('保存に失敗しました');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '並び替えて保存';
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  if (!originalArrayBuffer) return;
+  if (!confirm('編集内容を破棄して読み込み直しますか？')) return;
+  renderThumbnails(originalArrayBuffer.slice(0));
+});
+</script>
+
+</body>
+</html>
