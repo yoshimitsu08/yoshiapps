@@ -710,6 +710,44 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.database();
 
+// ===== CRYPTO (UID-based AES-GCM) =====
+let cryptoKey = null;
+
+async function deriveCryptoKey(uid) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(uid), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode('yoshiapps-memo-salt'), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptText(text) {
+  if (!cryptoKey || !text) return text;
+  const enc = new TextEncoder();
+  const iv  = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, enc.encode(text));
+  const combined = new Uint8Array(12 + encrypted.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encrypted), 12);
+  return 'ENC:' + btoa(String.fromCharCode(...combined));
+}
+
+async function decryptText(text) {
+  if (!cryptoKey || !text || !text.startsWith('ENC:')) return text;
+  try {
+    const combined = Uint8Array.from(atob(text.slice(4)), c => c.charCodeAt(0));
+    const iv        = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, encrypted);
+    return new TextDecoder().decode(decrypted);
+  } catch {
+    return text; // 古いデータ（未暗号化）はそのまま返す
+  }
+}
+
 // ===== STATE =====
 let currentUser = null;
 let userRef      = null;
@@ -774,7 +812,10 @@ auth.onAuthStateChanged(user => {
     userNameLabel.textContent = user.displayName || user.email;
     loginScreen.style.display = 'none';
     appEl.classList.add('visible');
-    startListeners();
+    deriveCryptoKey(user.uid).then(key => {
+      cryptoKey = key;
+      startListeners();
+    });
   } else {
     currentUser = null;
     loginScreen.style.display = '';
@@ -788,11 +829,19 @@ function startListeners() {
   // モバイル初期表示：フォルダ画面から開始
   if (isMobile()) setMobileScreen('folder');
 
-  notesRef.on('value', snap => {
-    allNotes = snap.val() || {};
+  notesRef.on('value', async snap => {
+    const raw = snap.val() || {};
+    const decrypted = {};
+    await Promise.all(Object.entries(raw).map(async ([id, n]) => {
+      decrypted[id] = {
+        ...n,
+        title:   await decryptText(n.title   || ''),
+        content: await decryptText(n.content || ''),
+      };
+    }));
+    allNotes = decrypted;
     renderNoteList();
     renderSidebarCounts();
-    // update open note if changed externally
     if (currentNoteId && allNotes[currentNoteId] && !isDirty) {
       loadNoteIntoEditor(currentNoteId, false);
     }
@@ -1273,18 +1322,20 @@ $('btn-save-manual').onclick = () => { saveCurrentNote(); };
 
 function saveCurrentNote() {
   if (!currentNoteId) return;
-  const data = {
-    title:     titleInput.value,
-    content:   editorEl.innerHTML,
-    updatedAt: Date.now()
-  };
-  notesRef.child(currentNoteId).update(data).then(() => {
-    isDirty = false;
-    setSaveStatus('保存済み');
-    showToast('保存しました');
-  }).catch(() => setSaveStatus('保存失敗'));
-  // update local cache
-  if (allNotes[currentNoteId]) Object.assign(allNotes[currentNoteId], data);
+  const title   = titleInput.value;
+  const htmlContent = editorEl.innerHTML;
+  Promise.all([encryptText(title), encryptText(htmlContent)]).then(([encTitle, encContent]) => {
+    const data = { title: encTitle, content: encContent, updatedAt: Date.now() };
+    notesRef.child(currentNoteId).update(data).then(() => {
+      isDirty = false;
+      setSaveStatus('保存済み');
+      showToast('保存しました');
+    }).catch(() => setSaveStatus('保存失敗'));
+    // ローカルキャッシュは復号済みで保持
+    if (allNotes[currentNoteId]) {
+      Object.assign(allNotes[currentNoteId], { title, content: htmlContent, updatedAt: Date.now() });
+    }
+  });
 }
 
 function setSaveStatus(msg) {
