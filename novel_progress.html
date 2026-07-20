@@ -872,6 +872,133 @@ h1 .mark { color:var(--accent); font-style:italic; }
   .editor-body { padding:14px; }
   .editor-header { padding:14px; }
 }
+
+/* ---------- Unified status + progress bar (replaces 4-stage dots on card) ---------- */
+.status-line {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+.status-heading {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  letter-spacing:0.04em;
+  padding:4px 9px;
+  border-radius:2px;
+  flex-shrink:0;
+  font-weight:bold;
+}
+.status-heading.st-setting { background:var(--c-genan); color:var(--bg); }
+.status-heading.st-writing { background:var(--c-honbun); color:var(--bg); }
+.status-heading.st-revising { background:var(--c-kousei); color:var(--bg); }
+
+.progress-bar-track {
+  flex:1;
+  height:8px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+}
+.progress-bar-fill {
+  height:100%;
+  background:var(--accent);
+  border-radius:3px 0 0 3px;
+  transition:width .2s;
+}
+.progress-bar-frac {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  flex-shrink:0;
+  width:40px;
+  text-align:right;
+}
+
+/* ---------- Plot chapter cards ---------- */
+.chapter-card {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:10px;
+}
+.chapter-card-head {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+.chapter-num-badge {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--accent);
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:5px 8px;
+  flex-shrink:0;
+}
+.chapter-title-input {
+  flex:1;
+  background:none;
+  border:none;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.95rem;
+  padding:4px 2px;
+}
+.chapter-title-input:focus { outline:none; border-color:var(--accent); }
+.chapter-del-btn {
+  background:none; border:none; color:var(--text3);
+  cursor:pointer; font-size:0.9rem; padding:4px 6px; flex-shrink:0;
+}
+.chapter-del-btn:hover { color:var(--danger); }
+
+.add-chapter-btn {
+  width:100%;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--accent);
+  background:none;
+  border:1px dashed var(--border);
+  border-radius:3px;
+  padding:11px;
+  cursor:pointer;
+}
+.add-chapter-btn:hover { border-color:var(--accent); }
+
+.setting-nav {
+  display:flex;
+  gap:8px;
+  padding:14px 20px 0;
+  max-width:720px;
+  margin:0 auto;
+}
+.setting-nav-btn {
+  flex:1;
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  letter-spacing:0.04em;
+  padding:11px;
+  text-align:center;
+  border-radius:4px 4px 0 0;
+  border:1px solid var(--border);
+  border-bottom:none;
+  background:var(--bg2);
+  color:var(--text3);
+  cursor:pointer;
+}
+.setting-nav-btn.active {
+  color:var(--accent);
+  background:var(--bg3);
+  border-color:var(--accent);
+  font-weight:bold;
+}
+.setting-page { display:none; }
+.setting-page.active { display:block; }
 </style>
 </head>
 <body>
@@ -1094,20 +1221,37 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
   </div>
 
-  <div class="editor-body" id="settingBody">
-    <!-- sections rendered here -->
+  <div class="setting-nav">
+    <button type="button" class="setting-nav-btn active" data-page="settingPage">設定</button>
+    <button type="button" class="setting-nav-btn" data-page="plotPage">プロット（あらすじ）</button>
+  </div>
+
+  <div class="setting-page active" id="settingPage">
+    <div class="editor-body" id="settingBody">
+      <!-- sections rendered here -->
+    </div>
+    <div class="editor-body" style="padding-top:0;">
+      <button type="button" class="add-section-btn" id="addSectionBtn">＋ セクションを追加</button>
+    </div>
+  </div>
+
+  <div class="setting-page" id="plotPage">
+    <div class="editor-body" id="plotBody">
+      <!-- chapter cards rendered here -->
+    </div>
+    <div class="editor-body" style="padding-top:0;">
+      <button type="button" class="add-chapter-btn" id="addChapterBtn">＋ 章を追加</button>
+    </div>
   </div>
 
   <div class="editor-body" style="padding-top:0;">
-    <button type="button" class="add-section-btn" id="addSectionBtn">＋ セクションを追加</button>
-
     <div class="prompt-panel">
       <div class="prompt-panel-head">
         <span class="pt-label">AI執筆プロンプト</span>
         <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem;">プロンプトを作成</button>
       </div>
-      <div class="prompt-preview" id="promptPreview">「プロンプトを作成」を押すと、入力内容から執筆用プロンプトを組み立てます。</div>
-      <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 コピー</button>
+      <div class="prompt-preview" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</div>
+      <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 設定・プロットをコピー</button>
     </div>
   </div>
 </div>
@@ -1138,6 +1282,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       p.sections.forEach(s => {
         if(s.type === 'characters' && !s.characters) s.characters = [];
       });
+      if(!p.plotChapters) p.plotChapters = [];
     });
   }
   function save(){
@@ -1164,6 +1309,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       memo: '',
       pinned: false,
       sections: defaultSections(),
+      plotChapters: [],
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -1173,14 +1319,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return [
       { id: uid(), title:'登場人物', type:'characters', text:'', characters:[] },
       { id: uid(), title:'世界観', type:'text', text:'' },
-      { id: uid(), title:'用語集', type:'text', text:'' },
-      { id: uid(), title:'あらすじ（プロット）', type:'text', text:'' }
+      { id: uid(), title:'用語集', type:'text', text:'' }
     ];
   }
 
   function newCharacter(){
     return { id: uid(), name:'', role:'', personality:'', background:'', notes:'' };
   }
+
+  function newChapter(n){
+    return { id: uid(), title:`第${n}章`, event:'', feeling:'', reveal:'', other:'' };
+  }
+
 
   // ---------- Rendering: grid ----------
   function daysUntil(dateStr){
@@ -1220,13 +1370,37 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>`;
   }
 
-  function triFilled(val){ return val; } // 0,1,2 out of 3 dots (untouched, half, full) -> map to dot count differently
-  function triDots(val, color){
-    // 3-dot representation for genan/plot: val 0=empty,1=1 filled,2=3 filled(full) -- but spec says 3 stages -> map val0->0/3, val1->1/3... better: 0,1,2 maps to 0,1,3? 
-    // Simpler: use 3 dots where val0=0 filled, val1=2 filled(half-ish), val2=3 filled
-    const map = [0,1,3];
-    const filled = map[val] ?? 0;
-    return renderDots(filled, 3, color);
+  // ---- Unified auto-status + single progress bar ----
+  function computeAutoStatus(p){
+    if(p.status === '完結') return '完結';
+    if((p.wordcount||0) <= 0) return '設定・プロット';
+    return '本文執筆中';
+    // 「推敲中」判定は本文エディタ（章ごとの完了管理）実装後に対応予定
+  }
+
+  function statusClass(statusText){
+    if(statusText === '設定・プロット') return 'st-setting';
+    if(statusText === '本文執筆中') return 'st-writing';
+    if(statusText === '推敲中') return 'st-revising';
+    return 'st-writing';
+  }
+
+  function chapterTotal(p){
+    // プロットで設定した章数（未設定なら1）
+    return Math.max(1, (p.plotChapters && p.plotChapters.length) || 1);
+  }
+
+  function statusLineHTML(p){
+    const statusText = computeAutoStatus(p);
+    const total = chapterTotal(p);
+    // 分子はハリボテ：本文執筆機能が未実装のため、完結時のみ満タン表示、それ以外は0扱い
+    const done = statusText === '完結' ? total : 0;
+    const pct = Math.round((done/total)*100);
+    return `<div class="status-line">
+      <span class="status-heading ${statusClass(statusText)}">${statusText}</span>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      <div class="progress-bar-frac">${done}/${total}</div>
+    </div>`;
   }
 
   function renderCard(p){
@@ -1252,7 +1426,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="card${p.pinned?' pinned':''}" data-id="${p.id}">
       <div class="card-cover">
         ${p.pinned ? '<div class="pin-badge">PIN</div>' : ''}
-        <div class="status-badge">${p.status}</div>
+        <div class="status-badge">${computeAutoStatus(p)}</div>
         ${coverHTML}
       </div>
       <div class="card-body">
@@ -1261,10 +1435,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <span>更新: ${new Date(p.updatedAt).toLocaleDateString('ja-JP')}</span>
           ${deadlineHTML}
         </div>
-        ${stageRowHTML('原案', ...tripleArgs(p.genan), STAGE_COLORS.genan)}
-        ${stageRowHTML('プロット', ...tripleArgs(p.plot), STAGE_COLORS.plot)}
-        ${stageRowHTML('本文', Math.min(p.honbunDone,p.honbunTotal), p.honbunTotal, STAGE_COLORS.honbun)}
-        ${stageRowHTML('校正', Math.min(p.kouseiDone||0,p.honbunTotal), p.honbunTotal, STAGE_COLORS.kousei)}
+        ${statusLineHTML(p)}
         <div class="card-wordcount">
           <span>合計文字数</span>
           <span class="num">${(p.wordcount||0).toLocaleString()} 字</span>
@@ -1507,7 +1678,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(!p) return;
 
     document.getElementById('detailTitle').textContent = p.title || '無題';
-    document.getElementById('detailStatus').textContent = p.status;
+    document.getElementById('detailStatus').textContent = computeAutoStatus(p);
     document.getElementById('pinToggleBtn').textContent = p.pinned ? '📌 優先を解除' : '📌 優先に設定';
     document.getElementById('pinToggleBtn').classList.toggle('active', p.pinned);
     if(p.pinned){
@@ -1518,11 +1689,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       document.getElementById('pinToggleBtn').style.color = '';
     }
 
-    document.getElementById('detailStages').innerHTML =
-      stageRowHTML('原案', ...tripleArgs(p.genan), STAGE_COLORS.genan) +
-      stageRowHTML('プロット', ...tripleArgs(p.plot), STAGE_COLORS.plot) +
-      stageRowHTML('本文', Math.min(p.honbunDone,p.honbunTotal), p.honbunTotal, STAGE_COLORS.honbun) +
-      stageRowHTML('校正', Math.min(p.kouseiDone||0,p.honbunTotal), p.honbunTotal, STAGE_COLORS.kousei);
+    document.getElementById('detailStages').innerHTML = statusLineHTML(p);
 
     document.getElementById('detailWordcountInput').value = p.wordcount || 0;
     renderWcChart(p);
@@ -1726,11 +1893,23 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const p = projects.find(x=>x.id===id);
     if(!p) return;
     if(!p.sections) p.sections = defaultSections();
+    if(!p.plotChapters) p.plotChapters = [];
     document.getElementById('settingWorkTitle').textContent = p.title || '無題';
     renderSections(p);
-    document.getElementById('promptPreview').textContent = '「プロンプトを作成」を押すと、入力内容から執筆用プロンプトを組み立てます。';
+    renderChapters(p);
+    document.getElementById('promptPreview').textContent = '「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。';
+    // reset to setting tab
+    document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page==='settingPage'));
+    document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id==='settingPage'));
     switchView('settingView');
   }
+
+  document.querySelectorAll('.setting-nav-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b===btn));
+      document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id===btn.dataset.page));
+    };
+  });
 
   function switchView(viewId){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -1752,6 +1931,57 @@ h1 .mark { color:var(--accent); font-style:italic; }
     body.innerHTML = '';
     p.sections.forEach(sec => body.appendChild(renderSectionBlock(sec, p)));
   }
+
+  function renderChapters(p){
+    const body = document.getElementById('plotBody');
+    body.innerHTML = '';
+    p.plotChapters.forEach((ch, idx) => body.appendChild(renderChapterCard(ch, idx, p)));
+  }
+
+  function renderChapterCard(ch, idx, p){
+    const card = document.createElement('div');
+    card.className = 'chapter-card';
+    card.innerHTML = `
+      <div class="chapter-card-head">
+        <span class="chapter-num-badge">第${idx+1}章</span>
+        <input type="text" class="chapter-title-input" placeholder="章タイトル（任意）" value="${escapeHTML(ch.title)}">
+        <button type="button" class="chapter-del-btn" title="この章を削除">🗑</button>
+      </div>
+      <div class="char-field"><label>出来事</label><textarea placeholder="この章で起きる出来事" data-f="event">${escapeHTML(ch.event)}</textarea></div>
+      <div class="char-field"><label>登場人物の心情</label><textarea placeholder="主要人物の心の動き" data-f="feeling">${escapeHTML(ch.feeling)}</textarea></div>
+      <div class="char-field"><label>この章が見せたいもの</label><textarea placeholder="読者に伝えたいテーマ・見せ場" data-f="reveal">${escapeHTML(ch.reveal)}</textarea></div>
+      <div class="char-field"><label>その他</label><textarea placeholder="補足メモ" data-f="other">${escapeHTML(ch.other)}</textarea></div>
+    `;
+    card.querySelector('.chapter-title-input').oninput = (e) => {
+      ch.title = e.target.value;
+      p.updatedAt = Date.now();
+      save();
+    };
+    card.querySelector('.chapter-del-btn').onclick = () => {
+      if(!confirm(`「${ch.title || `第${idx+1}章`}」を削除します。よろしいですか？`)) return;
+      p.plotChapters = p.plotChapters.filter(c => c.id !== ch.id);
+      p.updatedAt = Date.now();
+      save();
+      renderChapters(p);
+    };
+    card.querySelectorAll('textarea[data-f]').forEach(ta => {
+      ta.oninput = () => {
+        ch[ta.dataset.f] = ta.value;
+        p.updatedAt = Date.now();
+        save();
+      };
+    });
+    return card;
+  }
+
+  document.getElementById('addChapterBtn').onclick = () => {
+    const p = getCurrentSettingProject();
+    if(!p) return;
+    p.plotChapters.push(newChapter(p.plotChapters.length+1));
+    p.updatedAt = Date.now();
+    save();
+    renderChapters(p);
+  };
 
   function renderSectionBlock(sec, p){
     const block = document.createElement('div');
@@ -1886,6 +2116,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
         out += `【${title}】\n${sec.text && sec.text.trim() ? sec.text.trim() : '（未入力）'}\n\n`;
       }
     });
+
+    out += `【プロット（あらすじ）】\n`;
+    if(!p.plotChapters || p.plotChapters.length===0){
+      out += '（未入力）\n\n';
+    } else {
+      p.plotChapters.forEach((ch, idx) => {
+        out += `■ 第${idx+1}章${ch.title ? '　' + ch.title : ''}\n`;
+        if(ch.event) out += `出来事：${ch.event}\n`;
+        if(ch.feeling) out += `登場人物の心情：${ch.feeling}\n`;
+        if(ch.reveal) out += `この章が見せたいもの：${ch.reveal}\n`;
+        if(ch.other) out += `その他：${ch.other}\n`;
+        out += '\n';
+      });
+    }
     return out.trim();
   }
 
