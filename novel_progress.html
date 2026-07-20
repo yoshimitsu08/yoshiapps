@@ -640,9 +640,243 @@ h1 .mark { color:var(--accent); font-style:italic; }
   .stage-label { width:32px; font-size:0.55rem; }
   .dot { width:7px; height:7px; }
 }
+
+/* ================= Setting/Plot Editor View ================= */
+.view { display:none; }
+.view.active { display:block; }
+
+.editor-header {
+  padding:18px 20px;
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  background:rgba(26,24,20,0.96);
+  backdrop-filter:blur(6px);
+  z-index:50;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.back-btn {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text2);
+  font-family:var(--font-ui);
+  font-size:0.75rem;
+  padding:8px 12px;
+  border-radius:3px;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.back-btn:hover { border-color:var(--accent); color:var(--text); }
+.editor-header-title {
+  flex:1;
+  min-width:0;
+}
+.editor-header-title .et-work { font-family:var(--font-body); font-size:1.1rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.editor-header-title .et-label { font-family:var(--font-ui); font-size:0.6rem; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-top:2px; }
+
+.editor-body {
+  padding:20px;
+  max-width:720px;
+  margin:0 auto;
+}
+
+.section-block {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  margin-bottom:16px;
+  overflow:hidden;
+}
+.section-block-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+.section-title-input {
+  flex:1;
+  background:none;
+  border:none;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:1.02rem;
+  padding:4px 2px;
+}
+.section-title-input:focus { outline:none; border-bottom:1px solid var(--accent); }
+.section-icon-btn {
+  background:none;
+  border:none;
+  color:var(--text3);
+  cursor:pointer;
+  font-size:0.95rem;
+  padding:6px;
+  flex-shrink:0;
+}
+.section-icon-btn:hover { color:var(--danger); }
+.section-block-body { padding:14px; }
+
+.section-textarea {
+  width:100%;
+  min-height:130px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.82rem;
+  line-height:1.7;
+  resize:vertical;
+}
+.section-textarea:focus { outline:none; border-color:var(--accent); }
+
+/* character cards inside 登場人物 section */
+.char-card {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:10px;
+}
+.char-card-head {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+.char-name-input {
+  flex:1;
+  background:none;
+  border:none;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.95rem;
+  padding:4px 2px;
+}
+.char-name-input:focus { outline:none; border-color:var(--accent); }
+.char-del-btn {
+  background:none; border:none; color:var(--text3);
+  cursor:pointer; font-size:0.9rem; padding:4px 6px; flex-shrink:0;
+}
+.char-del-btn:hover { color:var(--danger); }
+.char-field { margin-bottom:8px; }
+.char-field label {
+  display:block;
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  color:var(--text3);
+  letter-spacing:0.05em;
+  margin-bottom:4px;
+  text-transform:uppercase;
+}
+.char-field textarea {
+  width:100%;
+  min-height:44px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:8px 10px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.76rem;
+  line-height:1.5;
+  resize:vertical;
+}
+.char-field textarea:focus { outline:none; border-color:var(--accent); }
+.add-char-btn {
+  width:100%;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--accent);
+  background:none;
+  border:1px dashed var(--border);
+  border-radius:3px;
+  padding:11px;
+  cursor:pointer;
+}
+.add-char-btn:hover { border-color:var(--accent); }
+
+.add-section-btn {
+  width:100%;
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  color:var(--text2);
+  background:var(--bg2);
+  border:1px dashed var(--border);
+  border-radius:5px;
+  padding:14px;
+  cursor:pointer;
+  margin-bottom:20px;
+}
+.add-section-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+/* prompt output */
+.prompt-panel {
+  background:var(--bg2);
+  border:1px solid var(--accent);
+  border-radius:5px;
+  padding:16px;
+  margin-top:8px;
+}
+.prompt-panel-head {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+.prompt-panel-head .pt-label {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--accent);
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.prompt-preview {
+  background:var(--bg3);
+  border-radius:4px;
+  padding:12px 14px;
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  line-height:1.7;
+  color:var(--text2);
+  white-space:pre-wrap;
+  max-height:220px;
+  overflow-y:auto;
+  margin-bottom:10px;
+}
+.copy-toast {
+  position:fixed;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--accent);
+  color:var(--bg);
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  font-weight:bold;
+  padding:10px 20px;
+  border-radius:20px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s, transform .2s;
+  z-index:200;
+}
+.copy-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+@media (max-width:480px) {
+  .editor-body { padding:14px; }
+  .editor-header { padding:14px; }
+}
 </style>
 </head>
 <body>
+
+<div class="view active" id="dashboardView">
 
 <header>
   <div class="header-row">
@@ -843,9 +1077,42 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-footer">
       <button class="btn" id="editFromDetailBtn">編集する</button>
+      <button class="btn primary" id="openSettingBtn">📝 設定・プロットを書く</button>
     </div>
   </div>
 </div>
+
+</div><!-- /#dashboardView -->
+
+<!-- ============ Setting/Plot Editor View ============ -->
+<div class="view" id="settingView">
+  <div class="editor-header">
+    <button class="back-btn" id="settingBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="settingWorkTitle">—</div>
+      <div class="et-label">設定・プロット</div>
+    </div>
+  </div>
+
+  <div class="editor-body" id="settingBody">
+    <!-- sections rendered here -->
+  </div>
+
+  <div class="editor-body" style="padding-top:0;">
+    <button type="button" class="add-section-btn" id="addSectionBtn">＋ セクションを追加</button>
+
+    <div class="prompt-panel">
+      <div class="prompt-panel-head">
+        <span class="pt-label">AI執筆プロンプト</span>
+        <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem;">プロンプトを作成</button>
+      </div>
+      <div class="prompt-preview" id="promptPreview">「プロンプトを作成」を押すと、入力内容から執筆用プロンプトを組み立てます。</div>
+      <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 コピー</button>
+    </div>
+  </div>
+</div>
+
+<div class="copy-toast" id="copyToast">コピーしました</div>
 
 <script>
 (function(){
@@ -865,6 +1132,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
       const raw = localStorage.getItem(STORAGE_KEY);
       projects = raw ? JSON.parse(raw) : [];
     } catch(_e){ projects = []; }
+    // migration: ensure sections exist on older records
+    projects.forEach(p => {
+      if(!p.sections) p.sections = defaultSections();
+      p.sections.forEach(s => {
+        if(s.type === 'characters' && !s.characters) s.characters = [];
+      });
+    });
   }
   function save(){
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }
@@ -889,9 +1163,23 @@ h1 .mark { color:var(--accent); font-style:italic; }
       todos: [],
       memo: '',
       pinned: false,
+      sections: defaultSections(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+  }
+
+  function defaultSections(){
+    return [
+      { id: uid(), title:'登場人物', type:'characters', text:'', characters:[] },
+      { id: uid(), title:'世界観', type:'text', text:'' },
+      { id: uid(), title:'用語集', type:'text', text:'' },
+      { id: uid(), title:'あらすじ（プロット）', type:'text', text:'' }
+    ];
+  }
+
+  function newCharacter(){
+    return { id: uid(), name:'', role:'', personality:'', background:'', notes:'' };
   }
 
   // ---------- Rendering: grid ----------
@@ -1389,6 +1677,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     openEditModal(id);
   };
 
+  document.getElementById('openSettingBtn').onclick = () => {
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openSettingView(id);
+  };
+
   document.getElementById('pinToggleBtn').onclick = () => {
     const p = projects.find(x=>x.id===currentDetailId);
     const willPin = !p.pinned;
@@ -1423,6 +1717,208 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const inputs = document.querySelectorAll('.todo-text');
     if(inputs.length) inputs[inputs.length-1].focus();
   };
+
+  // ================= Setting/Plot Editor View =================
+  let currentSettingId = null;
+
+  function openSettingView(id){
+    currentSettingId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    if(!p.sections) p.sections = defaultSections();
+    document.getElementById('settingWorkTitle').textContent = p.title || '無題';
+    renderSections(p);
+    document.getElementById('promptPreview').textContent = '「プロンプトを作成」を押すと、入力内容から執筆用プロンプトを組み立てます。';
+    switchView('settingView');
+  }
+
+  function switchView(viewId){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  document.getElementById('settingBackBtn').onclick = () => {
+    switchView('dashboardView');
+    renderGrid();
+  };
+
+  function getCurrentSettingProject(){
+    return projects.find(x=>x.id===currentSettingId);
+  }
+
+  function renderSections(p){
+    const body = document.getElementById('settingBody');
+    body.innerHTML = '';
+    p.sections.forEach(sec => body.appendChild(renderSectionBlock(sec, p)));
+  }
+
+  function renderSectionBlock(sec, p){
+    const block = document.createElement('div');
+    block.className = 'section-block';
+    block.dataset.secId = sec.id;
+
+    const head = document.createElement('div');
+    head.className = 'section-block-head';
+    head.innerHTML = `
+      <input type="text" class="section-title-input" value="${escapeHTML(sec.title)}">
+      <button type="button" class="section-icon-btn del-section-btn" title="セクションを削除">🗑</button>
+    `;
+    const titleInput = head.querySelector('.section-title-input');
+    titleInput.oninput = () => {
+      sec.title = titleInput.value;
+      p.updatedAt = Date.now();
+      save();
+    };
+    head.querySelector('.del-section-btn').onclick = () => {
+      if(!confirm(`「${sec.title || '無題セクション'}」を削除します。よろしいですか？`)) return;
+      p.sections = p.sections.filter(s => s.id !== sec.id);
+      p.updatedAt = Date.now();
+      save();
+      renderSections(p);
+    };
+
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'section-block-body';
+
+    if(sec.type === 'characters'){
+      bodyDiv.appendChild(renderCharactersEditor(sec, p));
+    } else {
+      const ta = document.createElement('textarea');
+      ta.className = 'section-textarea';
+      ta.placeholder = '自由に記述してください';
+      ta.value = sec.text || '';
+      ta.oninput = () => {
+        sec.text = ta.value;
+        p.updatedAt = Date.now();
+        save();
+      };
+      bodyDiv.appendChild(ta);
+    }
+
+    block.appendChild(head);
+    block.appendChild(bodyDiv);
+    return block;
+  }
+
+  function renderCharactersEditor(sec, p){
+    const wrap = document.createElement('div');
+    if(!sec.characters) sec.characters = [];
+
+    sec.characters.forEach(ch => {
+      const card = document.createElement('div');
+      card.className = 'char-card';
+      card.innerHTML = `
+        <div class="char-card-head">
+          <input type="text" class="char-name-input" placeholder="名前" value="${escapeHTML(ch.name)}">
+          <button type="button" class="char-del-btn" title="この登場人物を削除">🗑</button>
+        </div>
+        <div class="char-field"><label>役割</label><textarea placeholder="主人公／ヒロイン／敵役 など" data-f="role">${escapeHTML(ch.role)}</textarea></div>
+        <div class="char-field"><label>性格</label><textarea placeholder="性格・口調など" data-f="personality">${escapeHTML(ch.personality)}</textarea></div>
+        <div class="char-field"><label>背景</label><textarea placeholder="経歴・過去など" data-f="background">${escapeHTML(ch.background)}</textarea></div>
+        <div class="char-field"><label>その他メモ</label><textarea placeholder="外見・関係性など" data-f="notes">${escapeHTML(ch.notes)}</textarea></div>
+      `;
+      card.querySelector('.char-name-input').oninput = (e) => {
+        ch.name = e.target.value;
+        p.updatedAt = Date.now();
+        save();
+      };
+      card.querySelector('.char-del-btn').onclick = () => {
+        if(!confirm(`「${ch.name || '無名の登場人物'}」を削除します。よろしいですか？`)) return;
+        sec.characters = sec.characters.filter(c => c.id !== ch.id);
+        p.updatedAt = Date.now();
+        save();
+        renderSections(p);
+      };
+      card.querySelectorAll('textarea[data-f]').forEach(ta => {
+        ta.oninput = () => {
+          ch[ta.dataset.f] = ta.value;
+          p.updatedAt = Date.now();
+          save();
+        };
+      });
+      wrap.appendChild(card);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'add-char-btn';
+    addBtn.textContent = '＋ 登場人物を追加';
+    addBtn.onclick = () => {
+      sec.characters.push(newCharacter());
+      p.updatedAt = Date.now();
+      save();
+      renderSections(p);
+    };
+    wrap.appendChild(addBtn);
+    return wrap;
+  }
+
+  document.getElementById('addSectionBtn').onclick = () => {
+    const p = getCurrentSettingProject();
+    if(!p) return;
+    p.sections.push({ id: uid(), title:'新しいセクション', type:'text', text:'' });
+    p.updatedAt = Date.now();
+    save();
+    renderSections(p);
+  };
+
+  function buildPrompt(p){
+    let out = 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。\n\n';
+    out += `【作品タイトル】\n${p.title || '（未設定）'}\n\n`;
+    p.sections.forEach(sec => {
+      const title = sec.title || '無題セクション';
+      if(sec.type === 'characters'){
+        out += `【${title}】\n`;
+        if(!sec.characters || sec.characters.length===0){
+          out += '（未入力）\n\n';
+        } else {
+          sec.characters.forEach(ch => {
+            out += `■ ${ch.name || '（名前未設定）'}\n`;
+            if(ch.role) out += `役割：${ch.role}\n`;
+            if(ch.personality) out += `性格：${ch.personality}\n`;
+            if(ch.background) out += `背景：${ch.background}\n`;
+            if(ch.notes) out += `メモ：${ch.notes}\n`;
+            out += '\n';
+          });
+        }
+      } else {
+        out += `【${title}】\n${sec.text && sec.text.trim() ? sec.text.trim() : '（未入力）'}\n\n`;
+      }
+    });
+    return out.trim();
+  }
+
+  document.getElementById('genPromptBtn').onclick = () => {
+    const p = getCurrentSettingProject();
+    if(!p) return;
+    const prompt = buildPrompt(p);
+    document.getElementById('promptPreview').textContent = prompt;
+    document.getElementById('promptPreview').dataset.raw = prompt;
+  };
+
+  document.getElementById('copyPromptBtn').onclick = async () => {
+    const el = document.getElementById('promptPreview');
+    const text = el.dataset.raw || el.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopyToast();
+    } catch(_e){
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showCopyToast(); } catch(_e2){ alert('コピーに失敗しました。手動で選択してコピーしてください。'); }
+      document.body.removeChild(ta);
+    }
+  };
+
+  function showCopyToast(){
+    const toast = document.getElementById('copyToast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
 
   // ---------- Init ----------
   load();
