@@ -999,6 +999,147 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .setting-page { display:none; }
 .setting-page.active { display:block; }
+
+/* ---------- Manuscript editor ---------- */
+.phase-bar {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 20px;
+  border-bottom:1px solid var(--border);
+  flex-wrap:wrap;
+}
+.phase-bar-label {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text3);
+  letter-spacing:0.06em;
+  flex-shrink:0;
+}
+.phase-select {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.phase-btn {
+  font-family:var(--font-ui);
+  font-size:0.66rem;
+  letter-spacing:0.03em;
+  padding:8px 13px;
+  border-radius:3px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text2);
+  cursor:pointer;
+}
+.phase-btn:hover { border-color:var(--accent); }
+.phase-btn.active[data-phase="setting"] { background:var(--c-genan); color:var(--bg); border-color:transparent; font-weight:bold; }
+.phase-btn.active[data-phase="writing"] { background:var(--c-honbun); color:var(--bg); border-color:transparent; font-weight:bold; }
+.phase-btn.active[data-phase="revising"] { background:var(--c-kousei); color:var(--bg); border-color:transparent; font-weight:bold; }
+.phase-btn.active[data-phase="done"] { background:var(--accent); color:var(--bg); border-color:transparent; font-weight:bold; }
+
+.chapter-tabs {
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:4px;
+  margin-bottom:4px;
+}
+.chapter-tab {
+  flex-shrink:0;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  padding:9px 14px;
+  border-radius:4px 4px 0 0;
+  border:1px solid var(--border);
+  border-bottom:none;
+  background:var(--bg2);
+  color:var(--text3);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+}
+.chapter-tab.active {
+  background:var(--bg3);
+  color:var(--accent);
+  border-color:var(--accent);
+  font-weight:bold;
+}
+.chapter-tab .tab-done-mark {
+  width:6px; height:6px;
+  border-radius:50%;
+  background:var(--ok);
+  flex-shrink:0;
+  display:none;
+}
+.chapter-tab.is-done .tab-done-mark { display:inline-block; }
+.chapter-tabs-empty {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text3);
+  padding:10px 0;
+}
+
+.manuscript-textarea-wrap {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:0 4px 4px 4px;
+  padding:14px;
+}
+.manuscript-toolbar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.manuscript-toolbar .mt-left {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.manuscript-wordcount-live {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text2);
+}
+.chapter-done-toggle {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text2);
+  cursor:pointer;
+  user-select:none;
+}
+.chapter-done-toggle input {
+  width:15px; height:15px; accent-color:var(--ok);
+}
+.manuscript-textarea {
+  width:100%;
+  min-height:50vh;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:16px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:1rem;
+  line-height:1.9;
+  resize:vertical;
+}
+.manuscript-textarea:focus { outline:none; border-color:var(--accent); }
+.manuscript-empty-state {
+  text-align:center;
+  padding:60px 20px;
+  color:var(--text3);
+}
+.manuscript-empty-state .glyph { font-size:2rem; margin-bottom:10px; color:var(--border); }
+.manuscript-empty-state p { font-family:var(--font-ui); font-size:0.7rem; line-height:1.8; }
 </style>
 </head>
 <body>
@@ -1013,10 +1154,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
   </div>
   <div class="legend">
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>原案</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-plot)"></span>プロット</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>校正</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文執筆中</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>推敲中</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
   </div>
 </header>
 
@@ -1069,69 +1210,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
 
       <div class="field">
-        <label>ステータス</label>
-        <div class="status-select" id="statusSelect">
-          <button type="button" class="btn" data-status="プロット中">プロット中</button>
-          <button type="button" class="btn" data-status="執筆中">執筆中</button>
-          <button type="button" class="btn" data-status="推敲中">推敲中</button>
-          <button type="button" class="btn" data-status="完結">完結</button>
-        </div>
-      </div>
-
-      <div class="field">
         <label>合計文字数（現在値を上書き入力）</label>
         <input type="number" id="fieldWordcount" placeholder="0" min="0">
-      </div>
-
-      <!-- 原案 -->
-      <div class="stage-editor">
-        <div class="stage-editor-head">
-          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-genan)"></span>原案</div>
-        </div>
-        <div class="tri-toggle" id="genanToggle">
-          <button type="button" class="tri-btn" data-val="0">未着手</button>
-          <button type="button" class="tri-btn" data-val="1">着手</button>
-          <button type="button" class="tri-btn" data-val="2">完了</button>
-        </div>
-      </div>
-
-      <!-- プロット -->
-      <div class="stage-editor">
-        <div class="stage-editor-head">
-          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-plot)"></span>プロット</div>
-        </div>
-        <div class="tri-toggle" id="plotToggle">
-          <button type="button" class="tri-btn" data-val="0">未着手</button>
-          <button type="button" class="tri-btn" data-val="1">着手</button>
-          <button type="button" class="tri-btn" data-val="2">完了</button>
-        </div>
-      </div>
-
-      <!-- 本文 -->
-      <div class="stage-editor">
-        <div class="stage-editor-head">
-          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-honbun)"></span>本文</div>
-        </div>
-        <div class="chapter-editor">
-          <input type="number" id="honbunDone" min="0" placeholder="0">
-          <span class="of-text">章 完了 ／ 全</span>
-          <input type="number" id="honbunTotal" min="1" placeholder="1">
-          <span class="of-text">章</span>
-        </div>
-      </div>
-
-      <!-- 校正 -->
-      <div class="stage-editor">
-        <div class="stage-editor-head">
-          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-kousei)"></span>校正</div>
-        </div>
-        <div class="chapter-editor">
-          <input type="number" id="kouseiDone" min="0" placeholder="0">
-          <span class="of-text">章 完了 ／ 全</span>
-          <span class="of-text" id="kouseiTotalDisplay" style="color:var(--text2);">-</span>
-          <span class="of-text">章</span>
-        </div>
-        <div class="chapter-note">※ 校正の全章数は本文と連動します</div>
       </div>
 
       <div class="field">
@@ -1202,14 +1282,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
 
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="flex-wrap:wrap;">
       <button class="btn" id="editFromDetailBtn">編集する</button>
-      <button class="btn primary" id="openSettingBtn">📝 設定・プロットを書く</button>
+      <button class="btn" id="openSettingBtn">📝 設定・プロット</button>
+      <button class="btn primary" id="openManuscriptBtn">✏️ 本文を書く</button>
     </div>
   </div>
 </div>
 
 </div><!-- /#dashboardView -->
+
+<!-- ============ Manuscript Editor View ============ -->
+<div class="view" id="manuscriptView">
+  <div class="editor-header">
+    <button class="back-btn" id="manuscriptBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="manuscriptWorkTitle">—</div>
+      <div class="et-label">本文執筆</div>
+    </div>
+  </div>
+
+  <div class="phase-bar">
+    <span class="phase-bar-label">進行フェーズ</span>
+    <div class="phase-select" id="phaseSelect">
+      <button type="button" class="phase-btn" data-phase="setting">設定・プロット</button>
+      <button type="button" class="phase-btn" data-phase="writing">本文執筆中</button>
+      <button type="button" class="phase-btn" data-phase="revising">推敲中</button>
+      <button type="button" class="phase-btn" data-phase="done">完結</button>
+    </div>
+  </div>
+
+  <div class="editor-body" id="manuscriptChapterNav">
+    <!-- chapter tab list -->
+  </div>
+
+  <div class="editor-body" style="padding-top:0;" id="manuscriptEditArea">
+    <!-- selected chapter textarea -->
+  </div>
+</div>
 
 <!-- ============ Setting/Plot Editor View ============ -->
 <div class="view" id="settingView">
@@ -1283,6 +1393,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
         if(s.type === 'characters' && !s.characters) s.characters = [];
       });
       if(!p.plotChapters) p.plotChapters = [];
+      if(!p.manuscript) p.manuscript = {};
+      if(!p.phase){
+        // 旧データからの簡易移行：文字数があれば執筆中、なければ設定・プロット
+        p.phase = (p.wordcount||0) > 0 ? 'writing' : 'setting';
+      }
     });
   }
   function save(){
@@ -1296,20 +1411,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return {
       id: uid(),
       title: '',
-      status: '執筆中',
+      phase: 'setting', // 'setting' | 'writing' | 'revising' | 'done'
       cover: null,
       wordcount: 0,
       wordLog: [],
-      genan: 0,
-      plot: 0,
-      honbunDone: 0,
-      honbunTotal: 1,
       deadlines: [],
       todos: [],
       memo: '',
       pinned: false,
       sections: defaultSections(),
       plotChapters: [],
+      manuscript: {}, // chapterId -> { text, done }
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -1370,19 +1482,25 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>`;
   }
 
-  // ---- Unified auto-status + single progress bar ----
-  function computeAutoStatus(p){
-    if(p.status === '完結') return '完結';
-    if((p.wordcount||0) <= 0) return '設定・プロット';
-    return '本文執筆中';
-    // 「推敲中」判定は本文エディタ（章ごとの完了管理）実装後に対応予定
+  // ---- Phase (manual) + single progress bar driven by manuscript completion ----
+  const PHASE_LABELS = {
+    setting: '設定・プロット',
+    writing: '本文執筆中',
+    revising: '推敲中',
+    done: '完結'
+  };
+  const PHASE_ORDER = ['setting','writing','revising','done'];
+
+  function phaseLabel(p){
+    return PHASE_LABELS[p.phase] || PHASE_LABELS.setting;
   }
 
-  function statusClass(statusText){
-    if(statusText === '設定・プロット') return 'st-setting';
-    if(statusText === '本文執筆中') return 'st-writing';
-    if(statusText === '推敲中') return 'st-revising';
-    return 'st-writing';
+  function statusClass(phase){
+    if(phase === 'setting') return 'st-setting';
+    if(phase === 'writing') return 'st-writing';
+    if(phase === 'revising') return 'st-revising';
+    if(phase === 'done') return 'st-writing';
+    return 'st-setting';
   }
 
   function chapterTotal(p){
@@ -1390,14 +1508,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return Math.max(1, (p.plotChapters && p.plotChapters.length) || 1);
   }
 
+  function chapterDoneCount(p){
+    if(!p.manuscript) return 0;
+    return (p.plotChapters||[]).filter(ch => p.manuscript[ch.id] && p.manuscript[ch.id].done).length;
+  }
+
   function statusLineHTML(p){
-    const statusText = computeAutoStatus(p);
     const total = chapterTotal(p);
-    // 分子はハリボテ：本文執筆機能が未実装のため、完結時のみ満タン表示、それ以外は0扱い
-    const done = statusText === '完結' ? total : 0;
+    const done = p.phase === 'done' ? total : chapterDoneCount(p);
     const pct = Math.round((done/total)*100);
     return `<div class="status-line">
-      <span class="status-heading ${statusClass(statusText)}">${statusText}</span>
+      <span class="status-heading ${statusClass(p.phase)}">${phaseLabel(p)}</span>
       <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
       <div class="progress-bar-frac">${done}/${total}</div>
     </div>`;
@@ -1426,7 +1547,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="card${p.pinned?' pinned':''}" data-id="${p.id}">
       <div class="card-cover">
         ${p.pinned ? '<div class="pin-badge">PIN</div>' : ''}
-        <div class="status-badge">${computeAutoStatus(p)}</div>
+        <div class="status-badge">${phaseLabel(p)}</div>
         ${coverHTML}
       </div>
       <div class="card-body">
@@ -1512,42 +1633,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('fieldTitle').value = p.title || '';
     document.getElementById('fieldWordcount').value = p.wordcount || 0;
     document.getElementById('fieldMemo').value = p.memo || '';
-    document.getElementById('honbunDone').value = p.honbunDone || 0;
-    document.getElementById('honbunTotal').value = p.honbunTotal || 1;
-    document.getElementById('kouseiDone').value = p.kouseiDone || 0;
-    document.getElementById('kouseiTotalDisplay').textContent = p.honbunTotal || 1;
     document.getElementById('deleteProjectBtn').style.display = id ? 'inline-block' : 'none';
-
-    setStatusUI(p.status);
-    setTriUI('genanToggle', p.genan || 0);
-    setTriUI('plotToggle', p.plot || 0);
 
     updateCoverPreview();
 
     renderDeadlineEditRows(p.deadlines || []);
 
     document.getElementById('editModalOverlay').classList.add('active');
-    document.getElementById('honbunTotal').oninput = () => {
-      document.getElementById('kouseiTotalDisplay').textContent = document.getElementById('honbunTotal').value || 1;
-    };
-  }
-
-  function setStatusUI(status){
-    document.querySelectorAll('#statusSelect .btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.status === status);
-    });
-  }
-  function setTriUI(groupId, val){
-    document.querySelectorAll(`#${groupId} .tri-btn`).forEach(b => {
-      const v = parseInt(b.dataset.val,10);
-      b.classList.toggle('active', v === val);
-      if(v === val){
-        const colorVar = groupId==='genanToggle' ? 'var(--c-genan)' : 'var(--c-plot)';
-        b.style.background = colorVar;
-      } else {
-        b.style.background = '';
-      }
-    });
   }
 
   function updateCoverPreview(){
@@ -1591,15 +1683,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     })).filter(d => d.name || d.date);
   }
 
-  function getActiveStatus(){
-    const btn = document.querySelector('#statusSelect .btn.active');
-    return btn ? btn.dataset.status : '執筆中';
-  }
-  function getActiveTri(groupId){
-    const btn = document.querySelector(`#${groupId} .tri-btn.active`);
-    return btn ? parseInt(btn.dataset.val,10) : 0;
-  }
-
   function saveProjectFromForm(){
     const title = document.getElementById('fieldTitle').value.trim();
     if(!title){
@@ -1614,19 +1697,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
       projects.push(p);
     }
     p.title = title;
-    p.status = getActiveStatus();
     p.cover = coverDataUrl;
     p.wordcount = parseInt(document.getElementById('fieldWordcount').value,10) || 0;
-    p.genan = getActiveTri('genanToggle');
-    p.plot = getActiveTri('plotToggle');
-    p.honbunDone = Math.max(0, parseInt(document.getElementById('honbunDone').value,10) || 0);
-    p.honbunTotal = Math.max(1, parseInt(document.getElementById('honbunTotal').value,10) || 1);
-    p.kouseiDone = Math.max(0, parseInt(document.getElementById('kouseiDone').value,10) || 0);
     p.deadlines = collectDeadlinesFromForm();
     p.memo = document.getElementById('fieldMemo').value;
     p.updatedAt = Date.now();
     if(!p.wordLog) p.wordLog = [];
     if(!p.todos) p.todos = [];
+    if(!p.phase) p.phase = 'setting';
+    if(!p.plotChapters) p.plotChapters = [];
 
     save();
     closeEditModal();
@@ -1678,7 +1757,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(!p) return;
 
     document.getElementById('detailTitle').textContent = p.title || '無題';
-    document.getElementById('detailStatus').textContent = computeAutoStatus(p);
+    document.getElementById('detailStatus').textContent = phaseLabel(p);
     document.getElementById('pinToggleBtn').textContent = p.pinned ? '📌 優先を解除' : '📌 優先に設定';
     document.getElementById('pinToggleBtn').classList.toggle('active', p.pinned);
     if(p.pinned){
@@ -1816,16 +1895,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     updateCoverPreview();
   });
 
-  document.querySelectorAll('#statusSelect .btn').forEach(b => {
-    b.onclick = () => setStatusUI(b.dataset.status);
-  });
-  document.querySelectorAll('#genanToggle .tri-btn').forEach(b => {
-    b.onclick = () => setTriUI('genanToggle', parseInt(b.dataset.val,10));
-  });
-  document.querySelectorAll('#plotToggle .tri-btn').forEach(b => {
-    b.onclick = () => setTriUI('plotToggle', parseInt(b.dataset.val,10));
-  });
-
   document.getElementById('addDeadlineBtn').onclick = () => {
     const list = document.getElementById('deadlineList');
     list.appendChild(makeDeadlineRow({name:'',date:''}, list.children.length));
@@ -1848,6 +1917,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const id = currentDetailId;
     document.getElementById('detailModalOverlay').classList.remove('active');
     openSettingView(id);
+  };
+
+  document.getElementById('openManuscriptBtn').onclick = () => {
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openManuscriptView(id);
   };
 
   document.getElementById('pinToggleBtn').onclick = () => {
@@ -2162,6 +2237,131 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const toast = document.getElementById('copyToast');
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  // ================= Manuscript Editor View =================
+  let currentManuscriptId = null;
+  let currentChapterId = null;
+
+  function openManuscriptView(id){
+    currentManuscriptId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    if(!p.manuscript) p.manuscript = {};
+    if(!p.plotChapters) p.plotChapters = [];
+
+    document.getElementById('manuscriptWorkTitle').textContent = p.title || '無題';
+    setPhaseUI(p.phase);
+
+    currentChapterId = (p.plotChapters[0] && p.plotChapters[0].id) || null;
+    renderChapterTabs(p);
+    renderManuscriptEditArea(p);
+
+    switchView('manuscriptView');
+  }
+
+  function setPhaseUI(phase){
+    document.querySelectorAll('.phase-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.phase === phase);
+    });
+  }
+
+  document.querySelectorAll('.phase-btn').forEach(btn => {
+    btn.onclick = () => {
+      const p = projects.find(x=>x.id===currentManuscriptId);
+      if(!p) return;
+      p.phase = btn.dataset.phase;
+      p.updatedAt = Date.now();
+      save();
+      setPhaseUI(p.phase);
+    };
+  });
+
+  document.getElementById('manuscriptBackBtn').onclick = () => {
+    switchView('dashboardView');
+    renderGrid();
+  };
+
+  function renderChapterTabs(p){
+    const nav = document.getElementById('manuscriptChapterNav');
+    if(!p.plotChapters || p.plotChapters.length===0){
+      nav.innerHTML = '<div class="chapter-tabs-empty">章が未設定です。「設定・プロット」タブでプロットを追加すると、ここに章が表示されます。</div>';
+      return;
+    }
+    const tabs = document.createElement('div');
+    tabs.className = 'chapter-tabs';
+    p.plotChapters.forEach((ch, idx) => {
+      const isDone = p.manuscript[ch.id] && p.manuscript[ch.id].done;
+      const tab = document.createElement('div');
+      tab.className = 'chapter-tab' + (ch.id===currentChapterId ? ' active' : '') + (isDone ? ' is-done' : '');
+      tab.innerHTML = `<span class="tab-done-mark"></span>第${idx+1}章${ch.title ? '：'+escapeHTML(ch.title) : ''}`;
+      tab.onclick = () => {
+        currentChapterId = ch.id;
+        renderChapterTabs(p);
+        renderManuscriptEditArea(p);
+      };
+      tabs.appendChild(tab);
+    });
+    nav.innerHTML = '';
+    nav.appendChild(tabs);
+  }
+
+  function renderManuscriptEditArea(p){
+    const area = document.getElementById('manuscriptEditArea');
+    if(!currentChapterId){
+      area.innerHTML = `<div class="manuscript-empty-state"><div class="glyph">✏</div><p>章がありません。<br>先に「設定・プロット」で章を追加してください。</p></div>`;
+      return;
+    }
+    const idx = p.plotChapters.findIndex(c => c.id === currentChapterId);
+    const ch = p.plotChapters[idx];
+    if(!p.manuscript[ch.id]) p.manuscript[ch.id] = { text:'', done:false };
+    const entry = p.manuscript[ch.id];
+
+    area.innerHTML = `
+      <div class="manuscript-textarea-wrap">
+        <div class="manuscript-toolbar">
+          <div class="mt-left">
+            <span class="manuscript-wordcount-live" id="mtWordcount">${(entry.text||'').length.toLocaleString()} 字</span>
+          </div>
+          <label class="chapter-done-toggle">
+            <input type="checkbox" id="mtDoneCheck" ${entry.done ? 'checked' : ''}>
+            この章を完了にする
+          </label>
+        </div>
+        <textarea class="manuscript-textarea" id="mtTextarea" placeholder="第${idx+1}章の本文をここに書いてください">${escapeHTML(entry.text||'')}</textarea>
+      </div>
+    `;
+
+    const ta = document.getElementById('mtTextarea');
+    ta.oninput = () => {
+      entry.text = ta.value;
+      document.getElementById('mtWordcount').textContent = entry.text.length.toLocaleString() + ' 字';
+      recomputeTotalWordcount(p);
+      p.updatedAt = Date.now();
+      save();
+      renderChapterTabs(p);
+    };
+
+    document.getElementById('mtDoneCheck').onchange = (e) => {
+      entry.done = e.target.checked;
+      p.updatedAt = Date.now();
+      save();
+      renderChapterTabs(p);
+    };
+  }
+
+  function recomputeTotalWordcount(p){
+    // 全章のテキスト文字数を合算して合計文字数として反映
+    let total = 0;
+    Object.values(p.manuscript || {}).forEach(entry => {
+      total += (entry.text || '').length;
+    });
+    p.wordcount = total;
+    const today = todayISO();
+    p.wordLog = p.wordLog || [];
+    const existing = p.wordLog.find(l => l.date === today);
+    if(existing) existing.value = total;
+    else p.wordLog.push({date: today, value: total});
   }
 
   // ---------- Init ----------
