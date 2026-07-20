@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Manuscript — 進捗管理</title>
+<style>
+:root {
+  --bg:#1a1814;
+  --bg2:#211f1b;
+  --bg3:#2a2722;
+  --surface:#302d27;
+  --accent:#c8a96e;
+  --text:#e8e0d0;
+  --text2:#a09880;
+  --text3:#706858;
+  --border:#3f3b34;
+  --ok:#7ec8a8;
+  --danger:#c06040;
+  --font-ui:'Courier New',monospace;
+  --font-body:'Georgia',serif;
+
+  --c-genan:#8fa8c8;
+  --c-plot:#c8a96e;
+  --c-honbun:#c8a96e;
+  --c-kousei:#7ec8a8;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  padding-bottom:80px;
+}
+
+/* ---------- Header ---------- */
+header {
+  padding:28px 20px 18px;
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  background:rgba(26,24,20,0.94);
+  backdrop-filter:blur(6px);
+  z-index:50;
+}
+.header-row {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+}
+h1 {
+  font-family:var(--font-body);
+  font-size:1.5rem;
+  font-weight:400;
+  letter-spacing:0.02em;
+  color:var(--text);
+}
+h1 .mark { color:var(--accent); font-style:italic; }
+.subtitle {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text3);
+  letter-spacing:0.08em;
+  margin-top:4px;
+  text-transform:uppercase;
+}
+
+/* stage legend */
+.legend {
+  display:flex;
+  gap:14px;
+  margin-top:16px;
+  flex-wrap:wrap;
+}
+.legend-item {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text2);
+  letter-spacing:0.04em;
+}
+.legend-dot {
+  width:8px; height:8px;
+  border-radius:1px;
+}
+
+/* ---------- Priority pin banner ---------- */
+.priority-banner {
+  margin:18px 20px 0;
+  padding:14px 16px;
+  background:linear-gradient(135deg, var(--bg2), var(--bg3));
+  border:1px solid var(--accent);
+  border-radius:4px;
+  display:none;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+}
+.priority-banner.active { display:flex; }
+.priority-banner .pin-icon { font-size:1.1rem; color:var(--accent); }
+.priority-banner .pin-text { flex:1; }
+.priority-banner .pin-label {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--accent);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+}
+.priority-banner .pin-title {
+  font-family:var(--font-body);
+  font-size:1rem;
+  color:var(--text);
+  margin-top:2px;
+}
+.priority-banner .pin-deadline {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text2);
+}
+
+/* ---------- Toolbar ---------- */
+.toolbar {
+  display:flex;
+  gap:10px;
+  padding:16px 20px;
+  align-items:center;
+}
+.btn {
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  letter-spacing:0.05em;
+  padding:10px 16px;
+  border-radius:3px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text);
+  cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+.btn:hover { background:var(--surface); border-color:var(--accent); }
+.btn.primary {
+  background:var(--accent);
+  color:var(--bg);
+  border-color:var(--accent);
+  font-weight:bold;
+}
+.btn.primary:hover { opacity:0.9; background:var(--accent); }
+.toolbar .sort-select {
+  margin-left:auto;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  background:var(--bg2);
+  color:var(--text2);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:9px 10px;
+}
+
+/* ---------- Grid ---------- */
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+  gap:16px;
+  padding:0 20px;
+}
+
+/* ---------- Card ---------- */
+.card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:border-color .15s, transform .15s;
+  position:relative;
+}
+.card:hover { border-color:var(--accent); transform:translateY(-1px); }
+.card.pinned { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+
+.card-cover {
+  width:100%;
+  height:130px;
+  background:var(--bg3);
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.card-cover img {
+  width:100%; height:100%; object-fit:cover;
+}
+.card-cover .no-cover {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text3);
+  letter-spacing:0.08em;
+  text-align:center;
+  line-height:1.6;
+}
+.card-cover .no-cover .glyph { font-size:1.6rem; display:block; margin-bottom:4px; color:var(--border); }
+
+.pin-badge {
+  position:absolute;
+  top:8px; left:8px;
+  background:var(--accent);
+  color:var(--bg);
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  padding:3px 7px;
+  border-radius:2px;
+  font-weight:bold;
+  letter-spacing:0.05em;
+  z-index:2;
+}
+.status-badge {
+  position:absolute;
+  top:8px; right:8px;
+  background:rgba(26,24,20,0.85);
+  color:var(--text2);
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  padding:3px 8px;
+  border-radius:2px;
+  letter-spacing:0.06em;
+  z-index:2;
+  border:1px solid var(--border);
+}
+
+.card-body { padding:14px 14px 16px; }
+.card-title {
+  font-family:var(--font-body);
+  font-size:1.05rem;
+  color:var(--text);
+  margin-bottom:2px;
+  line-height:1.3;
+}
+.card-meta {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text3);
+  margin-bottom:12px;
+  display:flex;
+  justify-content:space-between;
+}
+.card-meta .deadline-warn { color:var(--danger); }
+.card-meta .deadline-ok { color:var(--text3); }
+
+/* dot-grid progress (signature element) */
+.stage-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:7px;
+}
+.stage-label {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text2);
+  width:38px;
+  flex-shrink:0;
+  letter-spacing:0.02em;
+}
+.dots {
+  display:flex;
+  flex-wrap:wrap;
+  gap:2.5px;
+  flex:1;
+}
+.dot {
+  width:9px; height:9px;
+  border-radius:1px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  flex-shrink:0;
+}
+.dot.filled { border-color:transparent; }
+.stage-frac {
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  color:var(--text3);
+  flex-shrink:0;
+  width:34px;
+  text-align:right;
+}
+
+.card-wordcount {
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  color:var(--text2);
+  display:flex;
+  justify-content:space-between;
+}
+.card-wordcount .num { color:var(--accent); font-weight:bold; }
+
+/* ---------- Empty state ---------- */
+.empty-state {
+  text-align:center;
+  padding:80px 20px;
+  color:var(--text3);
+}
+.empty-state .glyph { font-size:2.4rem; margin-bottom:12px; color:var(--border); }
+.empty-state p { font-family:var(--font-ui); font-size:0.75rem; letter-spacing:0.05em; margin-bottom:20px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(10,9,7,0.75);
+  z-index:100;
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  padding:20px 12px 40px;
+}
+.modal-overlay.active { display:flex; }
+.modal {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  width:100%;
+  max-width:520px;
+  margin-top:20px;
+}
+.modal-header {
+  padding:18px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.modal-header h2 {
+  font-family:var(--font-body);
+  font-size:1.15rem;
+  font-weight:400;
+  color:var(--text);
+}
+.modal-close {
+  background:none; border:none;
+  color:var(--text3);
+  font-size:1.4rem;
+  cursor:pointer;
+  line-height:1;
+  padding:4px 8px;
+}
+.modal-close:hover { color:var(--text); }
+.modal-body { padding:20px; }
+
+.field { margin-bottom:16px; }
+.field label {
+  display:block;
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text2);
+  letter-spacing:0.06em;
+  margin-bottom:6px;
+  text-transform:uppercase;
+}
+.field input[type="text"],
+.field input[type="number"],
+.field input[type="date"],
+.field textarea {
+  width:100%;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:10px 12px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.95rem;
+}
+.field input:focus, .field textarea:focus {
+  outline:none;
+  border-color:var(--accent);
+}
+.field textarea { resize:vertical; min-height:70px; font-family:var(--font-ui); font-size:0.78rem; line-height:1.5; }
+.field-row { display:flex; gap:10px; }
+.field-row .field { flex:1; }
+
+/* cover upload */
+.cover-upload {
+  width:100%;
+  height:120px;
+  background:var(--bg3);
+  border:1px dashed var(--border);
+  border-radius:4px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  margin-bottom:16px;
+}
+.cover-upload img { width:100%; height:100%; object-fit:cover; }
+.cover-upload .upload-hint {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text3);
+  text-align:center;
+  letter-spacing:0.05em;
+}
+.cover-upload input[type="file"] { display:none; }
+.cover-remove {
+  position:absolute; top:6px; right:6px;
+  background:rgba(10,9,7,0.8);
+  color:var(--text);
+  border:none;
+  border-radius:2px;
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  padding:4px 8px;
+  cursor:pointer;
+  display:none;
+}
+.cover-upload.has-image .cover-remove { display:block; }
+
+/* stage editors */
+.stage-editor {
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:12px;
+}
+.stage-editor-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+.stage-editor-title {
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  letter-spacing:0.06em;
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.stage-editor-title .swatch {
+  width:9px; height:9px; border-radius:1px;
+}
+.tri-toggle {
+  display:flex;
+  gap:6px;
+}
+.tri-btn {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  padding:6px 10px;
+  border-radius:3px;
+  border:1px solid var(--border);
+  background:var(--bg3);
+  color:var(--text3);
+  cursor:pointer;
+}
+.tri-btn.active { color:var(--bg); font-weight:bold; border-color:transparent; }
+.chapter-editor {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.chapter-editor input {
+  width:64px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:7px 8px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.75rem;
+  text-align:center;
+}
+.chapter-editor .of-text {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text3);
+}
+.chapter-note {
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  color:var(--text3);
+  margin-top:8px;
+  line-height:1.5;
+}
+
+/* status select */
+.status-select {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.status-select .btn { padding:8px 12px; font-size:0.65rem; }
+.status-select .btn.active { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:bold; }
+
+/* deadline list */
+.deadline-list { display:flex; flex-direction:column; gap:8px; }
+.deadline-row {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.deadline-row input[type="text"] { flex:1.4; }
+.deadline-row input[type="date"] { flex:1; }
+.deadline-row .del-btn {
+  background:none; border:none; color:var(--text3);
+  cursor:pointer; font-size:1rem; padding:6px;
+  flex-shrink:0;
+}
+.deadline-row .del-btn:hover { color:var(--danger); }
+.add-deadline-btn {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--accent);
+  background:none;
+  border:1px dashed var(--border);
+  border-radius:3px;
+  padding:8px;
+  cursor:pointer;
+  margin-top:4px;
+}
+.add-deadline-btn:hover { border-color:var(--accent); }
+
+.modal-footer {
+  padding:16px 20px;
+  border-top:1px solid var(--border);
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+}
+.modal-footer .left-actions { display:flex; gap:10px; }
+
+/* ---------- Detail view extras ---------- */
+.detail-section {
+  margin-bottom:20px;
+}
+.detail-section-title {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text2);
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.wordcount-input-row {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.wordcount-input-row input {
+  flex:1;
+}
+.wc-chart {
+  margin-top:12px;
+  padding:12px;
+  background:var(--bg3);
+  border-radius:4px;
+  min-height:60px;
+}
+.wc-chart-empty {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  text-align:center;
+  padding:16px 0;
+}
+.sparkline-row { display:flex; align-items:flex-end; gap:3px; height:60px; }
+.sparkline-bar {
+  flex:1;
+  background:var(--accent);
+  border-radius:1px 1px 0 0;
+  min-height:2px;
+  opacity:0.8;
+}
+
+.todo-list { display:flex; flex-direction:column; gap:6px; }
+.todo-row {
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg3);
+  border-radius:3px;
+  padding:8px 10px;
+}
+.todo-row input[type="checkbox"] {
+  width:15px; height:15px; accent-color:var(--accent); flex-shrink:0;
+}
+.todo-row input[type="text"] {
+  flex:1; background:none; border:none; color:var(--text);
+  font-family:var(--font-body); font-size:0.88rem;
+}
+.todo-row input[type="text"]:focus { outline:none; }
+.todo-row.done input[type="text"] { color:var(--text3); text-decoration:line-through; }
+.todo-row .del-btn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:0.95rem; padding:4px; }
+.todo-row .del-btn:hover { color:var(--danger); }
+
+.deadline-display {
+  display:flex; flex-direction:column; gap:6px;
+}
+.deadline-display-row {
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--bg3); border-radius:3px; padding:9px 12px;
+}
+.deadline-display-row .dl-name { font-family:var(--font-body); font-size:0.88rem; }
+.deadline-display-row .dl-days {
+  font-family:var(--font-ui); font-size:0.68rem; color:var(--text2);
+}
+.deadline-display-row .dl-days.warn { color:var(--danger); font-weight:bold; }
+.deadline-display-row .dl-days.past { color:var(--text3); text-decoration:line-through; }
+
+.memo-display {
+  font-family:var(--font-ui);
+  font-size:0.8rem;
+  line-height:1.7;
+  color:var(--text2);
+  white-space:pre-wrap;
+  background:var(--bg3);
+  border-radius:4px;
+  padding:12px 14px;
+  min-height:50px;
+}
+
+@media (max-width:480px) {
+  .grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 12px; }
+  header { padding:20px 14px 14px; }
+  .toolbar { padding:14px 12px; flex-wrap:wrap; }
+  .toolbar .sort-select { margin-left:0; order:3; width:100%; }
+  .priority-banner { margin:14px 12px 0; }
+  .card-cover { height:100px; }
+  .stage-label { width:32px; font-size:0.55rem; }
+  .dot { width:7px; height:7px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div>
+      <h1>Manu<span class="mark">script</span></h1>
+      <div class="subtitle">novel progress dashboard</div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>原案</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-plot)"></span>プロット</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>校正</div>
+  </div>
+</header>
+
+<div class="priority-banner" id="priorityBanner">
+  <div class="pin-icon">📌</div>
+  <div class="pin-text">
+    <div class="pin-label">Now Writing</div>
+    <div class="pin-title" id="pinTitle">—</div>
+  </div>
+  <div class="pin-deadline" id="pinDeadline"></div>
+</div>
+
+<div class="toolbar">
+  <button class="btn primary" id="newProjectBtn">＋ 新規作品</button>
+  <select class="sort-select" id="sortSelect">
+    <option value="pinned">優先順（ピン留め優先）</option>
+    <option value="deadline">締切が近い順</option>
+    <option value="updated">更新順</option>
+    <option value="title">タイトル順</option>
+  </select>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="empty-state" id="emptyState" style="display:none;">
+  <div class="glyph">✒</div>
+  <p>まだ作品がありません。<br>「＋ 新規作品」から最初の1本を登録しましょう。</p>
+  <button class="btn primary" id="emptyNewBtn">＋ 新規作品</button>
+</div>
+
+<!-- ============ Project Edit Modal ============ -->
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="editModalTitle">新規作品</h2>
+      <button class="modal-close" id="editModalClose">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="cover-upload" id="coverUpload">
+        <img id="coverPreview" style="display:none;">
+        <div class="upload-hint" id="coverHint">📷<br>タップしてカバー画像を設定</div>
+        <button class="cover-remove" id="coverRemoveBtn">削除</button>
+        <input type="file" id="coverFileInput" accept="image/*">
+      </div>
+
+      <div class="field">
+        <label>タイトル</label>
+        <input type="text" id="fieldTitle" placeholder="作品タイトル">
+      </div>
+
+      <div class="field">
+        <label>ステータス</label>
+        <div class="status-select" id="statusSelect">
+          <button type="button" class="btn" data-status="プロット中">プロット中</button>
+          <button type="button" class="btn" data-status="執筆中">執筆中</button>
+          <button type="button" class="btn" data-status="推敲中">推敲中</button>
+          <button type="button" class="btn" data-status="完結">完結</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>合計文字数（現在値を上書き入力）</label>
+        <input type="number" id="fieldWordcount" placeholder="0" min="0">
+      </div>
+
+      <!-- 原案 -->
+      <div class="stage-editor">
+        <div class="stage-editor-head">
+          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-genan)"></span>原案</div>
+        </div>
+        <div class="tri-toggle" id="genanToggle">
+          <button type="button" class="tri-btn" data-val="0">未着手</button>
+          <button type="button" class="tri-btn" data-val="1">着手</button>
+          <button type="button" class="tri-btn" data-val="2">完了</button>
+        </div>
+      </div>
+
+      <!-- プロット -->
+      <div class="stage-editor">
+        <div class="stage-editor-head">
+          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-plot)"></span>プロット</div>
+        </div>
+        <div class="tri-toggle" id="plotToggle">
+          <button type="button" class="tri-btn" data-val="0">未着手</button>
+          <button type="button" class="tri-btn" data-val="1">着手</button>
+          <button type="button" class="tri-btn" data-val="2">完了</button>
+        </div>
+      </div>
+
+      <!-- 本文 -->
+      <div class="stage-editor">
+        <div class="stage-editor-head">
+          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-honbun)"></span>本文</div>
+        </div>
+        <div class="chapter-editor">
+          <input type="number" id="honbunDone" min="0" placeholder="0">
+          <span class="of-text">章 完了 ／ 全</span>
+          <input type="number" id="honbunTotal" min="1" placeholder="1">
+          <span class="of-text">章</span>
+        </div>
+      </div>
+
+      <!-- 校正 -->
+      <div class="stage-editor">
+        <div class="stage-editor-head">
+          <div class="stage-editor-title"><span class="swatch" style="background:var(--c-kousei)"></span>校正</div>
+        </div>
+        <div class="chapter-editor">
+          <input type="number" id="kouseiDone" min="0" placeholder="0">
+          <span class="of-text">章 完了 ／ 全</span>
+          <span class="of-text" id="kouseiTotalDisplay" style="color:var(--text2);">-</span>
+          <span class="of-text">章</span>
+        </div>
+        <div class="chapter-note">※ 校正の全章数は本文と連動します</div>
+      </div>
+
+      <div class="field">
+        <label>締切・マイルストーン</label>
+        <div class="deadline-list" id="deadlineList"></div>
+        <button type="button" class="add-deadline-btn" id="addDeadlineBtn">＋ マイルストーンを追加</button>
+      </div>
+
+      <div class="field">
+        <label>メモ（伏線・設定・次に書くこと）</label>
+        <textarea id="fieldMemo" placeholder="次に書くこと、設定メモなど"></textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <div class="left-actions">
+        <button class="btn" id="deleteProjectBtn" style="display:none; color:var(--danger); border-color:var(--danger);">削除</button>
+      </div>
+      <button class="btn primary" id="saveProjectBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Detail Modal ============ -->
+<div class="modal-overlay" id="detailModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="detailTitle">—</h2>
+      <button class="modal-close" id="detailModalClose">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="detail-section">
+        <div class="detail-section-title">
+          <span id="detailStatus"></span>
+          <button class="btn" id="pinToggleBtn" style="padding:6px 10px; font-size:0.6rem;">📌 優先に設定</button>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">進捗</div>
+        <div id="detailStages"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">文字数</div>
+        <div class="wordcount-input-row">
+          <input type="number" id="detailWordcountInput" placeholder="0" min="0">
+          <button class="btn" id="detailWordcountSave">記録</button>
+        </div>
+        <div class="wc-chart" id="wcChart"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">締切・マイルストーン</div>
+        <div class="deadline-display" id="detailDeadlines"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">次にやること</div>
+        <div class="todo-list" id="todoList"></div>
+        <button type="button" class="add-deadline-btn" id="addTodoBtn">＋ タスクを追加</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">メモ</div>
+        <div class="memo-display" id="detailMemo"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="editFromDetailBtn">編集する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const STORAGE_KEY = 'manuscript_projects_v1';
+  const STAGE_COLORS = { genan:'var(--c-genan)', plot:'var(--c-plot)', honbun:'var(--c-honbun)', kousei:'var(--c-kousei)' };
+  const TRI_LABELS = ['未着手','着手','完了'];
+
+  let projects = [];
+  let currentEditId = null;
+  let currentDetailId = null;
+  let coverDataUrl = null;
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      projects = raw ? JSON.parse(raw) : [];
+    } catch(_e){ projects = []; }
+  }
+  function save(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }
+    catch(_e){ alert('保存に失敗しました。ブラウザのストレージ容量を確認してください。'); }
+  }
+  function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,8); }
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  function newProjectSkeleton(){
+    return {
+      id: uid(),
+      title: '',
+      status: '執筆中',
+      cover: null,
+      wordcount: 0,
+      wordLog: [],
+      genan: 0,
+      plot: 0,
+      honbunDone: 0,
+      honbunTotal: 1,
+      deadlines: [],
+      todos: [],
+      memo: '',
+      pinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+
+  // ---------- Rendering: grid ----------
+  function daysUntil(dateStr){
+    if(!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    return Math.round((d - now) / 86400000);
+  }
+
+  function nearestDeadline(p){
+    if(!p.deadlines || p.deadlines.length===0) return null;
+    const future = p.deadlines
+      .map(d => ({...d, days: daysUntil(d.date)}))
+      .filter(d => d.date)
+      .sort((a,b) => a.days - b.days);
+    const upcoming = future.filter(d => d.days >= 0);
+    return upcoming.length ? upcoming[0] : (future.length ? future[future.length-1] : null);
+  }
+
+  function renderDots(filled, total, color){
+    total = Math.max(total, 1);
+    let html = '<div class="dots">';
+    for(let i=0;i<total;i++){
+      const isFilled = i < filled;
+      html += `<div class="dot${isFilled?' filled':''}" style="${isFilled?`background:${color};`:''}"></div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function stageRowHTML(label, filled, total, color){
+    return `<div class="stage-row">
+      <div class="stage-label">${label}</div>
+      ${renderDots(filled, total, color)}
+      <div class="stage-frac">${filled}/${total}</div>
+    </div>`;
+  }
+
+  function triFilled(val){ return val; } // 0,1,2 out of 3 dots (untouched, half, full) -> map to dot count differently
+  function triDots(val, color){
+    // 3-dot representation for genan/plot: val 0=empty,1=1 filled,2=3 filled(full) -- but spec says 3 stages -> map val0->0/3, val1->1/3... better: 0,1,2 maps to 0,1,3? 
+    // Simpler: use 3 dots where val0=0 filled, val1=2 filled(half-ish), val2=3 filled
+    const map = [0,1,3];
+    const filled = map[val] ?? 0;
+    return renderDots(filled, 3, color);
+  }
+
+  function renderCard(p){
+    const nd = nearestDeadline(p);
+    let deadlineHTML = '';
+    if(nd){
+      const days = nd.days;
+      let txt, cls;
+      if(days < 0){ txt = `${nd.name} 期限超過`; cls='deadline-warn'; }
+      else if(days === 0){ txt = `${nd.name} 本日`; cls='deadline-warn'; }
+      else if(days <= 7){ txt = `${nd.name} あと${days}日`; cls='deadline-warn'; }
+      else { txt = `${nd.name} あと${days}日`; cls='deadline-ok'; }
+      deadlineHTML = `<span class="${cls}">${txt}</span>`;
+    } else {
+      deadlineHTML = `<span class="deadline-ok">締切未設定</span>`;
+    }
+
+    const coverHTML = p.cover
+      ? `<img src="${p.cover}" alt="">`
+      : `<div class="no-cover"><span class="glyph">✒</span>NO COVER</div>`;
+
+    return `
+    <div class="card${p.pinned?' pinned':''}" data-id="${p.id}">
+      <div class="card-cover">
+        ${p.pinned ? '<div class="pin-badge">PIN</div>' : ''}
+        <div class="status-badge">${p.status}</div>
+        ${coverHTML}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${escapeHTML(p.title || '無題')}</div>
+        <div class="card-meta">
+          <span>更新: ${new Date(p.updatedAt).toLocaleDateString('ja-JP')}</span>
+          ${deadlineHTML}
+        </div>
+        ${stageRowHTML('原案', ...tripleArgs(p.genan), STAGE_COLORS.genan)}
+        ${stageRowHTML('プロット', ...tripleArgs(p.plot), STAGE_COLORS.plot)}
+        ${stageRowHTML('本文', Math.min(p.honbunDone,p.honbunTotal), p.honbunTotal, STAGE_COLORS.honbun)}
+        ${stageRowHTML('校正', Math.min(p.kouseiDone||0,p.honbunTotal), p.honbunTotal, STAGE_COLORS.kousei)}
+        <div class="card-wordcount">
+          <span>合計文字数</span>
+          <span class="num">${(p.wordcount||0).toLocaleString()} 字</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function tripleArgs(val){
+    const map = [0,1,3];
+    return [map[val]??0, 3];
+  }
+
+  function escapeHTML(s){
+    return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getSorted(){
+    const mode = document.getElementById('sortSelect').value;
+    const arr = [...projects];
+    if(mode === 'pinned'){
+      arr.sort((a,b) => (b.pinned - a.pinned) || (b.updatedAt - a.updatedAt));
+    } else if(mode === 'deadline'){
+      arr.sort((a,b) => {
+        const da = nearestDeadline(a), db = nearestDeadline(b);
+        const va = da ? da.days : Infinity;
+        const vb = db ? db.days : Infinity;
+        return va - vb;
+      });
+    } else if(mode === 'updated'){
+      arr.sort((a,b) => b.updatedAt - a.updatedAt);
+    } else if(mode === 'title'){
+      arr.sort((a,b) => (a.title||'').localeCompare(b.title||'', 'ja'));
+    }
+    return arr;
+  }
+
+  function renderGrid(){
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('emptyState');
+    if(projects.length === 0){
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      grid.innerHTML = getSorted().map(renderCard).join('');
+    }
+    renderPriorityBanner();
+  }
+
+  function renderPriorityBanner(){
+    const banner = document.getElementById('priorityBanner');
+    const pinned = projects.find(p => p.pinned);
+    if(pinned){
+      banner.classList.add('active');
+      document.getElementById('pinTitle').textContent = pinned.title || '無題';
+      const nd = nearestDeadline(pinned);
+      document.getElementById('pinDeadline').textContent = nd
+        ? (nd.days < 0 ? `${nd.name}：期限超過` : nd.days===0 ? `${nd.name}：本日` : `${nd.name}まであと${nd.days}日`)
+        : '';
+      banner.onclick = () => openDetail(pinned.id);
+    } else {
+      banner.classList.remove('active');
+    }
+  }
+
+  // ---------- Edit Modal ----------
+  function openEditModal(id){
+    currentEditId = id;
+    const p = id ? projects.find(x=>x.id===id) : newProjectSkeleton();
+    coverDataUrl = p.cover || null;
+
+    document.getElementById('editModalTitle').textContent = id ? '作品を編集' : '新規作品';
+    document.getElementById('fieldTitle').value = p.title || '';
+    document.getElementById('fieldWordcount').value = p.wordcount || 0;
+    document.getElementById('fieldMemo').value = p.memo || '';
+    document.getElementById('honbunDone').value = p.honbunDone || 0;
+    document.getElementById('honbunTotal').value = p.honbunTotal || 1;
+    document.getElementById('kouseiDone').value = p.kouseiDone || 0;
+    document.getElementById('kouseiTotalDisplay').textContent = p.honbunTotal || 1;
+    document.getElementById('deleteProjectBtn').style.display = id ? 'inline-block' : 'none';
+
+    setStatusUI(p.status);
+    setTriUI('genanToggle', p.genan || 0);
+    setTriUI('plotToggle', p.plot || 0);
+
+    updateCoverPreview();
+
+    renderDeadlineEditRows(p.deadlines || []);
+
+    document.getElementById('editModalOverlay').classList.add('active');
+    document.getElementById('honbunTotal').oninput = () => {
+      document.getElementById('kouseiTotalDisplay').textContent = document.getElementById('honbunTotal').value || 1;
+    };
+  }
+
+  function setStatusUI(status){
+    document.querySelectorAll('#statusSelect .btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.status === status);
+    });
+  }
+  function setTriUI(groupId, val){
+    document.querySelectorAll(`#${groupId} .tri-btn`).forEach(b => {
+      const v = parseInt(b.dataset.val,10);
+      b.classList.toggle('active', v === val);
+      if(v === val){
+        const colorVar = groupId==='genanToggle' ? 'var(--c-genan)' : 'var(--c-plot)';
+        b.style.background = colorVar;
+      } else {
+        b.style.background = '';
+      }
+    });
+  }
+
+  function updateCoverPreview(){
+    const img = document.getElementById('coverPreview');
+    const hint = document.getElementById('coverHint');
+    const wrap = document.getElementById('coverUpload');
+    if(coverDataUrl){
+      img.src = coverDataUrl;
+      img.style.display = 'block';
+      hint.style.display = 'none';
+      wrap.classList.add('has-image');
+    } else {
+      img.style.display = 'none';
+      hint.style.display = 'block';
+      wrap.classList.remove('has-image');
+    }
+  }
+
+  function renderDeadlineEditRows(deadlines){
+    const list = document.getElementById('deadlineList');
+    list.innerHTML = '';
+    deadlines.forEach((d, i) => list.appendChild(makeDeadlineRow(d, i)));
+  }
+  function makeDeadlineRow(d, i){
+    const row = document.createElement('div');
+    row.className = 'deadline-row';
+    row.dataset.idx = i;
+    row.innerHTML = `
+      <input type="text" placeholder="例：第3章まで" value="${escapeHTML(d.name||'')}" class="dl-name-input">
+      <input type="date" value="${d.date||''}" class="dl-date-input">
+      <button type="button" class="del-btn">×</button>
+    `;
+    row.querySelector('.del-btn').onclick = () => row.remove();
+    return row;
+  }
+
+  function collectDeadlinesFromForm(){
+    return [...document.querySelectorAll('#deadlineList .deadline-row')].map(row => ({
+      name: row.querySelector('.dl-name-input').value.trim(),
+      date: row.querySelector('.dl-date-input').value
+    })).filter(d => d.name || d.date);
+  }
+
+  function getActiveStatus(){
+    const btn = document.querySelector('#statusSelect .btn.active');
+    return btn ? btn.dataset.status : '執筆中';
+  }
+  function getActiveTri(groupId){
+    const btn = document.querySelector(`#${groupId} .tri-btn.active`);
+    return btn ? parseInt(btn.dataset.val,10) : 0;
+  }
+
+  function saveProjectFromForm(){
+    const title = document.getElementById('fieldTitle').value.trim();
+    if(!title){
+      alert('タイトルを入力してください');
+      return;
+    }
+    let p;
+    if(currentEditId){
+      p = projects.find(x=>x.id===currentEditId);
+    } else {
+      p = newProjectSkeleton();
+      projects.push(p);
+    }
+    p.title = title;
+    p.status = getActiveStatus();
+    p.cover = coverDataUrl;
+    p.wordcount = parseInt(document.getElementById('fieldWordcount').value,10) || 0;
+    p.genan = getActiveTri('genanToggle');
+    p.plot = getActiveTri('plotToggle');
+    p.honbunDone = Math.max(0, parseInt(document.getElementById('honbunDone').value,10) || 0);
+    p.honbunTotal = Math.max(1, parseInt(document.getElementById('honbunTotal').value,10) || 1);
+    p.kouseiDone = Math.max(0, parseInt(document.getElementById('kouseiDone').value,10) || 0);
+    p.deadlines = collectDeadlinesFromForm();
+    p.memo = document.getElementById('fieldMemo').value;
+    p.updatedAt = Date.now();
+    if(!p.wordLog) p.wordLog = [];
+    if(!p.todos) p.todos = [];
+
+    save();
+    closeEditModal();
+    renderGrid();
+  }
+
+  function closeEditModal(){
+    document.getElementById('editModalOverlay').classList.remove('active');
+    currentEditId = null;
+    coverDataUrl = null;
+  }
+
+  function deleteCurrentProject(){
+    if(!currentEditId) return;
+    if(!confirm('この作品を削除します。よろしいですか？（元に戻せません）')) return;
+    projects = projects.filter(p => p.id !== currentEditId);
+    save();
+    closeEditModal();
+    renderGrid();
+  }
+
+  // ---------- Image handling ----------
+  function handleCoverFile(file){
+    if(!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 600;
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = h * (maxDim/w); w = maxDim; }
+        else if(h > maxDim){ w = w * (maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        coverDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        updateCoverPreview();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Detail Modal ----------
+  function openDetail(id){
+    currentDetailId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+
+    document.getElementById('detailTitle').textContent = p.title || '無題';
+    document.getElementById('detailStatus').textContent = p.status;
+    document.getElementById('pinToggleBtn').textContent = p.pinned ? '📌 優先を解除' : '📌 優先に設定';
+    document.getElementById('pinToggleBtn').classList.toggle('active', p.pinned);
+    if(p.pinned){
+      document.getElementById('pinToggleBtn').style.background = 'var(--accent)';
+      document.getElementById('pinToggleBtn').style.color = 'var(--bg)';
+    } else {
+      document.getElementById('pinToggleBtn').style.background = '';
+      document.getElementById('pinToggleBtn').style.color = '';
+    }
+
+    document.getElementById('detailStages').innerHTML =
+      stageRowHTML('原案', ...tripleArgs(p.genan), STAGE_COLORS.genan) +
+      stageRowHTML('プロット', ...tripleArgs(p.plot), STAGE_COLORS.plot) +
+      stageRowHTML('本文', Math.min(p.honbunDone,p.honbunTotal), p.honbunTotal, STAGE_COLORS.honbun) +
+      stageRowHTML('校正', Math.min(p.kouseiDone||0,p.honbunTotal), p.honbunTotal, STAGE_COLORS.kousei);
+
+    document.getElementById('detailWordcountInput').value = p.wordcount || 0;
+    renderWcChart(p);
+
+    renderDetailDeadlines(p);
+    renderTodoList(p);
+
+    document.getElementById('detailMemo').textContent = p.memo || '（メモなし）';
+
+    document.getElementById('detailModalOverlay').classList.add('active');
+  }
+
+  function renderWcChart(p){
+    const el = document.getElementById('wcChart');
+    const log = (p.wordLog||[]).slice(-14);
+    if(log.length < 2){
+      el.innerHTML = '<div class="wc-chart-empty">記録が2件以上たまるとグラフが表示されます</div>';
+      return;
+    }
+    const max = Math.max(...log.map(l=>l.value), 1);
+    el.innerHTML = `<div class="sparkline-row">${
+      log.map(l => `<div class="sparkline-bar" style="height:${Math.max(4,(l.value/max)*56)}px" title="${l.date}: ${l.value}"></div>`).join('')
+    }</div>`;
+  }
+
+  function renderDetailDeadlines(p){
+    const el = document.getElementById('detailDeadlines');
+    if(!p.deadlines || p.deadlines.length===0){
+      el.innerHTML = '<div class="wc-chart-empty">締切未設定</div>';
+      return;
+    }
+    const sorted = [...p.deadlines].map(d=>({...d, days: daysUntil(d.date)})).sort((a,b)=>a.days-b.days);
+    el.innerHTML = sorted.map(d => {
+      let cls = '', txt = '';
+      if(!d.date){ txt = '日付未設定'; }
+      else if(d.days < 0){ txt = '期限超過'; cls='past'; }
+      else if(d.days === 0){ txt = '本日'; cls='warn'; }
+      else if(d.days <= 7){ txt = `あと${d.days}日`; cls='warn'; }
+      else { txt = `あと${d.days}日`; }
+      return `<div class="deadline-display-row">
+        <span class="dl-name">${escapeHTML(d.name||'（無題）')}</span>
+        <span class="dl-days ${cls}">${txt}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderTodoList(p){
+    const el = document.getElementById('todoList');
+    if(!p.todos || p.todos.length===0){
+      el.innerHTML = '<div class="wc-chart-empty">タスクなし</div>';
+      return;
+    }
+    el.innerHTML = '';
+    p.todos.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'todo-row' + (t.done ? ' done' : '');
+      row.innerHTML = `
+        <input type="checkbox" ${t.done?'checked':''} data-idx="${i}" class="todo-check">
+        <input type="text" value="${escapeHTML(t.text)}" data-idx="${i}" class="todo-text">
+        <button class="del-btn" data-idx="${i}">×</button>
+      `;
+      el.appendChild(row);
+    });
+
+    el.querySelectorAll('.todo-check').forEach(cb => {
+      cb.onchange = () => {
+        const p = projects.find(x=>x.id===currentDetailId);
+        p.todos[parseInt(cb.dataset.idx,10)].done = cb.checked;
+        p.updatedAt = Date.now();
+        save();
+        renderTodoList(p);
+      };
+    });
+    el.querySelectorAll('.todo-text').forEach(inp => {
+      inp.onchange = () => {
+        const p = projects.find(x=>x.id===currentDetailId);
+        p.todos[parseInt(inp.dataset.idx,10)].text = inp.value;
+        p.updatedAt = Date.now();
+        save();
+      };
+    });
+    el.querySelectorAll('.del-btn').forEach(btn => {
+      btn.onclick = () => {
+        const p = projects.find(x=>x.id===currentDetailId);
+        p.todos.splice(parseInt(btn.dataset.idx,10),1);
+        p.updatedAt = Date.now();
+        save();
+        renderTodoList(p);
+      };
+    });
+  }
+
+  function closeDetail(){
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    currentDetailId = null;
+    renderGrid();
+  }
+
+  // ---------- Event bindings ----------
+  document.getElementById('newProjectBtn').onclick = () => openEditModal(null);
+  document.getElementById('emptyNewBtn').onclick = () => openEditModal(null);
+  document.getElementById('editModalClose').onclick = closeEditModal;
+  document.getElementById('editModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'editModalOverlay') closeEditModal();
+  });
+  document.getElementById('saveProjectBtn').onclick = saveProjectFromForm;
+  document.getElementById('deleteProjectBtn').onclick = deleteCurrentProject;
+
+  document.getElementById('detailModalClose').onclick = closeDetail;
+  document.getElementById('detailModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'detailModalOverlay') closeDetail();
+  });
+
+  document.getElementById('coverUpload').addEventListener('click', (e) => {
+    if(e.target.classList.contains('cover-remove')) return;
+    document.getElementById('coverFileInput').click();
+  });
+  document.getElementById('coverFileInput').addEventListener('change', (e) => {
+    if(e.target.files[0]) handleCoverFile(e.target.files[0]);
+  });
+  document.getElementById('coverRemoveBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    coverDataUrl = null;
+    updateCoverPreview();
+  });
+
+  document.querySelectorAll('#statusSelect .btn').forEach(b => {
+    b.onclick = () => setStatusUI(b.dataset.status);
+  });
+  document.querySelectorAll('#genanToggle .tri-btn').forEach(b => {
+    b.onclick = () => setTriUI('genanToggle', parseInt(b.dataset.val,10));
+  });
+  document.querySelectorAll('#plotToggle .tri-btn').forEach(b => {
+    b.onclick = () => setTriUI('plotToggle', parseInt(b.dataset.val,10));
+  });
+
+  document.getElementById('addDeadlineBtn').onclick = () => {
+    const list = document.getElementById('deadlineList');
+    list.appendChild(makeDeadlineRow({name:'',date:''}, list.children.length));
+  };
+
+  document.getElementById('sortSelect').onchange = renderGrid;
+
+  document.getElementById('grid').addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if(card) openDetail(card.dataset.id);
+  });
+
+  document.getElementById('editFromDetailBtn').onclick = () => {
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openEditModal(id);
+  };
+
+  document.getElementById('pinToggleBtn').onclick = () => {
+    const p = projects.find(x=>x.id===currentDetailId);
+    const willPin = !p.pinned;
+    if(willPin) projects.forEach(x => x.pinned = false);
+    p.pinned = willPin;
+    p.updatedAt = Date.now();
+    save();
+    openDetail(p.id);
+  };
+
+  document.getElementById('detailWordcountSave').onclick = () => {
+    const p = projects.find(x=>x.id===currentDetailId);
+    const val = parseInt(document.getElementById('detailWordcountInput').value,10) || 0;
+    p.wordcount = val;
+    p.wordLog = p.wordLog || [];
+    const today = todayISO();
+    const existing = p.wordLog.find(l => l.date === today);
+    if(existing) existing.value = val;
+    else p.wordLog.push({date: today, value: val});
+    p.updatedAt = Date.now();
+    save();
+    renderWcChart(p);
+  };
+
+  document.getElementById('addTodoBtn').onclick = () => {
+    const p = projects.find(x=>x.id===currentDetailId);
+    p.todos = p.todos || [];
+    p.todos.push({text:'', done:false});
+    p.updatedAt = Date.now();
+    save();
+    renderTodoList(p);
+    const inputs = document.querySelectorAll('.todo-text');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  };
+
+  // ---------- Init ----------
+  load();
+  renderGrid();
+
+})();
+</script>
+</body>
+</html>
