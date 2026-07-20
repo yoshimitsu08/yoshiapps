@@ -87,6 +87,9 @@ main{max-width:760px;margin:0 auto;padding:36px 16px 80px}
 .icon-game{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;opacity:.6}
 .icon-game-crest{font-size:20px;line-height:1;color:var(--accent)}
 .icon-game-bar{height:2px;border-radius:1px;background:var(--border);width:22px}
+.icon-manu{display:grid;grid-template-columns:repeat(4,5px);grid-template-rows:repeat(3,5px);gap:2px}
+.icon-manu div{background:var(--border);border-radius:1px}
+.icon-manu div:nth-child(1),.icon-manu div:nth-child(2),.icon-manu div:nth-child(5),.icon-manu div:nth-child(6),.icon-manu div:nth-child(9){background:var(--accent)}
 
 /* ミニUIアイコン — PDF書き込み */
 .icon-pdfwrite{display:flex;align-items:center;justify-content:center;opacity:.6;position:relative;width:32px;height:36px}
@@ -295,6 +298,20 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border);font-fa
       <div class="app-name">Orleans</div>
       <div class="app-ver">ver 1.00</div>
       <div class="app-desc">ステージクリア型アクション。ジャンヌを操り仲間を指揮してフランスを解放せよ。</div>
+      <div class="app-arrow">→</div>
+    </a>
+
+    <a class="app-card" href="novel_progress.html">
+      <div class="app-icon">
+        <div class="icon-manu">
+          <div></div><div></div><div></div><div></div>
+          <div></div><div></div><div></div><div></div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+      </div>
+      <div class="app-name">Manuscript</div>
+      <div class="app-ver">ver 1.00</div>
+      <div class="app-desc">小説進捗管理ダッシュボード。原案・プロット・本文・校正を作品ごとに一覧管理。</div>
       <div class="app-arrow">→</div>
     </a>
 
