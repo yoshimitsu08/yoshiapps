@@ -1140,6 +1140,84 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .manuscript-empty-state .glyph { font-size:2rem; margin-bottom:10px; color:var(--border); }
 .manuscript-empty-state p { font-family:var(--font-ui); font-size:0.7rem; line-height:1.8; }
+
+/* ---------- Hamburger menu (dashboard) ---------- */
+.header-row { position:relative; }
+.hamburger-btn {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text2);
+  width:38px; height:38px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:1.1rem;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.hamburger-btn:hover { border-color:var(--accent); color:var(--text); }
+.dropdown-menu {
+  position:absolute;
+  top:46px; right:0;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  min-width:200px;
+  z-index:80;
+  display:none;
+  overflow:hidden;
+  box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.dropdown-menu.active { display:block; }
+.dropdown-item {
+  display:block;
+  width:100%;
+  text-align:left;
+  padding:12px 16px;
+  background:none;
+  border:none;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  letter-spacing:0.03em;
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+}
+.dropdown-item:last-child { border-bottom:none; }
+.dropdown-item:hover { background:var(--surface); }
+.dropdown-item.danger { color:var(--danger); }
+
+/* ---------- Selection mode ---------- */
+.select-bar {
+  display:none;
+  align-items:center;
+  gap:12px;
+  padding:12px 20px;
+  background:var(--bg2);
+  border-bottom:1px solid var(--accent);
+  flex-wrap:wrap;
+}
+.select-bar.active { display:flex; }
+.select-bar .sb-count {
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  color:var(--text2);
+  flex:1;
+}
+.card-select-check {
+  position:absolute;
+  top:8px; left:8px;
+  width:20px; height:20px;
+  z-index:5;
+  accent-color:var(--accent);
+  display:none;
+  cursor:pointer;
+}
+.card.select-mode .card-select-check { display:block; }
+.card.select-mode .pin-badge { left:34px; }
+.card.select-mode.selected { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+.card.select-mode { cursor:default; }
 </style>
 </head>
 <body>
@@ -1152,6 +1230,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <h1>Manu<span class="mark">script</span></h1>
       <div class="subtitle">novel progress dashboard</div>
     </div>
+    <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
+    <div class="dropdown-menu" id="dashDropdown">
+      <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
+    </div>
   </div>
   <div class="legend">
     <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
@@ -1160,6 +1242,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
   </div>
 </header>
+
+<div class="select-bar" id="selectBar">
+  <span class="sb-count" id="selectCount">0件選択中</span>
+  <button class="btn" id="selectCancelBtn">キャンセル</button>
+  <button class="btn" id="selectAllBtn">全選択</button>
+  <button class="btn" id="selectDeleteBtn" style="color:var(--danger); border-color:var(--danger);">選択を削除</button>
+</div>
 
 <div class="priority-banner" id="priorityBanner">
   <div class="pin-icon">📌</div>
@@ -1188,61 +1277,29 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <button class="btn primary" id="emptyNewBtn">＋ 新規作品</button>
 </div>
 
-<!-- ============ Project Edit Modal ============ -->
-<div class="modal-overlay" id="editModalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="editModalTitle">新規作品</h2>
-      <button class="modal-close" id="editModalClose">×</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="cover-upload" id="coverUpload">
-        <img id="coverPreview" style="display:none;">
-        <div class="upload-hint" id="coverHint">📷<br>タップしてカバー画像を設定</div>
-        <button class="cover-remove" id="coverRemoveBtn">削除</button>
-        <input type="file" id="coverFileInput" accept="image/*">
-      </div>
-
-      <div class="field">
-        <label>タイトル</label>
-        <input type="text" id="fieldTitle" placeholder="作品タイトル">
-      </div>
-
-      <div class="field">
-        <label>合計文字数（現在値を上書き入力）</label>
-        <input type="number" id="fieldWordcount" placeholder="0" min="0">
-      </div>
-
-      <div class="field">
-        <label>締切・マイルストーン</label>
-        <div class="deadline-list" id="deadlineList"></div>
-        <button type="button" class="add-deadline-btn" id="addDeadlineBtn">＋ マイルストーンを追加</button>
-      </div>
-
-      <div class="field">
-        <label>メモ（伏線・設定・次に書くこと）</label>
-        <textarea id="fieldMemo" placeholder="次に書くこと、設定メモなど"></textarea>
-      </div>
-
-    </div>
-    <div class="modal-footer">
-      <div class="left-actions">
-        <button class="btn" id="deleteProjectBtn" style="display:none; color:var(--danger); border-color:var(--danger);">削除</button>
-      </div>
-      <button class="btn primary" id="saveProjectBtn">保存</button>
-    </div>
-  </div>
-</div>
-
 <!-- ============ Detail Modal ============ -->
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal">
-    <div class="modal-header">
+    <div class="modal-header" style="position:relative;">
       <h2 id="detailTitle">—</h2>
-      <button class="modal-close" id="detailModalClose">×</button>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button class="hamburger-btn" id="detailHamburgerBtn">☰</button>
+        <button class="modal-close" id="detailModalClose">×</button>
+      </div>
+      <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
+        <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
+        <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
+        <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
+      </div>
     </div>
     <div class="modal-body">
+
+      <div class="cover-upload" id="detailCoverUpload" style="display:none;">
+        <img id="detailCoverPreview" style="display:none;">
+        <div class="upload-hint" id="detailCoverHint">📷<br>タップしてカバー画像を設定</div>
+        <button class="cover-remove" id="detailCoverRemoveBtn">削除</button>
+        <input type="file" id="detailCoverFileInput" accept="image/*">
+      </div>
 
       <div class="detail-section">
         <div class="detail-section-title">
@@ -1258,16 +1315,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
       <div class="detail-section">
         <div class="detail-section-title">文字数</div>
-        <div class="wordcount-input-row">
-          <input type="number" id="detailWordcountInput" placeholder="0" min="0">
-          <button class="btn" id="detailWordcountSave">記録</button>
-        </div>
-        <div class="wc-chart" id="wcChart"></div>
+        <div class="manuscript-wordcount-live" id="detailWordcountDisplay" style="font-size:0.95rem;">0 字</div>
       </div>
 
       <div class="detail-section">
         <div class="detail-section-title">締切・マイルストーン</div>
-        <div class="deadline-display" id="detailDeadlines"></div>
+        <div class="deadline-list" id="detailDeadlineList"></div>
+        <button type="button" class="add-deadline-btn" id="detailAddDeadlineBtn">＋ マイルストーンを追加</button>
       </div>
 
       <div class="detail-section">
@@ -1278,12 +1332,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
       <div class="detail-section">
         <div class="detail-section-title">メモ</div>
-        <div class="memo-display" id="detailMemo"></div>
+        <textarea class="section-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど" style="min-height:100px;"></textarea>
       </div>
 
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;">
-      <button class="btn" id="editFromDetailBtn">編集する</button>
       <button class="btn" id="openSettingBtn">📝 設定・プロット</button>
       <button class="btn primary" id="openManuscriptBtn">✏️ 本文を書く</button>
     </div>
@@ -1377,9 +1430,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const TRI_LABELS = ['未着手','着手','完了'];
 
   let projects = [];
-  let currentEditId = null;
   let currentDetailId = null;
-  let coverDataUrl = null;
+  let selectMode = false;
+  let selectedIds = new Set();
 
   function load(){
     try {
@@ -1543,9 +1596,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
       ? `<img src="${p.cover}" alt="">`
       : `<div class="no-cover"><span class="glyph">✒</span>NO COVER</div>`;
 
+    const isSelected = selectMode && selectedIds.has(p.id);
+    const cardClasses = ['card'];
+    if(p.pinned) cardClasses.push('pinned');
+    if(selectMode) cardClasses.push('select-mode');
+    if(isSelected) cardClasses.push('selected');
+
     return `
-    <div class="card${p.pinned?' pinned':''}" data-id="${p.id}">
+    <div class="${cardClasses.join(' ')}" data-id="${p.id}">
       <div class="card-cover">
+        <input type="checkbox" class="card-select-check" ${isSelected?'checked':''} tabindex="-1">
         ${p.pinned ? '<div class="pin-badge">PIN</div>' : ''}
         <div class="status-badge">${phaseLabel(p)}</div>
         ${coverHTML}
@@ -1605,6 +1665,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       grid.innerHTML = getSorted().map(renderCard).join('');
     }
     renderPriorityBanner();
+    if(selectMode) updateSelectCount();
   }
 
   function renderPriorityBanner(){
@@ -1624,111 +1685,36 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   // ---------- Edit Modal ----------
-  function openEditModal(id){
-    currentEditId = id;
-    const p = id ? projects.find(x=>x.id===id) : newProjectSkeleton();
-    coverDataUrl = p.cover || null;
-
-    document.getElementById('editModalTitle').textContent = id ? '作品を編集' : '新規作品';
-    document.getElementById('fieldTitle').value = p.title || '';
-    document.getElementById('fieldWordcount').value = p.wordcount || 0;
-    document.getElementById('fieldMemo').value = p.memo || '';
-    document.getElementById('deleteProjectBtn').style.display = id ? 'inline-block' : 'none';
-
-    updateCoverPreview();
-
-    renderDeadlineEditRows(p.deadlines || []);
-
-    document.getElementById('editModalOverlay').classList.add('active');
-  }
-
-  function updateCoverPreview(){
-    const img = document.getElementById('coverPreview');
-    const hint = document.getElementById('coverHint');
-    const wrap = document.getElementById('coverUpload');
-    if(coverDataUrl){
-      img.src = coverDataUrl;
-      img.style.display = 'block';
-      hint.style.display = 'none';
-      wrap.classList.add('has-image');
-    } else {
-      img.style.display = 'none';
-      hint.style.display = 'block';
-      wrap.classList.remove('has-image');
-    }
-  }
-
-  function renderDeadlineEditRows(deadlines){
-    const list = document.getElementById('deadlineList');
-    list.innerHTML = '';
-    deadlines.forEach((d, i) => list.appendChild(makeDeadlineRow(d, i)));
-  }
-  function makeDeadlineRow(d, i){
-    const row = document.createElement('div');
-    row.className = 'deadline-row';
-    row.dataset.idx = i;
-    row.innerHTML = `
-      <input type="text" placeholder="例：第3章まで" value="${escapeHTML(d.name||'')}" class="dl-name-input">
-      <input type="date" value="${d.date||''}" class="dl-date-input">
-      <button type="button" class="del-btn">×</button>
-    `;
-    row.querySelector('.del-btn').onclick = () => row.remove();
-    return row;
-  }
-
-  function collectDeadlinesFromForm(){
-    return [...document.querySelectorAll('#deadlineList .deadline-row')].map(row => ({
-      name: row.querySelector('.dl-name-input').value.trim(),
-      date: row.querySelector('.dl-date-input').value
-    })).filter(d => d.name || d.date);
-  }
-
-  function saveProjectFromForm(){
-    const title = document.getElementById('fieldTitle').value.trim();
-    if(!title){
-      alert('タイトルを入力してください');
-      return;
-    }
-    let p;
-    if(currentEditId){
-      p = projects.find(x=>x.id===currentEditId);
-    } else {
-      p = newProjectSkeleton();
-      projects.push(p);
-    }
-    p.title = title;
-    p.cover = coverDataUrl;
-    p.wordcount = parseInt(document.getElementById('fieldWordcount').value,10) || 0;
-    p.deadlines = collectDeadlinesFromForm();
-    p.memo = document.getElementById('fieldMemo').value;
-    p.updatedAt = Date.now();
-    if(!p.wordLog) p.wordLog = [];
-    if(!p.todos) p.todos = [];
-    if(!p.phase) p.phase = 'setting';
-    if(!p.plotChapters) p.plotChapters = [];
-
+  function createNewProject(){
+    const title = prompt('作品タイトルを入力してください');
+    if(title === null) return;
+    const trimmed = title.trim();
+    if(!trimmed){ alert('タイトルを入力してください'); return; }
+    const p = newProjectSkeleton();
+    p.title = trimmed;
+    projects.push(p);
     save();
-    closeEditModal();
+    renderGrid();
+    openDetail(p.id);
+  }
+
+  function deleteProjectById(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    if(!confirm(`「${p.title || '無題'}」を削除します。よろしいですか？（元に戻せません）`)) return;
+    projects = projects.filter(x => x.id !== id);
+    save();
+    closeDetailAndReturn();
+  }
+
+  function closeDetailAndReturn(){
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    currentDetailId = null;
     renderGrid();
   }
 
-  function closeEditModal(){
-    document.getElementById('editModalOverlay').classList.remove('active');
-    currentEditId = null;
-    coverDataUrl = null;
-  }
-
-  function deleteCurrentProject(){
-    if(!currentEditId) return;
-    if(!confirm('この作品を削除します。よろしいですか？（元に戻せません）')) return;
-    projects = projects.filter(p => p.id !== currentEditId);
-    save();
-    closeEditModal();
-    renderGrid();
-  }
-
-  // ---------- Image handling ----------
-  function handleCoverFile(file){
+  // ---------- Image handling (used both on card grid entry point and detail hamburger) ----------
+  function handleCoverFile(file, onDone){
     if(!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1742,8 +1728,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        coverDataUrl = canvas.toDataURL('image/jpeg', 0.75);
-        updateCoverPreview();
+        onDone(canvas.toDataURL('image/jpeg', 0.75));
       };
       img.src = e.target.result;
     };
@@ -1770,50 +1755,82 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     document.getElementById('detailStages').innerHTML = statusLineHTML(p);
 
-    document.getElementById('detailWordcountInput').value = p.wordcount || 0;
-    renderWcChart(p);
+    document.getElementById('detailWordcountDisplay').textContent = (p.wordcount||0).toLocaleString() + ' 字';
 
     renderDetailDeadlines(p);
     renderTodoList(p);
 
-    document.getElementById('detailMemo').textContent = p.memo || '（メモなし）';
+    const memoTa = document.getElementById('detailMemoTextarea');
+    memoTa.value = p.memo || '';
+    memoTa.oninput = () => {
+      p.memo = memoTa.value;
+      p.updatedAt = Date.now();
+      save();
+    };
+
+    // cover editor (hidden by default, toggled via hamburger)
+    document.getElementById('detailCoverUpload').style.display = 'none';
+    updateDetailCoverPreview(p);
 
     document.getElementById('detailModalOverlay').classList.add('active');
   }
 
-  function renderWcChart(p){
-    const el = document.getElementById('wcChart');
-    const log = (p.wordLog||[]).slice(-14);
-    if(log.length < 2){
-      el.innerHTML = '<div class="wc-chart-empty">記録が2件以上たまるとグラフが表示されます</div>';
-      return;
+  function updateDetailCoverPreview(p){
+    const img = document.getElementById('detailCoverPreview');
+    const hint = document.getElementById('detailCoverHint');
+    const wrap = document.getElementById('detailCoverUpload');
+    if(p.cover){
+      img.src = p.cover;
+      img.style.display = 'block';
+      hint.style.display = 'none';
+      wrap.classList.add('has-image');
+    } else {
+      img.style.display = 'none';
+      hint.style.display = 'block';
+      wrap.classList.remove('has-image');
     }
-    const max = Math.max(...log.map(l=>l.value), 1);
-    el.innerHTML = `<div class="sparkline-row">${
-      log.map(l => `<div class="sparkline-bar" style="height:${Math.max(4,(l.value/max)*56)}px" title="${l.date}: ${l.value}"></div>`).join('')
-    }</div>`;
   }
 
   function renderDetailDeadlines(p){
-    const el = document.getElementById('detailDeadlines');
-    if(!p.deadlines || p.deadlines.length===0){
-      el.innerHTML = '<div class="wc-chart-empty">締切未設定</div>';
-      return;
-    }
-    const sorted = [...p.deadlines].map(d=>({...d, days: daysUntil(d.date)})).sort((a,b)=>a.days-b.days);
-    el.innerHTML = sorted.map(d => {
-      let cls = '', txt = '';
-      if(!d.date){ txt = '日付未設定'; }
-      else if(d.days < 0){ txt = '期限超過'; cls='past'; }
-      else if(d.days === 0){ txt = '本日'; cls='warn'; }
-      else if(d.days <= 7){ txt = `あと${d.days}日`; cls='warn'; }
-      else { txt = `あと${d.days}日`; }
-      return `<div class="deadline-display-row">
-        <span class="dl-name">${escapeHTML(d.name||'（無題）')}</span>
-        <span class="dl-days ${cls}">${txt}</span>
-      </div>`;
-    }).join('');
+    const list = document.getElementById('detailDeadlineList');
+    list.innerHTML = '';
+    if(!p.deadlines) p.deadlines = [];
+    p.deadlines.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'deadline-row';
+      row.innerHTML = `
+        <input type="text" placeholder="例：第3章まで" value="${escapeHTML(d.name||'')}" class="dl-name-input">
+        <input type="date" value="${d.date||''}" class="dl-date-input">
+        <button type="button" class="del-btn">×</button>
+      `;
+      const nameInput = row.querySelector('.dl-name-input');
+      const dateInput = row.querySelector('.dl-date-input');
+      nameInput.oninput = () => { d.name = nameInput.value; p.updatedAt = Date.now(); save(); };
+      dateInput.onchange = () => { d.date = dateInput.value; p.updatedAt = Date.now(); save(); renderGrid(); openDetailSilent(p); };
+      row.querySelector('.del-btn').onclick = () => {
+        p.deadlines = p.deadlines.filter(x => x !== d);
+        p.updatedAt = Date.now();
+        save();
+        renderDetailDeadlines(p);
+      };
+      list.appendChild(row);
+    });
   }
+
+  function openDetailSilent(p){
+    // re-render just the stages/status parts that depend on deadlines without closing modal
+    document.getElementById('detailStages').innerHTML = statusLineHTML(p);
+  }
+
+  document.getElementById('detailAddDeadlineBtn').onclick = () => {
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    p.deadlines.push({name:'', date:''});
+    p.updatedAt = Date.now();
+    save();
+    renderDetailDeadlines(p);
+  };
+
 
   function renderTodoList(p){
     const el = document.getElementById('todoList');
@@ -1868,50 +1885,134 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   // ---------- Event bindings ----------
-  document.getElementById('newProjectBtn').onclick = () => openEditModal(null);
-  document.getElementById('emptyNewBtn').onclick = () => openEditModal(null);
-  document.getElementById('editModalClose').onclick = closeEditModal;
-  document.getElementById('editModalOverlay').addEventListener('click', (e) => {
-    if(e.target.id === 'editModalOverlay') closeEditModal();
-  });
-  document.getElementById('saveProjectBtn').onclick = saveProjectFromForm;
-  document.getElementById('deleteProjectBtn').onclick = deleteCurrentProject;
+  document.getElementById('newProjectBtn').onclick = createNewProject;
+  document.getElementById('emptyNewBtn').onclick = createNewProject;
 
   document.getElementById('detailModalClose').onclick = closeDetail;
   document.getElementById('detailModalOverlay').addEventListener('click', (e) => {
     if(e.target.id === 'detailModalOverlay') closeDetail();
   });
 
-  document.getElementById('coverUpload').addEventListener('click', (e) => {
-    if(e.target.classList.contains('cover-remove')) return;
-    document.getElementById('coverFileInput').click();
-  });
-  document.getElementById('coverFileInput').addEventListener('change', (e) => {
-    if(e.target.files[0]) handleCoverFile(e.target.files[0]);
-  });
-  document.getElementById('coverRemoveBtn').addEventListener('click', (e) => {
+  // ---- Dashboard hamburger menu ----
+  document.getElementById('dashHamburgerBtn').onclick = (e) => {
     e.stopPropagation();
-    coverDataUrl = null;
-    updateCoverPreview();
+    document.getElementById('dashDropdown').classList.toggle('active');
+  };
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('dashDropdown');
+    if(menu.classList.contains('active') && !menu.contains(e.target) && e.target.id !== 'dashHamburgerBtn'){
+      menu.classList.remove('active');
+    }
+    const dmenu = document.getElementById('detailDropdown');
+    if(dmenu.classList.contains('active') && !dmenu.contains(e.target) && e.target.id !== 'detailHamburgerBtn'){
+      dmenu.classList.remove('active');
+    }
   });
+  document.getElementById('menuSelectModeBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    enterSelectMode();
+  };
 
-  document.getElementById('addDeadlineBtn').onclick = () => {
-    const list = document.getElementById('deadlineList');
-    list.appendChild(makeDeadlineRow({name:'',date:''}, list.children.length));
+  // ---- Selection mode ----
+  function enterSelectMode(){
+    selectMode = true;
+    selectedIds = new Set();
+    document.getElementById('selectBar').classList.add('active');
+    renderGrid();
+  }
+  function exitSelectMode(){
+    selectMode = false;
+    selectedIds = new Set();
+    document.getElementById('selectBar').classList.remove('active');
+    renderGrid();
+  }
+  function updateSelectCount(){
+    document.getElementById('selectCount').textContent = `${selectedIds.size}件選択中`;
+  }
+
+  document.getElementById('selectCancelBtn').onclick = exitSelectMode;
+  document.getElementById('selectAllBtn').onclick = () => {
+    const sorted = getSorted();
+    if(selectedIds.size === sorted.length){
+      selectedIds = new Set();
+    } else {
+      selectedIds = new Set(sorted.map(p=>p.id));
+    }
+    renderGrid();
+  };
+  document.getElementById('selectDeleteBtn').onclick = () => {
+    if(selectedIds.size === 0){ alert('作品が選択されていません'); return; }
+    if(!confirm(`選択した${selectedIds.size}件を削除します。よろしいですか？（元に戻せません）`)) return;
+    projects = projects.filter(p => !selectedIds.has(p.id));
+    save();
+    exitSelectMode();
   };
 
   document.getElementById('sortSelect').onchange = renderGrid;
 
   document.getElementById('grid').addEventListener('click', (e) => {
     const card = e.target.closest('.card');
-    if(card) openDetail(card.dataset.id);
+    if(!card) return;
+    if(selectMode){
+      const id = card.dataset.id;
+      if(selectedIds.has(id)) selectedIds.delete(id);
+      else selectedIds.add(id);
+      renderGrid();
+    } else {
+      openDetail(card.dataset.id);
+    }
   });
 
-  document.getElementById('editFromDetailBtn').onclick = () => {
-    const id = currentDetailId;
-    document.getElementById('detailModalOverlay').classList.remove('active');
-    openEditModal(id);
+  // ---- Detail hamburger menu ----
+  document.getElementById('detailHamburgerBtn').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('detailDropdown').classList.toggle('active');
   };
+  document.getElementById('menuEditCoverBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    document.getElementById('detailCoverUpload').style.display = 'flex';
+  };
+  document.getElementById('menuEditTitleBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newTitle = prompt('新しいタイトルを入力してください', p.title || '');
+    if(newTitle === null) return;
+    const trimmed = newTitle.trim();
+    if(!trimmed){ alert('タイトルを入力してください'); return; }
+    p.title = trimmed;
+    p.updatedAt = Date.now();
+    save();
+    document.getElementById('detailTitle').textContent = p.title;
+  };
+  document.getElementById('menuDeleteProjectBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    if(currentDetailId) deleteProjectById(currentDetailId);
+  };
+
+  document.getElementById('detailCoverUpload').addEventListener('click', (e) => {
+    if(e.target.classList.contains('cover-remove')) return;
+    document.getElementById('detailCoverFileInput').click();
+  });
+  document.getElementById('detailCoverFileInput').addEventListener('change', (e) => {
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p || !e.target.files[0]) return;
+    handleCoverFile(e.target.files[0], (dataUrl) => {
+      p.cover = dataUrl;
+      p.updatedAt = Date.now();
+      save();
+      updateDetailCoverPreview(p);
+    });
+  });
+  document.getElementById('detailCoverRemoveBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    p.cover = null;
+    p.updatedAt = Date.now();
+    save();
+    updateDetailCoverPreview(p);
+  });
 
   document.getElementById('openSettingBtn').onclick = () => {
     const id = currentDetailId;
@@ -1933,20 +2034,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     p.updatedAt = Date.now();
     save();
     openDetail(p.id);
-  };
-
-  document.getElementById('detailWordcountSave').onclick = () => {
-    const p = projects.find(x=>x.id===currentDetailId);
-    const val = parseInt(document.getElementById('detailWordcountInput').value,10) || 0;
-    p.wordcount = val;
-    p.wordLog = p.wordLog || [];
-    const today = todayISO();
-    const existing = p.wordLog.find(l => l.date === today);
-    if(existing) existing.value = val;
-    else p.wordLog.push({date: today, value: val});
-    p.updatedAt = Date.now();
-    save();
-    renderWcChart(p);
   };
 
   document.getElementById('addTodoBtn').onclick = () => {
