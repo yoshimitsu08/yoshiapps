@@ -1141,6 +1141,57 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .manuscript-empty-state .glyph { font-size:2rem; margin-bottom:10px; color:var(--border); }
 .manuscript-empty-state p { font-family:var(--font-ui); font-size:0.7rem; line-height:1.8; }
 
+/* ---------- AI import parse preview ---------- */
+.parse-item {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:10px;
+}
+.parse-item-head {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+.parse-item-tag {
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  padding:3px 8px;
+  border-radius:2px;
+  background:var(--accent);
+  color:var(--bg);
+  font-weight:bold;
+  flex-shrink:0;
+}
+.parse-item-tag.unclassified { background:var(--danger); }
+.parse-item-title {
+  font-family:var(--font-body);
+  font-size:0.92rem;
+  color:var(--text);
+}
+.parse-item-body {
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  line-height:1.6;
+  color:var(--text2);
+  white-space:pre-wrap;
+  max-height:140px;
+  overflow-y:auto;
+}
+.parse-warning-box {
+  background:rgba(192,96,64,0.12);
+  border:1px solid var(--danger);
+  border-radius:4px;
+  padding:10px 14px;
+  margin-top:12px;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--danger);
+  line-height:1.7;
+}
+
 /* ---------- Hamburger menu (dashboard) ---------- */
 .header-row { position:relative; }
 .hamburger-btn {
@@ -1261,6 +1312,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 <div class="toolbar">
   <button class="btn primary" id="newProjectBtn">＋ 新規作品</button>
+  <button class="btn" id="newProjectAiBtn">＋ 新規作品（AIと作る）</button>
   <select class="sort-select" id="sortSelect">
     <option value="pinned">優先順（ピン留め優先）</option>
     <option value="deadline">締切が近い順</option>
@@ -1339,11 +1391,79 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="modal-footer" style="flex-wrap:wrap;">
       <button class="btn" id="openSettingBtn">📝 設定・プロット</button>
       <button class="btn primary" id="openManuscriptBtn">✏️ 本文を書く</button>
+      <button class="btn" id="continueAiImportBtn" style="display:none; color:var(--accent); border-color:var(--accent);">🤖 AI取り込みを続ける</button>
     </div>
   </div>
 </div>
 
 </div><!-- /#dashboardView -->
+
+<!-- ============ AI Import Flow View ============ -->
+<div class="view" id="aiImportView">
+  <div class="editor-header">
+    <button class="back-btn" id="aiImportBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="aiImportWorkTitle">—</div>
+      <div class="et-label">AIと設定・プロットを作る</div>
+    </div>
+  </div>
+
+  <div class="setting-nav">
+    <button type="button" class="setting-nav-btn active" data-aistep="aiStep1">① 乱雑メモ</button>
+    <button type="button" class="setting-nav-btn" data-aistep="aiStep2">② プロンプト</button>
+    <button type="button" class="setting-nav-btn" data-aistep="aiStep3">③ 取り込み</button>
+  </div>
+
+  <!-- Step 1: rough memo -->
+  <div class="setting-page active" id="aiStep1">
+    <div class="editor-body">
+      <div class="field">
+        <label>思いついた要素を自由に書きなぐってください（箇条書きでもOK）</label>
+        <textarea id="aiRoughMemoTextarea" class="section-textarea" style="min-height:280px;" placeholder="例：&#10;・主人公は元傭兵、記憶喪失&#10;・舞台は滅びかけた魔法都市&#10;・裏切り者の親友が鍵になる&#10;・ラストは自己犠牲エンド…みたいな断片でOK"></textarea>
+      </div>
+      <button class="btn primary" id="aiStep1NextBtn" style="width:100%;">次へ：プロンプトを作る →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: prompt for AI -->
+  <div class="setting-page" id="aiStep2">
+    <div class="editor-body">
+      <div class="prompt-panel">
+        <div class="prompt-panel-head">
+          <span class="pt-label">AIに渡す整理・詳細化プロンプト</span>
+        </div>
+        <div class="prompt-preview" id="aiStep2Preview" style="max-height:320px;"></div>
+        <button class="btn primary" id="aiStep2CopyBtn" style="width:100%;">📋 コピーしてAIに渡す</button>
+      </div>
+      <div class="chapter-note" style="margin-top:10px; font-size:0.65rem;">
+        コピーしたプロンプトを外部のAI（Claude、ChatGPT等）に貼り付けて実行してください。<br>
+        AIが生成した回答をそのまま、次のステップの貼り付け欄にコピーしてください。
+      </div>
+      <button class="btn" id="aiStep2NextBtn" style="width:100%; margin-top:14px;">次へ：AIの回答を取り込む →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: paste + parse + preview + apply -->
+  <div class="setting-page" id="aiStep3">
+    <div class="editor-body">
+      <div class="field">
+        <label>AIの回答をここに貼り付けてください</label>
+        <textarea id="aiPasteTextarea" class="section-textarea" style="min-height:200px;" placeholder="AIが生成した詳細設定・プロット全文をそのまま貼り付けてください"></textarea>
+      </div>
+      <button class="btn primary" id="aiParseBtn" style="width:100%;">解析してプレビュー表示</button>
+
+      <div id="aiParsePreviewWrap" style="display:none; margin-top:16px;">
+        <div class="detail-section-title" style="margin-top:10px;">解析結果プレビュー</div>
+        <div id="aiParsePreview"></div>
+
+        <div id="aiParseWarnings"></div>
+
+        <button class="btn primary" id="aiApplyBtn" style="width:100%; margin-top:14px;">この内容で反映する（既存内容は上書きされます）</button>
+        <div class="chapter-note" style="text-align:center; margin-top:8px;">反映すると、以後この作品ではAI一括取り込みは使えなくなります（通常の編集画面で手動修正してください）</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ============ Manuscript Editor View ============ -->
 <div class="view" id="manuscriptView">
@@ -1451,6 +1571,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
         // 旧データからの簡易移行：文字数があれば執筆中、なければ設定・プロット
         p.phase = (p.wordcount||0) > 0 ? 'writing' : 'setting';
       }
+      if(p.roughMemo === undefined) p.roughMemo = '';
+      if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
     });
   }
   function save(){
@@ -1475,6 +1597,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       sections: defaultSections(),
       plotChapters: [],
       manuscript: {}, // chapterId -> { text, done }
+      roughMemo: '',
+      aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -1698,6 +1822,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
     openDetail(p.id);
   }
 
+  function createNewProjectWithAi(){
+    const title = prompt('作品タイトルを入力してください');
+    if(title === null) return;
+    const trimmed = title.trim();
+    if(!trimmed){ alert('タイトルを入力してください'); return; }
+    const p = newProjectSkeleton();
+    p.title = trimmed;
+    p.aiImportAvailable = true;
+    projects.push(p);
+    save();
+    renderGrid();
+    openAiImportView(p.id);
+  }
+
   function deleteProjectById(id){
     const p = projects.find(x=>x.id===id);
     if(!p) return;
@@ -1771,6 +1909,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     // cover editor (hidden by default, toggled via hamburger)
     document.getElementById('detailCoverUpload').style.display = 'none';
     updateDetailCoverPreview(p);
+
+    document.getElementById('continueAiImportBtn').style.display = p.aiImportAvailable ? 'inline-block' : 'none';
 
     document.getElementById('detailModalOverlay').classList.add('active');
   }
@@ -1886,6 +2026,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   // ---------- Event bindings ----------
   document.getElementById('newProjectBtn').onclick = createNewProject;
+  document.getElementById('newProjectAiBtn').onclick = createNewProjectWithAi;
   document.getElementById('emptyNewBtn').onclick = createNewProject;
 
   document.getElementById('detailModalClose').onclick = closeDetail;
@@ -2024,6 +2165,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const id = currentDetailId;
     document.getElementById('detailModalOverlay').classList.remove('active');
     openManuscriptView(id);
+  };
+
+  document.getElementById('continueAiImportBtn').onclick = () => {
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openAiImportView(id);
   };
 
   document.getElementById('pinToggleBtn').onclick = () => {
@@ -2450,6 +2597,313 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(existing) existing.value = total;
     else p.wordLog.push({date: today, value: total});
   }
+
+  // ================= AI Import Flow =================
+  let currentAiImportId = null;
+  let aiParsedResult = null;
+
+  function openAiImportView(id){
+    currentAiImportId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('aiImportWorkTitle').textContent = p.title || '無題';
+    document.getElementById('aiRoughMemoTextarea').value = p.roughMemo || '';
+    document.getElementById('aiPasteTextarea').value = '';
+    document.getElementById('aiParsePreviewWrap').style.display = 'none';
+    aiParsedResult = null;
+    setAiStep('aiStep1');
+    switchView('aiImportView');
+  }
+
+  function setAiStep(stepId){
+    document.querySelectorAll('#aiImportView .setting-nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.aistep === stepId);
+    });
+    document.querySelectorAll('#aiImportView .setting-page').forEach(pg => {
+      pg.classList.toggle('active', pg.id === stepId);
+    });
+    window.scrollTo(0,0);
+  }
+
+  document.querySelectorAll('#aiImportView .setting-nav-btn').forEach(btn => {
+    btn.onclick = () => setAiStep(btn.dataset.aistep);
+  });
+
+  document.getElementById('aiImportBackBtn').onclick = () => {
+    switchView('dashboardView');
+    renderGrid();
+  };
+
+  document.getElementById('aiRoughMemoTextarea').addEventListener('input', (e) => {
+    const p = projects.find(x=>x.id===currentAiImportId);
+    if(!p) return;
+    p.roughMemo = e.target.value;
+    p.updatedAt = Date.now();
+    save();
+  });
+
+  document.getElementById('aiStep1NextBtn').onclick = () => {
+    setAiStep('aiStep2');
+    renderAiStep2Prompt();
+  };
+  document.getElementById('aiStep2NextBtn').onclick = () => setAiStep('aiStep3');
+
+  function renderAiStep2Prompt(){
+    const p = projects.find(x=>x.id===currentAiImportId);
+    if(!p) return;
+    const memo = (p.roughMemo || '').trim() || '（メモなし）';
+    const prompt = `あなたはプロの小説編集者です。以下は、これから書く小説のために書きなぐったメモです。この内容を整理・拡張し、詳細な「設定」と「プロット（章立て）」を作成してください。
+
+【元メモ】
+${memo}
+
+【出力形式について（厳守してください）】
+以下のフォーマットに沿って、過不足なく出力してください。この見出し記号（【】と■）は省略せず、指定通りの位置に付けてください。
+
+【世界観】
+（世界観の説明をここに）
+
+【用語集】
+（固有名詞・用語の説明をここに）
+
+■キャラクター：（名前）
+役割：（役割）
+性格：（性格）
+背景：（背景）
+メモ：（その他メモ）
+
+※キャラクターは登場人物全員分、上記フォーマットを繰り返して出力してください。
+
+■第1章：（章タイトル）
+出来事：（この章で起きる出来事）
+心情：（主要人物の心情の動き）
+見せたいもの：（この章が読者に見せたいテーマ・見せ場）
+その他：（補足）
+
+※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。`;
+    document.getElementById('aiStep2Preview').textContent = prompt;
+    document.getElementById('aiStep2Preview').dataset.raw = prompt;
+  }
+
+  document.getElementById('aiStep2CopyBtn').onclick = async () => {
+    const text = document.getElementById('aiStep2Preview').dataset.raw || document.getElementById('aiStep2Preview').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopyToast();
+    } catch(_e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showCopyToast(); } catch(_e2){ alert('コピーに失敗しました。手動で選択してコピーしてください。'); }
+      document.body.removeChild(ta);
+    }
+  };
+
+  // ---- Parser ----
+  function parseAiOutput(raw){
+    const text = (raw || '').replace(/\r\n/g, '\n');
+    const lines = text.split('\n');
+
+    // トップレベル見出し: 【...】 / ■キャラクター：X / ■第N章：X
+    const blocks = []; // { kind: 'section'|'character'|'chapter'|'unclassified', title, chapterNum, body: [] }
+    let current = { kind:'unclassified', title:'未分類', body:[] };
+    blocks.push(current);
+
+    const sectionRe = /^【(.+?)】\s*$/;
+    const charRe = /^■\s*キャラクター[：:]\s*(.+?)\s*$/;
+    const chapterRe = /^■\s*第\s*([0-9０-９]+)\s*章[：:]\s*(.*?)\s*$/;
+
+    lines.forEach(line => {
+      let m;
+      if((m = line.match(sectionRe))){
+        current = { kind:'section', title: m[1].trim(), body:[] };
+        blocks.push(current);
+      } else if((m = line.match(charRe))){
+        current = { kind:'character', title: m[1].trim(), body:[] };
+        blocks.push(current);
+      } else if((m = line.match(chapterRe))){
+        const numStr = m[1].replace(/[０-９]/g, ch => '０１２３４５６７８９'.indexOf(ch));
+        current = { kind:'chapter', title: m[2].trim(), chapterNum: parseInt(numStr,10), body:[] };
+        blocks.push(current);
+      } else {
+        current.body.push(line);
+      }
+    });
+
+    // 未分類の空ブロックは捨てる
+    const cleaned = blocks.filter(b => !(b.kind==='unclassified' && b.body.join('').trim()===''));
+
+    // キャラクター/章の中身をラベルでさらに分解
+    function extractLabeled(bodyLines, labelMap){
+      const joined = bodyLines.join('\n');
+      const result = {};
+      const keys = Object.keys(labelMap);
+      // 各ラベルの開始位置を探す
+      const positions = [];
+      keys.forEach(label => {
+        const re = new RegExp(`(^|\\n)\\s*${label}[：:]`, '');
+        const m = joined.match(re);
+        if(m) positions.push({label, index: m.index + m[0].indexOf(label)});
+      });
+      positions.sort((a,b) => a.index - b.index);
+      positions.forEach((pos, i) => {
+        const start = joined.indexOf(':', pos.index) >= 0 ? joined.indexOf(':', pos.index)+1 : joined.indexOf('：', pos.index)+1;
+        const end = i+1 < positions.length ? positions[i+1].index : joined.length;
+        const val = joined.slice(start, end).trim();
+        result[labelMap[pos.label]] = val;
+      });
+      // ラベルが一切見つからなければ全文をotherに
+      if(positions.length === 0){
+        result.__fallback = joined.trim();
+      }
+      return result;
+    }
+
+    const sections = [];
+    const characters = [];
+    const chapters = [];
+    const unclassified = [];
+
+    cleaned.forEach(b => {
+      if(b.kind === 'section'){
+        sections.push({ title:b.title, text: b.body.join('\n').trim() });
+      } else if(b.kind === 'character'){
+        const ex = extractLabeled(b.body, {'役割':'role','性格':'personality','背景':'background','メモ':'notes'});
+        characters.push({
+          name: b.title,
+          role: ex.role || '',
+          personality: ex.personality || '',
+          background: ex.background || '',
+          notes: ex.notes || ex.__fallback || ''
+        });
+      } else if(b.kind === 'chapter'){
+        const ex = extractLabeled(b.body, {'出来事':'event','心情':'feeling','見せたいもの':'reveal','その他':'other'});
+        chapters.push({
+          num: b.chapterNum,
+          title: b.title,
+          event: ex.event || '',
+          feeling: ex.feeling || '',
+          reveal: ex.reveal || '',
+          other: ex.other || ex.__fallback || ''
+        });
+      } else {
+        const t = b.body.join('\n').trim();
+        if(t) unclassified.push(t);
+      }
+    });
+
+    chapters.sort((a,b) => (a.num||0) - (b.num||0));
+
+    // 警告：章番号の欠番・重複チェック
+    const warnings = [];
+    if(chapters.length > 0){
+      const nums = chapters.map(c=>c.num).filter(n => !isNaN(n));
+      const numSet = new Set();
+      const dupes = new Set();
+      nums.forEach(n => { if(numSet.has(n)) dupes.add(n); numSet.add(n); });
+      if(dupes.size > 0) warnings.push(`章番号が重複しています：第${[...dupes].join('章、第')}章`);
+      const maxNum = Math.max(...nums);
+      const missing = [];
+      for(let i=1;i<=maxNum;i++){ if(!numSet.has(i)) missing.push(i); }
+      if(missing.length > 0) warnings.push(`章番号が抜けています：第${missing.join('章、第')}章`);
+    }
+    if(characters.length === 0) warnings.push('登場人物が1件も検出されませんでした（フォーマットが見出し規約と合っていない可能性があります）');
+    if(chapters.length === 0) warnings.push('章が1件も検出されませんでした（フォーマットが見出し規約と合っていない可能性があります）');
+
+    return { sections, characters, chapters, unclassified, warnings };
+  }
+
+  document.getElementById('aiParseBtn').onclick = () => {
+    const raw = document.getElementById('aiPasteTextarea').value;
+    if(!raw.trim()){ alert('AIの回答を貼り付けてください'); return; }
+    aiParsedResult = parseAiOutput(raw);
+    renderAiParsePreview(aiParsedResult);
+    document.getElementById('aiParsePreviewWrap').style.display = 'block';
+  };
+
+  function renderAiParsePreview(result){
+    const wrap = document.getElementById('aiParsePreview');
+    let html = '';
+
+    result.sections.forEach(s => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">セクション</span><span class="parse-item-title">${escapeHTML(s.title)}</span></div>
+        <div class="parse-item-body">${escapeHTML(s.text) || '（空）'}</div>
+      </div>`;
+    });
+
+    result.characters.forEach(ch => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">登場人物</span><span class="parse-item-title">${escapeHTML(ch.name)}</span></div>
+        <div class="parse-item-body">役割：${escapeHTML(ch.role)}\n性格：${escapeHTML(ch.personality)}\n背景：${escapeHTML(ch.background)}\nメモ：${escapeHTML(ch.notes)}</div>
+      </div>`;
+    });
+
+    result.chapters.forEach(c => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">章</span><span class="parse-item-title">第${c.num||'?'}章　${escapeHTML(c.title)}</span></div>
+        <div class="parse-item-body">出来事：${escapeHTML(c.event)}\n心情：${escapeHTML(c.feeling)}\n見せたいもの：${escapeHTML(c.reveal)}\nその他：${escapeHTML(c.other)}</div>
+      </div>`;
+    });
+
+    result.unclassified.forEach(t => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag unclassified">未分類</span></div>
+        <div class="parse-item-body">${escapeHTML(t)}</div>
+      </div>`;
+    });
+
+    wrap.innerHTML = html || '<div class="chapter-tabs-empty">解析できる内容がありませんでした</div>';
+
+    const warnWrap = document.getElementById('aiParseWarnings');
+    if(result.warnings.length > 0){
+      warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
+    } else {
+      warnWrap.innerHTML = '';
+    }
+  }
+
+  document.getElementById('aiApplyBtn').onclick = () => {
+    if(!aiParsedResult) return;
+    if(!confirm('この内容を設定・プロットに反映します。既存の内容は上書きされ、この操作は元に戻せません。よろしいですか？')) return;
+
+    const p = projects.find(x=>x.id===currentAiImportId);
+    if(!p) return;
+
+    // sections: 既定3種にマッピング、それ以外は新規セクションとして追加
+    const newSections = defaultSections();
+    aiParsedResult.sections.forEach(s => {
+      const target = newSections.find(ns => ns.title === s.title && ns.type === 'text');
+      if(target){
+        target.text = s.text;
+      } else {
+        newSections.push({ id: uid(), title: s.title, type:'text', text: s.text });
+      }
+    });
+    const charSection = newSections.find(ns => ns.type === 'characters');
+    charSection.characters = aiParsedResult.characters.map(ch => ({
+      id: uid(), name: ch.name, role: ch.role, personality: ch.personality, background: ch.background, notes: ch.notes
+    }));
+
+    p.sections = newSections;
+    p.plotChapters = aiParsedResult.chapters.map(c => ({
+      id: uid(), title: c.title, event: c.event, feeling: c.feeling, reveal: c.reveal, other: c.other
+    }));
+
+    if(aiParsedResult.unclassified.length > 0){
+      p.memo = (p.memo ? p.memo + '\n\n' : '') + '【AI取り込み時の未分類テキスト】\n' + aiParsedResult.unclassified.join('\n\n');
+    }
+
+    p.aiImportAvailable = false; // 以後この作品では使えない
+    p.updatedAt = Date.now();
+    save();
+
+    alert('反映しました。以後は通常の設定・プロット編集画面から手動で調整してください。');
+    switchView('dashboardView');
+    renderGrid();
+    openDetail(p.id);
+  };
 
   // ---------- Init ----------
   load();
