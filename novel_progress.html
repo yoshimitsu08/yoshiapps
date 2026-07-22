@@ -1436,6 +1436,83 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
 </div>
 
+<!-- ============ Quality Check Flow View ============ -->
+<div class="view" id="qcView">
+  <div class="editor-header">
+    <button class="back-btn" id="qcBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="qcWorkTitle">—</div>
+      <div class="et-label">クオリティチェック・ブラッシュアップ</div>
+    </div>
+  </div>
+
+  <div class="setting-nav">
+    <button type="button" class="setting-nav-btn active" data-qcstep="qcStep1">① チェック依頼</button>
+    <button type="button" class="setting-nav-btn" data-qcstep="qcStep2">② 結果を貼付</button>
+    <button type="button" class="setting-nav-btn" data-qcstep="qcStep3">③ 反映</button>
+  </div>
+
+  <!-- Step 1: generate phase-1 prompt (ask for issues + 3 proposals each) -->
+  <div class="setting-page active" id="qcStep1">
+    <div class="editor-body">
+      <div class="prompt-panel">
+        <div class="prompt-panel-head">
+          <span class="pt-label">チェック依頼プロンプト</span>
+        </div>
+        <div class="prompt-preview" id="qcStep1Preview" style="max-height:320px;"></div>
+        <button class="btn primary" id="qcStep1CopyBtn" style="width:100%;">📋 コピーしてAIに渡す</button>
+      </div>
+      <div class="chapter-note" style="margin-top:10px;">
+        AIが「問題点の指摘」と「各問題点につき3つの改善案」を返します。回答を読んで、採用したい案を選んでください。
+      </div>
+      <button class="btn" id="qcStep1NextBtn" style="width:100%; margin-top:14px;">次へ：改善案をもとに完成形を作る →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: paste phase-1 result, generate phase-2 reformat prompt -->
+  <div class="setting-page" id="qcStep2">
+    <div class="editor-body">
+      <div class="field">
+        <label>AIのチェック結果・改善案をここに貼り付けてください（採用したい案だけ残して整理してもOK）</label>
+        <textarea id="qcPhase1PasteTextarea" class="section-textarea" style="min-height:200px;" placeholder="AIが返した「問題点＋改善案3つ」をそのまま、または取捨選択して貼り付けてください"></textarea>
+      </div>
+      <button class="btn primary" id="qcStep2GenBtn" style="width:100%;">再フォーマット用プロンプトを作成</button>
+
+      <div id="qcStep2PromptWrap" style="display:none; margin-top:16px;">
+        <div class="prompt-panel">
+          <div class="prompt-panel-head">
+            <span class="pt-label">完成形フォーマット化プロンプト</span>
+          </div>
+          <div class="prompt-preview" id="qcStep2Preview" style="max-height:320px;"></div>
+          <button class="btn primary" id="qcStep2CopyBtn" style="width:100%;">📋 コピーしてAIに渡す</button>
+        </div>
+        <button class="btn" id="qcStep2NextBtn" style="width:100%; margin-top:14px;">次へ：完成形を取り込む →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: paste final formatted output, parse + preview + apply -->
+  <div class="setting-page" id="qcStep3">
+    <div class="editor-body">
+      <div class="field">
+        <label>AIが出力した完成形をここに貼り付けてください</label>
+        <textarea id="qcPasteTextarea" class="section-textarea" style="min-height:200px;" placeholder="フォーマットに沿った完成形の設定・プロット全文を貼り付けてください"></textarea>
+      </div>
+      <button class="btn primary" id="qcParseBtn" style="width:100%;">解析してプレビュー表示</button>
+
+      <div id="qcParsePreviewWrap" style="display:none; margin-top:16px;">
+        <div class="detail-section-title" style="margin-top:10px;">解析結果プレビュー</div>
+        <div id="qcParsePreview"></div>
+
+        <div id="qcParseWarnings"></div>
+
+        <button class="btn primary" id="qcApplyBtn" style="width:100%; margin-top:14px;">この内容で反映する（既存内容は上書きされます）</button>
+        <div class="chapter-note" style="text-align:center; margin-top:8px;">反映すると既存の設定・プロットは全て上書きされます（反映前に確認画面が出ます）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Manuscript Editor View ============ -->
 <div class="view" id="manuscriptView">
   <div class="editor-header">
@@ -1496,6 +1573,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
       <div class="prompt-preview" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</div>
       <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 設定・プロットをコピー</button>
+    </div>
+
+    <div class="prompt-panel" style="margin-top:14px; border-color:var(--c-kousei);">
+      <div class="prompt-panel-head">
+        <span class="pt-label" style="color:var(--c-kousei);">クオリティチェック・ブラッシュアップ</span>
+      </div>
+      <div class="chapter-note" style="margin-bottom:10px;">
+        現在の設定・プロットの矛盾点や弱い部分をAIに指摘してもらい、改善案をもらった上でこのアプリに反映できます。
+      </div>
+      <button class="btn" id="qcOpenBtn" style="width:100%;">🔍 クオリティチェックを始める</button>
     </div>
   </div>
 </div>
@@ -2384,8 +2471,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderSections(p);
   };
 
-  function buildPrompt(p){
-    let out = 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。\n\n';
+  function buildPrompt(p, includeHeader){
+    if(includeHeader === undefined) includeHeader = true;
+    let out = includeHeader ? 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。\n\n' : '';
     out += `【作品タイトル】\n${p.title || '（未設定）'}\n\n`;
     p.sections.forEach(sec => {
       const title = sec.title || '無題セクション';
@@ -2812,8 +2900,8 @@ ${memo}
     document.getElementById('aiParsePreviewWrap').style.display = 'block';
   };
 
-  function renderAiParsePreview(result){
-    const wrap = document.getElementById('aiParsePreview');
+  function renderParsePreview(result, wrapId, warnId){
+    const wrap = document.getElementById(wrapId);
     let html = '';
 
     result.sections.forEach(s => {
@@ -2846,12 +2934,46 @@ ${memo}
 
     wrap.innerHTML = html || '<div class="chapter-tabs-empty">解析できる内容がありませんでした</div>';
 
-    const warnWrap = document.getElementById('aiParseWarnings');
+    const warnWrap = document.getElementById(warnId);
     if(result.warnings.length > 0){
       warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
     } else {
       warnWrap.innerHTML = '';
     }
+  }
+
+  function renderAiParsePreview(result){
+    renderParsePreview(result, 'aiParsePreview', 'aiParseWarnings');
+  }
+
+  function applyParsedResultToProject(p, result, unavailableAfterApply){
+    // sections: 既定3種にマッピング、それ以外は新規セクションとして追加
+    const newSections = defaultSections();
+    result.sections.forEach(s => {
+      const target = newSections.find(ns => ns.title === s.title && ns.type === 'text');
+      if(target){
+        target.text = s.text;
+      } else {
+        newSections.push({ id: uid(), title: s.title, type:'text', text: s.text });
+      }
+    });
+    const charSection = newSections.find(ns => ns.type === 'characters');
+    charSection.characters = result.characters.map(ch => ({
+      id: uid(), name: ch.name, role: ch.role, personality: ch.personality, background: ch.background, notes: ch.notes
+    }));
+
+    p.sections = newSections;
+    p.plotChapters = result.chapters.map(c => ({
+      id: uid(), title: c.title, event: c.event, feeling: c.feeling, reveal: c.reveal, other: c.other
+    }));
+
+    if(result.unclassified.length > 0){
+      p.memo = (p.memo ? p.memo + '\n\n' : '') + '【AI取り込み時の未分類テキスト】\n' + result.unclassified.join('\n\n');
+    }
+
+    if(unavailableAfterApply) p.aiImportAvailable = false;
+    p.updatedAt = Date.now();
+    save();
   }
 
   document.getElementById('aiApplyBtn').onclick = () => {
@@ -2861,39 +2983,163 @@ ${memo}
     const p = projects.find(x=>x.id===currentAiImportId);
     if(!p) return;
 
-    // sections: 既定3種にマッピング、それ以外は新規セクションとして追加
-    const newSections = defaultSections();
-    aiParsedResult.sections.forEach(s => {
-      const target = newSections.find(ns => ns.title === s.title && ns.type === 'text');
-      if(target){
-        target.text = s.text;
-      } else {
-        newSections.push({ id: uid(), title: s.title, type:'text', text: s.text });
-      }
-    });
-    const charSection = newSections.find(ns => ns.type === 'characters');
-    charSection.characters = aiParsedResult.characters.map(ch => ({
-      id: uid(), name: ch.name, role: ch.role, personality: ch.personality, background: ch.background, notes: ch.notes
-    }));
-
-    p.sections = newSections;
-    p.plotChapters = aiParsedResult.chapters.map(c => ({
-      id: uid(), title: c.title, event: c.event, feeling: c.feeling, reveal: c.reveal, other: c.other
-    }));
-
-    if(aiParsedResult.unclassified.length > 0){
-      p.memo = (p.memo ? p.memo + '\n\n' : '') + '【AI取り込み時の未分類テキスト】\n' + aiParsedResult.unclassified.join('\n\n');
-    }
-
-    p.aiImportAvailable = false; // 以後この作品では使えない
-    p.updatedAt = Date.now();
-    save();
+    applyParsedResultToProject(p, aiParsedResult, true);
 
     alert('反映しました。以後は通常の設定・プロット編集画面から手動で調整してください。');
     switchView('dashboardView');
     renderGrid();
     openDetail(p.id);
   };
+
+  // ================= Quality Check Flow =================
+  let currentQcId = null;
+  let qcParsedResult = null;
+
+  function openQcView(id){
+    currentQcId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('qcWorkTitle').textContent = p.title || '無題';
+    document.getElementById('qcPhase1PasteTextarea').value = '';
+    document.getElementById('qcPasteTextarea').value = '';
+    document.getElementById('qcStep2PromptWrap').style.display = 'none';
+    document.getElementById('qcParsePreviewWrap').style.display = 'none';
+    qcParsedResult = null;
+    renderQcStep1Prompt(p);
+    setQcStep('qcStep1');
+    switchView('qcView');
+  }
+
+  function setQcStep(stepId){
+    document.querySelectorAll('#qcView .setting-nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.qcstep === stepId);
+    });
+    document.querySelectorAll('#qcView .setting-page').forEach(pg => {
+      pg.classList.toggle('active', pg.id === stepId);
+    });
+    window.scrollTo(0,0);
+  }
+
+  document.querySelectorAll('#qcView .setting-nav-btn').forEach(btn => {
+    btn.onclick = () => setQcStep(btn.dataset.qcstep);
+  });
+
+  document.getElementById('qcBackBtn').onclick = () => {
+    switchView('settingView');
+  };
+
+  document.getElementById('qcOpenBtn').onclick = () => {
+    if(currentSettingId) openQcView(currentSettingId);
+  };
+
+  function renderQcStep1Prompt(p){
+    const base = buildPrompt(p, false); // ヘッダー文言なしの設定・プロット本体のみ
+    const prompt = `あなたはプロの小説編集者です。以下は、ある小説の設定とプロットです。内容を精査し、次の2点を行ってください。
+
+1. 矛盾点・説得力が弱い部分・情報が不足している部分を指摘してください
+2. 指摘した問題点それぞれについて、改善案を3つずつ提案してください（案ごとに簡潔な見出しを付けてください）
+
+まだ最終的な清書フォーマットにする必要はありません。指摘と改善案の提示だけで構いません。
+
+【現在の設定・プロット】
+${base}`;
+    document.getElementById('qcStep1Preview').textContent = prompt;
+    document.getElementById('qcStep1Preview').dataset.raw = prompt;
+  }
+
+  document.getElementById('qcStep1CopyBtn').onclick = async () => {
+    const text = document.getElementById('qcStep1Preview').dataset.raw || document.getElementById('qcStep1Preview').textContent;
+    await copyTextWithToast(text);
+  };
+  document.getElementById('qcStep1NextBtn').onclick = () => setQcStep('qcStep2');
+
+  document.getElementById('qcStep2GenBtn').onclick = () => {
+    const p = projects.find(x=>x.id===currentQcId);
+    if(!p) return;
+    const pasted = document.getElementById('qcPhase1PasteTextarea').value.trim();
+    if(!pasted){ alert('AIのチェック結果・改善案を貼り付けてください'); return; }
+
+    const base = buildPrompt(p, false);
+    const prompt = `あなたはプロの小説編集者です。以下は、ある小説の「現在の設定・プロット」と、それに対する「指摘された問題点＋改善案」です。採用すべき改善案を踏まえて、設定・プロットの完成形を作成してください。
+
+【現在の設定・プロット】
+${base}
+
+【指摘された問題点・改善案】
+${pasted}
+
+【出力形式について（厳守してください）】
+以下のフォーマットに沿って、過不足なく出力してください。この見出し記号（【】と■）は省略せず、指定通りの位置に付けてください。
+
+【世界観】
+（世界観の説明をここに）
+
+【用語集】
+（固有名詞・用語の説明をここに）
+
+■キャラクター：（名前）
+役割：（役割）
+性格：（性格）
+背景：（背景）
+メモ：（その他メモ）
+
+※キャラクターは登場人物全員分、上記フォーマットを繰り返して出力してください。
+
+■第1章：（章タイトル）
+出来事：（この章で起きる出来事）
+心情：（主要人物の心情の動き）
+見せたいもの：（この章が読者に見せたいテーマ・見せ場）
+その他：（補足）
+
+※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。`;
+
+    document.getElementById('qcStep2Preview').textContent = prompt;
+    document.getElementById('qcStep2Preview').dataset.raw = prompt;
+    document.getElementById('qcStep2PromptWrap').style.display = 'block';
+  };
+
+  document.getElementById('qcStep2CopyBtn').onclick = async () => {
+    const text = document.getElementById('qcStep2Preview').dataset.raw || document.getElementById('qcStep2Preview').textContent;
+    await copyTextWithToast(text);
+  };
+  document.getElementById('qcStep2NextBtn').onclick = () => setQcStep('qcStep3');
+
+  document.getElementById('qcParseBtn').onclick = () => {
+    const raw = document.getElementById('qcPasteTextarea').value;
+    if(!raw.trim()){ alert('AIが出力した完成形を貼り付けてください'); return; }
+    qcParsedResult = parseAiOutput(raw);
+    renderParsePreview(qcParsedResult, 'qcParsePreview', 'qcParseWarnings');
+    document.getElementById('qcParsePreviewWrap').style.display = 'block';
+  };
+
+  document.getElementById('qcApplyBtn').onclick = () => {
+    if(!qcParsedResult) return;
+    if(!confirm('この内容を設定・プロットに反映します。既存の内容は全て上書きされ、この操作は元に戻せません。よろしいですか？')) return;
+
+    const p = projects.find(x=>x.id===currentQcId);
+    if(!p) return;
+
+    applyParsedResultToProject(p, qcParsedResult, false);
+
+    alert('反映しました。');
+    switchView('dashboardView');
+    renderGrid();
+    openDetail(p.id);
+  };
+
+  async function copyTextWithToast(text){
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopyToast();
+    } catch(_e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showCopyToast(); } catch(_e2){ alert('コピーに失敗しました。手動で選択してコピーしてください。'); }
+      document.body.removeChild(ta);
+    }
+  }
 
   // ---------- Init ----------
   load();
