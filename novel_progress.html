@@ -1001,27 +1001,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .setting-page.active { display:block; }
 
 /* ---------- Manuscript editor ---------- */
-.phase-bar {
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:14px 20px;
-  border-bottom:1px solid var(--border);
-  flex-wrap:wrap;
-}
-.phase-bar-label {
-  font-family:var(--font-ui);
-  font-size:0.62rem;
-  color:var(--text3);
-  letter-spacing:0.06em;
-  flex-shrink:0;
-}
-.phase-select {
+.chapter-status-select {
   display:flex;
   gap:6px;
   flex-wrap:wrap;
 }
-.phase-btn {
+.chapter-status-btn {
   font-family:var(--font-ui);
   font-size:0.66rem;
   letter-spacing:0.03em;
@@ -1032,11 +1017,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text2);
   cursor:pointer;
 }
-.phase-btn:hover { border-color:var(--accent); }
-.phase-btn.active[data-phase="setting"] { background:var(--c-genan); color:var(--bg); border-color:transparent; font-weight:bold; }
-.phase-btn.active[data-phase="writing"] { background:var(--c-honbun); color:var(--bg); border-color:transparent; font-weight:bold; }
-.phase-btn.active[data-phase="revising"] { background:var(--c-kousei); color:var(--bg); border-color:transparent; font-weight:bold; }
-.phase-btn.active[data-phase="done"] { background:var(--accent); color:var(--bg); border-color:transparent; font-weight:bold; }
+.chapter-status-btn:hover { border-color:var(--accent); }
+.chapter-status-btn.active[data-cstatus="writing"] { background:var(--c-honbun); color:var(--bg); border-color:transparent; font-weight:bold; }
+.chapter-status-btn.active[data-cstatus="revising"] { background:var(--c-kousei); color:var(--bg); border-color:transparent; font-weight:bold; }
+.chapter-status-btn.active[data-cstatus="done"] { background:var(--accent); color:var(--bg); border-color:transparent; font-weight:bold; }
 
 .chapter-tabs {
   display:flex;
@@ -1105,19 +1089,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-ui);
   font-size:0.68rem;
   color:var(--text2);
-}
-.chapter-done-toggle {
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-family:var(--font-ui);
-  font-size:0.65rem;
-  color:var(--text2);
-  cursor:pointer;
-  user-select:none;
-}
-.chapter-done-toggle input {
-  width:15px; height:15px; accent-color:var(--ok);
 }
 .manuscript-textarea {
   width:100%;
@@ -1475,16 +1446,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
   </div>
 
-  <div class="phase-bar">
-    <span class="phase-bar-label">進行フェーズ</span>
-    <div class="phase-select" id="phaseSelect">
-      <button type="button" class="phase-btn" data-phase="setting">設定・プロット</button>
-      <button type="button" class="phase-btn" data-phase="writing">本文執筆中</button>
-      <button type="button" class="phase-btn" data-phase="revising">推敲中</button>
-      <button type="button" class="phase-btn" data-phase="done">完結</button>
-    </div>
-  </div>
-
   <div class="editor-body" id="manuscriptChapterNav">
     <!-- chapter tab list -->
   </div>
@@ -1567,12 +1528,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
       });
       if(!p.plotChapters) p.plotChapters = [];
       if(!p.manuscript) p.manuscript = {};
-      if(!p.phase){
-        // 旧データからの簡易移行：文字数があれば執筆中、なければ設定・プロット
-        p.phase = (p.wordcount||0) > 0 ? 'writing' : 'setting';
-      }
+      // 各章の本文エントリに status を補完（旧 done:true -> 'done'、それ以外 -> 'writing'）
+      Object.values(p.manuscript).forEach(entry => {
+        if(!entry.status){
+          entry.status = entry.done ? 'done' : 'writing';
+        }
+      });
       if(p.roughMemo === undefined) p.roughMemo = '';
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
+      delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
     });
   }
   function save(){
@@ -1586,7 +1550,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return {
       id: uid(),
       title: '',
-      phase: 'setting', // 'setting' | 'writing' | 'revising' | 'done'
       cover: null,
       wordcount: 0,
       wordLog: [],
@@ -1659,17 +1622,46 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>`;
   }
 
-  // ---- Phase (manual) + single progress bar driven by manuscript completion ----
+  // ---- Auto status derived from manuscript chapter statuses ----
   const PHASE_LABELS = {
     setting: '設定・プロット',
     writing: '本文執筆中',
     revising: '推敲中',
-    done: '完結'
+    done: '完了'
   };
-  const PHASE_ORDER = ['setting','writing','revising','done'];
+
+  function chapterTotal(p){
+    // プロットで設定した章数（未設定なら1）
+    return Math.max(1, (p.plotChapters && p.plotChapters.length) || 1);
+  }
+
+  function chapterStatus(p, chapterId){
+    const entry = p.manuscript && p.manuscript[chapterId];
+    return (entry && entry.status) || 'writing';
+  }
+
+  function chapterDoneCount(p){
+    // 進捗バーの分子：ステータスが「完了」の章数
+    return (p.plotChapters||[]).filter(ch => chapterStatus(p, ch.id) === 'done').length;
+  }
+
+  function computePhase(p){
+    const hasText = (p.wordcount||0) > 0;
+    if(!hasText) return 'setting';
+    const chapters = p.plotChapters || [];
+    if(chapters.length === 0) return 'writing';
+    const allDone = chapters.every(ch => chapterStatus(p, ch.id) === 'done');
+    if(allDone) return 'done';
+    const allRevisingOrDone = chapters.every(ch => {
+      const s = chapterStatus(p, ch.id);
+      return s === 'revising' || s === 'done';
+    });
+    if(allRevisingOrDone) return 'revising';
+    return 'writing';
+  }
 
   function phaseLabel(p){
-    return PHASE_LABELS[p.phase] || PHASE_LABELS.setting;
+    return PHASE_LABELS[computePhase(p)] || PHASE_LABELS.setting;
   }
 
   function statusClass(phase){
@@ -1680,22 +1672,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return 'st-setting';
   }
 
-  function chapterTotal(p){
-    // プロットで設定した章数（未設定なら1）
-    return Math.max(1, (p.plotChapters && p.plotChapters.length) || 1);
-  }
-
-  function chapterDoneCount(p){
-    if(!p.manuscript) return 0;
-    return (p.plotChapters||[]).filter(ch => p.manuscript[ch.id] && p.manuscript[ch.id].done).length;
-  }
-
   function statusLineHTML(p){
     const total = chapterTotal(p);
-    const done = p.phase === 'done' ? total : chapterDoneCount(p);
+    const done = chapterDoneCount(p);
     const pct = Math.round((done/total)*100);
     return `<div class="status-line">
-      <span class="status-heading ${statusClass(p.phase)}">${phaseLabel(p)}</span>
+      <span class="status-heading ${statusClass(computePhase(p))}">${phaseLabel(p)}</span>
       <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
       <div class="progress-bar-frac">${done}/${total}</div>
     </div>`;
@@ -2485,7 +2467,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(!p.plotChapters) p.plotChapters = [];
 
     document.getElementById('manuscriptWorkTitle').textContent = p.title || '無題';
-    setPhaseUI(p.phase);
 
     currentChapterId = (p.plotChapters[0] && p.plotChapters[0].id) || null;
     renderChapterTabs(p);
@@ -2493,23 +2474,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     switchView('manuscriptView');
   }
-
-  function setPhaseUI(phase){
-    document.querySelectorAll('.phase-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.phase === phase);
-    });
-  }
-
-  document.querySelectorAll('.phase-btn').forEach(btn => {
-    btn.onclick = () => {
-      const p = projects.find(x=>x.id===currentManuscriptId);
-      if(!p) return;
-      p.phase = btn.dataset.phase;
-      p.updatedAt = Date.now();
-      save();
-      setPhaseUI(p.phase);
-    };
-  });
 
   document.getElementById('manuscriptBackBtn').onclick = () => {
     switchView('dashboardView');
@@ -2522,23 +2486,41 @@ h1 .mark { color:var(--accent); font-style:italic; }
       nav.innerHTML = '<div class="chapter-tabs-empty">章が未設定です。「設定・プロット」タブでプロットを追加すると、ここに章が表示されます。</div>';
       return;
     }
-    const tabs = document.createElement('div');
-    tabs.className = 'chapter-tabs';
+    // 既存のタブ列があれば使い回し、なければ新規作成（スクロール位置を保持するため丸ごと再生成しない）
+    let tabs = nav.querySelector('.chapter-tabs');
+    if(!tabs){
+      tabs = document.createElement('div');
+      tabs.className = 'chapter-tabs';
+      nav.innerHTML = '';
+      nav.appendChild(tabs);
+    }
+
+    // 章の数が変わっている場合のみ全再構築、それ以外は各タブの状態だけ更新
+    const needsRebuild = tabs.children.length !== p.plotChapters.length;
+    if(needsRebuild){
+      tabs.innerHTML = '';
+      p.plotChapters.forEach((ch, idx) => {
+        const tab = document.createElement('div');
+        tab.dataset.chapterId = ch.id;
+        tab.onclick = () => {
+          currentChapterId = ch.id;
+          renderChapterTabs(p);
+          renderManuscriptEditArea(p);
+        };
+        tabs.appendChild(tab);
+      });
+    }
+
     p.plotChapters.forEach((ch, idx) => {
-      const isDone = p.manuscript[ch.id] && p.manuscript[ch.id].done;
-      const tab = document.createElement('div');
+      const tab = tabs.children[idx];
+      const status = chapterStatus(p, ch.id);
+      const isDone = status === 'done';
       tab.className = 'chapter-tab' + (ch.id===currentChapterId ? ' active' : '') + (isDone ? ' is-done' : '');
       tab.innerHTML = `<span class="tab-done-mark"></span>第${idx+1}章${ch.title ? '：'+escapeHTML(ch.title) : ''}`;
-      tab.onclick = () => {
-        currentChapterId = ch.id;
-        renderChapterTabs(p);
-        renderManuscriptEditArea(p);
-      };
-      tabs.appendChild(tab);
     });
-    nav.innerHTML = '';
-    nav.appendChild(tabs);
   }
+
+  const CHAPTER_STATUS_LABELS = { writing:'執筆中', revising:'推敲中', done:'完了' };
 
   function renderManuscriptEditArea(p){
     const area = document.getElementById('manuscriptEditArea');
@@ -2548,7 +2530,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     const idx = p.plotChapters.findIndex(c => c.id === currentChapterId);
     const ch = p.plotChapters[idx];
-    if(!p.manuscript[ch.id]) p.manuscript[ch.id] = { text:'', done:false };
+    if(!p.manuscript[ch.id]) p.manuscript[ch.id] = { text:'', status:'writing' };
+    if(!p.manuscript[ch.id].status) p.manuscript[ch.id].status = 'writing';
     const entry = p.manuscript[ch.id];
 
     area.innerHTML = `
@@ -2557,14 +2540,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <div class="mt-left">
             <span class="manuscript-wordcount-live" id="mtWordcount">${(entry.text||'').length.toLocaleString()} 字</span>
           </div>
-          <label class="chapter-done-toggle">
-            <input type="checkbox" id="mtDoneCheck" ${entry.done ? 'checked' : ''}>
-            この章を完了にする
-          </label>
+          <div class="chapter-status-select" id="mtStatusSelect">
+            <button type="button" class="chapter-status-btn" data-cstatus="writing">執筆中</button>
+            <button type="button" class="chapter-status-btn" data-cstatus="revising">推敲中</button>
+            <button type="button" class="chapter-status-btn" data-cstatus="done">完了</button>
+          </div>
         </div>
         <textarea class="manuscript-textarea" id="mtTextarea" placeholder="第${idx+1}章の本文をここに書いてください">${escapeHTML(entry.text||'')}</textarea>
       </div>
     `;
+
+    document.querySelectorAll('#mtStatusSelect .chapter-status-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.cstatus === entry.status);
+      btn.onclick = () => {
+        entry.status = btn.dataset.cstatus;
+        p.updatedAt = Date.now();
+        save();
+        document.querySelectorAll('#mtStatusSelect .chapter-status-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.cstatus === entry.status);
+        });
+        renderChapterTabs(p);
+      };
+    });
 
     const ta = document.getElementById('mtTextarea');
     ta.oninput = () => {
@@ -2573,14 +2570,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       recomputeTotalWordcount(p);
       p.updatedAt = Date.now();
       save();
-      renderChapterTabs(p);
-    };
-
-    document.getElementById('mtDoneCheck').onchange = (e) => {
-      entry.done = e.target.checked;
-      p.updatedAt = Date.now();
-      save();
-      renderChapterTabs(p);
+      // タブの再描画はしない（フォーカス・スクロール位置を保持するため）。文字数はカードで自動集計される。
     };
   }
 
