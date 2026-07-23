@@ -90,6 +90,76 @@ h1 .mark { color:var(--accent); font-style:italic; }
   border-radius:1px;
 }
 
+/* ---------- Storage usage indicator ---------- */
+.storage-usage-bar {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:14px;
+}
+.storage-usage-track {
+  flex:1;
+  max-width:220px;
+  height:6px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:3px;
+  overflow:hidden;
+}
+.storage-usage-fill {
+  height:100%;
+  background:var(--accent);
+  transition:width .2s, background .2s;
+}
+.storage-usage-fill.warn { background:var(--danger); }
+.storage-usage-text {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.03em;
+  white-space:nowrap;
+}
+.storage-usage-text.warn { color:var(--danger); }
+
+/* ---------- Storage detail modal ---------- */
+.storage-detail-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:var(--bg3);
+  border-radius:3px;
+  padding:10px 12px;
+  margin-bottom:8px;
+  gap:10px;
+}
+.storage-detail-row .sd-title {
+  font-family:var(--font-body);
+  font-size:0.88rem;
+  color:var(--text);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  flex:1;
+}
+.storage-detail-row .sd-size {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text2);
+  flex-shrink:0;
+}
+.storage-detail-bar-track {
+  width:100%;
+  height:4px;
+  background:var(--bg);
+  border-radius:2px;
+  overflow:hidden;
+  margin-top:6px;
+}
+.storage-detail-bar-fill {
+  height:100%;
+  background:var(--accent);
+}
+
 /* ---------- Priority pin banner ---------- */
 .priority-banner {
   margin:18px 20px 0;
@@ -1255,7 +1325,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
     <div class="dropdown-menu" id="dashDropdown">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
+      <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
+      <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
+  </div>
+  <div class="storage-usage-bar">
+    <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
+    <span class="storage-usage-text" id="storageUsageText">0 KB / 5 MB</span>
   </div>
   <div class="legend">
     <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
@@ -1300,6 +1376,33 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <button class="btn primary" id="emptyNewBtn">＋ 新規作品</button>
 </div>
 
+<!-- ============ Storage Detail Modal ============ -->
+<div class="modal-overlay" id="storageModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>ストレージ詳細</h2>
+      <button class="modal-close" id="storageModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <div class="storage-usage-bar" style="margin-top:0;">
+          <div class="storage-usage-track" style="max-width:none;"><div class="storage-usage-fill" id="storageModalFill"></div></div>
+          <span class="storage-usage-text" id="storageModalText">0 KB / 5 MB</span>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">作品ごとの内訳</div>
+        <div id="storageDetailList"></div>
+      </div>
+      <div class="chapter-note">
+        容量が気になってきたら、各作品の詳細画面から「エクスポート」してファイルとして保存し、不要ならカード一覧から削除してください。
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept="application/json" style="display:none;">
+
 <!-- ============ Detail Modal ============ -->
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal">
@@ -1312,6 +1415,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
+        <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
         <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
       </div>
     </div>
@@ -1629,9 +1733,136 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function save(){
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }
     catch(_e){ alert('保存に失敗しました。ブラウザのストレージ容量を確認してください。'); }
+    updateStorageUsageDisplay();
   }
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,8); }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  // ---------- Storage usage ----------
+  const STORAGE_ESTIMATED_LIMIT_BYTES = 5 * 1024 * 1024; // 一般的なブラウザのlocalStorage上限の目安（実際は5〜10MB程度でブラウザ依存）
+
+  function byteLengthOfString(s){
+    // UTF-16文字列のバイト数概算（Blobで正確に測る）
+    return new Blob([s || '']).size;
+  }
+
+  function formatBytes(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(2) + ' MB';
+  }
+
+  function getProjectByteSize(p){
+    return byteLengthOfString(JSON.stringify(p));
+  }
+
+  function getTotalStorageBytes(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return byteLengthOfString(raw || '');
+    } catch(_e){
+      return 0;
+    }
+  }
+
+  function updateStorageUsageDisplay(){
+    const used = getTotalStorageBytes();
+    const pct = Math.min(100, Math.round((used / STORAGE_ESTIMATED_LIMIT_BYTES) * 100));
+    const isWarn = pct >= 80;
+
+    const fillEls = [document.getElementById('storageUsageFill'), document.getElementById('storageModalFill')];
+    const textEls = [document.getElementById('storageUsageText'), document.getElementById('storageModalText')];
+    fillEls.forEach(el => {
+      if(!el) return;
+      el.style.width = pct + '%';
+      el.classList.toggle('warn', isWarn);
+    });
+    textEls.forEach(el => {
+      if(!el) return;
+      el.textContent = `${formatBytes(used)} / ${formatBytes(STORAGE_ESTIMATED_LIMIT_BYTES)}（目安）`;
+      el.classList.toggle('warn', isWarn);
+    });
+  }
+
+  function renderStorageDetailList(){
+    const list = document.getElementById('storageDetailList');
+    if(projects.length === 0){
+      list.innerHTML = '<div class="chapter-tabs-empty">作品がありません</div>';
+      return;
+    }
+    const sized = projects.map(p => ({ p, bytes: getProjectByteSize(p) }));
+    sized.sort((a,b) => b.bytes - a.bytes);
+    const maxBytes = Math.max(...sized.map(s=>s.bytes), 1);
+    list.innerHTML = sized.map(s => `
+      <div class="storage-detail-row" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <span class="sd-title">${escapeHTML(s.p.title || '無題')}</span>
+          <span class="sd-size">${formatBytes(s.bytes)}</span>
+        </div>
+        <div class="storage-detail-bar-track"><div class="storage-detail-bar-fill" style="width:${Math.round((s.bytes/maxBytes)*100)}%"></div></div>
+      </div>
+    `).join('');
+  }
+
+  // ---------- Export / Import (per-project) ----------
+  function exportProject(p){
+    const payload = {
+      exportedFrom: 'Manuscript',
+      exportVersion: 1,
+      exportedAt: new Date().toISOString(),
+      project: p
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeTitle = (p.title || '無題').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+    a.href = url;
+    a.download = `manuscript_${safeTitle}_${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importProjectFromFile(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let payload;
+      try {
+        payload = JSON.parse(e.target.result);
+      } catch(_e){
+        alert('ファイルを読み込めませんでした。正しいエクスポートファイルか確認してください。');
+        return;
+      }
+      const p = payload && payload.project ? payload.project : payload;
+      if(!p || typeof p !== 'object' || !('title' in p)){
+        alert('作品データとして認識できませんでした。');
+        return;
+      }
+      // IDの衝突を避けるため新規IDを振り直す
+      const imported = JSON.parse(JSON.stringify(p));
+      imported.id = uid();
+      imported.title = (imported.title || '無題') + '（インポート）';
+      imported.pinned = false;
+      imported.createdAt = Date.now();
+      imported.updatedAt = Date.now();
+      if(!imported.sections) imported.sections = defaultSections();
+      if(!imported.plotChapters) imported.plotChapters = [];
+      if(!imported.manuscript) imported.manuscript = {};
+      if(!imported.deadlines) imported.deadlines = [];
+      if(!imported.todos) imported.todos = [];
+      if(!imported.wordLog) imported.wordLog = [];
+      if(imported.roughMemo === undefined) imported.roughMemo = '';
+      if(imported.aiImportAvailable === undefined) imported.aiImportAvailable = false;
+
+      projects.push(imported);
+      save();
+      renderGrid();
+      alert(`「${imported.title}」としてインポートしました。`);
+    };
+    reader.readAsText(file);
+  }
 
   function newProjectSkeleton(){
     return {
@@ -2122,6 +2353,27 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('dashDropdown').classList.remove('active');
     enterSelectMode();
   };
+  document.getElementById('menuStorageDetailBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    updateStorageUsageDisplay();
+    renderStorageDetailList();
+    document.getElementById('storageModalOverlay').classList.add('active');
+  };
+  document.getElementById('storageModalClose').onclick = () => {
+    document.getElementById('storageModalOverlay').classList.remove('active');
+  };
+  document.getElementById('storageModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'storageModalOverlay') document.getElementById('storageModalOverlay').classList.remove('active');
+  });
+  document.getElementById('menuImportBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    document.getElementById('importFileInput').click();
+  };
+  document.getElementById('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(file) importProjectFromFile(file);
+    e.target.value = ''; // 同じファイルを連続選択できるようリセット
+  });
 
   // ---- Selection mode ----
   function enterSelectMode(){
@@ -2194,6 +2446,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     p.updatedAt = Date.now();
     save();
     document.getElementById('detailTitle').textContent = p.title;
+  };
+  document.getElementById('menuExportBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    exportProject(p);
   };
   document.getElementById('menuDeleteProjectBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
@@ -3144,6 +3402,7 @@ ${pasted}
   // ---------- Init ----------
   load();
   renderGrid();
+  updateStorageUsageDisplay();
 
 })();
 </script>
