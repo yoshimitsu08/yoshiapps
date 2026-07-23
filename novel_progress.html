@@ -791,7 +791,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 .section-textarea {
   width:100%;
-  min-height:130px;
+  min-height:390px;
   background:var(--bg3);
   border:1px solid var(--border);
   border-radius:4px;
@@ -846,7 +846,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .char-field textarea {
   width:100%;
-  min-height:44px;
+  min-height:132px;
   background:var(--bg);
   border:1px solid var(--border);
   border-radius:3px;
@@ -919,6 +919,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
   overflow-y:auto;
   margin-bottom:10px;
 }
+.prompt-preview-editable {
+  width:100%;
+  min-height:220px;
+  max-height:none;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  line-height:1.7;
+  color:var(--text);
+  resize:vertical;
+  margin-bottom:10px;
+}
+.prompt-preview-editable:focus { outline:none; border-color:var(--accent); }
 .copy-toast {
   position:fixed;
   bottom:24px;
@@ -1168,9 +1184,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   border-radius:4px;
   padding:16px;
   color:var(--text);
-  font-family:var(--font-body);
-  font-size:1rem;
-  line-height:1.9;
+  font-family:var(--font-ui);
+  font-size:0.82rem;
+  line-height:1.7;
   resize:vertical;
 }
 .manuscript-textarea:focus { outline:none; border-color:var(--accent); }
@@ -1328,6 +1344,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
+    <div class="dropdown-menu" id="dashDropdownSelectMode">
+      <button type="button" class="dropdown-item" id="menuCancelSelectBtn">✕ 選択モードをキャンセル</button>
+    </div>
   </div>
   <div class="storage-usage-bar">
     <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
@@ -1343,8 +1362,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 <div class="select-bar" id="selectBar">
   <span class="sb-count" id="selectCount">0件選択中</span>
-  <button class="btn" id="selectCancelBtn">キャンセル</button>
   <button class="btn" id="selectAllBtn">全選択</button>
+  <button class="btn" id="selectExportBtn">選択をエクスポート</button>
   <button class="btn" id="selectDeleteBtn" style="color:var(--danger); border-color:var(--danger);">選択を削除</button>
 </div>
 
@@ -1675,7 +1694,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <span class="pt-label">AI執筆プロンプト</span>
         <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem;">プロンプトを作成</button>
       </div>
-      <div class="prompt-preview" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</div>
+      <textarea class="prompt-preview-editable" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</textarea>
       <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 設定・プロットをコピー</button>
     </div>
 
@@ -1727,6 +1746,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       });
       if(p.roughMemo === undefined) p.roughMemo = '';
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
+      if(p.writingPrompt === undefined) p.writingPrompt = '';
       delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
     });
   }
@@ -1880,6 +1900,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       manuscript: {}, // chapterId -> { text, done }
       roughMemo: '',
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
+      writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -2337,12 +2358,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // ---- Dashboard hamburger menu ----
   document.getElementById('dashHamburgerBtn').onclick = (e) => {
     e.stopPropagation();
-    document.getElementById('dashDropdown').classList.toggle('active');
+    const menuId = selectMode ? 'dashDropdownSelectMode' : 'dashDropdown';
+    document.getElementById(menuId).classList.toggle('active');
   };
   document.addEventListener('click', (e) => {
     const menu = document.getElementById('dashDropdown');
     if(menu.classList.contains('active') && !menu.contains(e.target) && e.target.id !== 'dashHamburgerBtn'){
       menu.classList.remove('active');
+    }
+    const smenu = document.getElementById('dashDropdownSelectMode');
+    if(smenu.classList.contains('active') && !smenu.contains(e.target) && e.target.id !== 'dashHamburgerBtn'){
+      smenu.classList.remove('active');
     }
     const dmenu = document.getElementById('detailDropdown');
     if(dmenu.classList.contains('active') && !dmenu.contains(e.target) && e.target.id !== 'detailHamburgerBtn'){
@@ -2352,6 +2378,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('menuSelectModeBtn').onclick = () => {
     document.getElementById('dashDropdown').classList.remove('active');
     enterSelectMode();
+  };
+  document.getElementById('menuCancelSelectBtn').onclick = () => {
+    document.getElementById('dashDropdownSelectMode').classList.remove('active');
+    exitSelectMode();
   };
   document.getElementById('menuStorageDetailBtn').onclick = () => {
     document.getElementById('dashDropdown').classList.remove('active');
@@ -2392,7 +2422,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('selectCount').textContent = `${selectedIds.size}件選択中`;
   }
 
-  document.getElementById('selectCancelBtn').onclick = exitSelectMode;
   document.getElementById('selectAllBtn').onclick = () => {
     const sorted = getSorted();
     if(selectedIds.size === sorted.length){
@@ -2401,6 +2430,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
       selectedIds = new Set(sorted.map(p=>p.id));
     }
     renderGrid();
+  };
+  document.getElementById('selectExportBtn').onclick = () => {
+    if(selectedIds.size === 0){ alert('作品が選択されていません'); return; }
+    const targets = projects.filter(p => selectedIds.has(p.id));
+    targets.forEach(p => exportProject(p));
   };
   document.getElementById('selectDeleteBtn').onclick = () => {
     if(selectedIds.size === 0){ alert('作品が選択されていません'); return; }
@@ -2533,7 +2567,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('settingWorkTitle').textContent = p.title || '無題';
     renderSections(p);
     renderChapters(p);
-    document.getElementById('promptPreview').textContent = '「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。';
+    const promptEl = document.getElementById('promptPreview');
+    promptEl.value = p.writingPrompt && p.writingPrompt.trim()
+      ? p.writingPrompt
+      : '「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。';
     // reset to setting tab
     document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page==='settingPage'));
     document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id==='settingPage'));
@@ -2773,14 +2810,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('genPromptBtn').onclick = () => {
     const p = getCurrentSettingProject();
     if(!p) return;
+    const el = document.getElementById('promptPreview');
+    if(p.writingPrompt && p.writingPrompt.trim()){
+      if(!confirm('現在編集中のプロンプトは上書きされます。設定・プロットの内容から再生成しますか？')) return;
+    }
     const prompt = buildPrompt(p);
-    document.getElementById('promptPreview').textContent = prompt;
-    document.getElementById('promptPreview').dataset.raw = prompt;
+    el.value = prompt;
+    p.writingPrompt = prompt;
+    p.updatedAt = Date.now();
+    save();
   };
+
+  document.getElementById('promptPreview').addEventListener('input', (e) => {
+    const p = getCurrentSettingProject();
+    if(!p) return;
+    p.writingPrompt = e.target.value;
+    p.updatedAt = Date.now();
+    save();
+  });
 
   document.getElementById('copyPromptBtn').onclick = async () => {
     const el = document.getElementById('promptPreview');
-    const text = el.dataset.raw || el.textContent;
+    const text = el.value;
     try {
       await navigator.clipboard.writeText(text);
       showCopyToast();
