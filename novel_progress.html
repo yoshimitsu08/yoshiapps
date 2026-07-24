@@ -160,6 +160,29 @@ h1 .mark { color:var(--accent); font-style:italic; }
   background:var(--accent);
 }
 
+/* ---------- Template list row ---------- */
+.template-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+.template-row:hover { border-color:var(--accent); }
+.template-row .tr-name {
+  font-family:var(--font-body);
+  font-size:0.92rem;
+  color:var(--text);
+}
+.template-row .tr-arrow {
+  color:var(--text3);
+  font-family:var(--font-ui);
+}
+
 /* ---------- Priority pin banner ---------- */
 .priority-banner {
   margin:18px 20px 0;
@@ -1341,6 +1364,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
     <div class="dropdown-menu" id="dashDropdown">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
+      <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
@@ -1421,6 +1445,52 @@ h1 .mark { color:var(--accent); font-style:italic; }
 </div>
 
 <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+
+<!-- ============ Prompt Template List Modal ============ -->
+<div class="modal-overlay" id="templateListModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>プロンプトテンプレート管理</h2>
+      <button class="modal-close" id="templateListModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:12px;">
+        文頭・文末の指示文を編集できます。中間には各作品の設定・プロットが自動で挿入されます。全作品共通で使えます。
+      </div>
+      <div id="templateListWrap"></div>
+      <button type="button" class="add-section-btn" id="templateAddBtn">＋ テンプレートを追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Prompt Template Edit Modal ============ -->
+<div class="modal-overlay" id="templateEditModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="templateEditTitle">テンプレート編集</h2>
+      <button class="modal-close" id="templateEditModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>テンプレート名</label>
+        <input type="text" id="templateNameInput" placeholder="例：厳密ルール版、続編用 など">
+      </div>
+      <div class="field">
+        <label>文頭指示文</label>
+        <textarea id="templateHeadInput" class="section-textarea" style="min-height:180px;" placeholder="例：あなたはプロの小説家です。以下の設定とプロットに厳密に従い、視点は三人称限定視点で、会話文は全体の30%以内に抑えて執筆してください。"></textarea>
+      </div>
+      <div class="chapter-note" style="margin-bottom:10px;">この間に、作品の設定・プロットが自動で挿入されます</div>
+      <div class="field">
+        <label>文末指示文（任意）</label>
+        <textarea id="templateTailInput" class="section-textarea" style="min-height:120px;" placeholder="例：以上の内容を踏まえ、まずは第一章から執筆してください。"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="templateDeleteBtn" style="color:var(--danger); border-color:var(--danger);">削除</button>
+      <button class="btn primary" id="templateSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ Detail Modal ============ -->
 <div class="modal-overlay" id="detailModalOverlay">
@@ -1692,7 +1762,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="prompt-panel">
       <div class="prompt-panel-head">
         <span class="pt-label">AI執筆プロンプト</span>
-        <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem;">プロンプトを作成</button>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select class="sort-select" id="templateSelectForPrompt" style="flex:1;"></select>
+        <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem; flex-shrink:0;">プロンプトを作成</button>
       </div>
       <textarea class="prompt-preview-editable" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</textarea>
       <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 設定・プロットをコピー</button>
@@ -1717,6 +1790,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   'use strict';
 
   const STORAGE_KEY = 'manuscript_projects_v1';
+  const TEMPLATES_STORAGE_KEY = 'manuscript_prompt_templates_v1';
   const STAGE_COLORS = { genan:'var(--c-genan)', plot:'var(--c-plot)', honbun:'var(--c-honbun)', kousei:'var(--c-kousei)' };
   const TRI_LABELS = ['未着手','着手','完了'];
 
@@ -1724,6 +1798,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let currentDetailId = null;
   let selectMode = false;
   let selectedIds = new Set();
+  let promptTemplates = [];
 
   function load(){
     try {
@@ -1757,6 +1832,36 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,8); }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  // ---------- Prompt templates (shared across all projects) ----------
+  function defaultTemplates(){
+    return [
+      {
+        id: uid(),
+        name: 'シンプル執筆',
+        head: 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。',
+        tail: ''
+      }
+    ];
+  }
+
+  function loadTemplates(){
+    try {
+      const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+      promptTemplates = raw ? JSON.parse(raw) : defaultTemplates();
+      if(!Array.isArray(promptTemplates) || promptTemplates.length === 0){
+        promptTemplates = defaultTemplates();
+      }
+    } catch(_e){
+      promptTemplates = defaultTemplates();
+    }
+  }
+
+  function saveTemplates(){
+    try { localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(promptTemplates)); }
+    catch(_e){ alert('テンプレートの保存に失敗しました。'); }
+    updateStorageUsageDisplay();
+  }
 
   // ---------- Storage usage ----------
   const STORAGE_ESTIMATED_LIMIT_BYTES = 5 * 1024 * 1024; // 一般的なブラウザのlocalStorage上限の目安（実際は5〜10MB程度でブラウザ依存）
@@ -2567,6 +2672,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('settingWorkTitle').textContent = p.title || '無題';
     renderSections(p);
     renderChapters(p);
+    populateTemplateSelect();
     const promptEl = document.getElementById('promptPreview');
     promptEl.value = p.writingPrompt && p.writingPrompt.trim()
       ? p.writingPrompt
@@ -2575,6 +2681,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page==='settingPage'));
     document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id==='settingPage'));
     switchView('settingView');
+  }
+
+  function populateTemplateSelect(){
+    const sel = document.getElementById('templateSelectForPrompt');
+    sel.innerHTML = promptTemplates.map(t => `<option value="${t.id}">${escapeHTML(t.name || '無題テンプレート')}</option>`).join('');
   }
 
   document.querySelectorAll('.setting-nav-btn').forEach(btn => {
@@ -2766,10 +2877,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderSections(p);
   };
 
-  function buildPrompt(p, includeHeader){
-    if(includeHeader === undefined) includeHeader = true;
-    let out = includeHeader ? 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。\n\n' : '';
-    out += `【作品タイトル】\n${p.title || '（未設定）'}\n\n`;
+  function buildPromptBody(p){
+    let out = `【作品タイトル】\n${p.title || '（未設定）'}\n\n`;
     p.sections.forEach(sec => {
       const title = sec.title || '無題セクション';
       if(sec.type === 'characters'){
@@ -2807,6 +2916,24 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return out.trim();
   }
 
+  function buildPrompt(p, includeHeader){
+    if(includeHeader === undefined) includeHeader = true;
+    let out = includeHeader ? 'あなたはプロの小説家です。今から提示する設定とプロットを用いて執筆してください。まずは第一章から書き始めてください。\n\n' : '';
+    out += buildPromptBody(p);
+    return out.trim();
+  }
+
+  function buildPromptFromTemplate(p, template){
+    const head = (template.head || '').trim();
+    const tail = (template.tail || '').trim();
+    const body = buildPromptBody(p);
+    let out = '';
+    if(head) out += head + '\n\n';
+    out += body;
+    if(tail) out += '\n\n' + tail;
+    return out.trim();
+  }
+
   document.getElementById('genPromptBtn').onclick = () => {
     const p = getCurrentSettingProject();
     if(!p) return;
@@ -2814,7 +2941,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(p.writingPrompt && p.writingPrompt.trim()){
       if(!confirm('現在編集中のプロンプトは上書きされます。設定・プロットの内容から再生成しますか？')) return;
     }
-    const prompt = buildPrompt(p);
+    const templateId = document.getElementById('templateSelectForPrompt').value;
+    const template = promptTemplates.find(t => t.id === templateId) || promptTemplates[0];
+    const prompt = template ? buildPromptFromTemplate(p, template) : buildPrompt(p);
     el.value = prompt;
     p.writingPrompt = prompt;
     p.updatedAt = Date.now();
@@ -3450,8 +3579,89 @@ ${pasted}
     }
   }
 
+  // ================= Prompt Template Management =================
+  let currentEditingTemplateId = null;
+
+  document.getElementById('menuTemplatesBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    renderTemplateList();
+    document.getElementById('templateListModalOverlay').classList.add('active');
+  };
+  document.getElementById('templateListModalClose').onclick = () => {
+    document.getElementById('templateListModalOverlay').classList.remove('active');
+  };
+  document.getElementById('templateListModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'templateListModalOverlay') document.getElementById('templateListModalOverlay').classList.remove('active');
+  });
+
+  function renderTemplateList(){
+    const wrap = document.getElementById('templateListWrap');
+    wrap.innerHTML = promptTemplates.map(t => `
+      <div class="template-row" data-tid="${t.id}">
+        <span class="tr-name">${escapeHTML(t.name || '無題テンプレート')}</span>
+        <span class="tr-arrow">→</span>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.template-row').forEach(row => {
+      row.onclick = () => openTemplateEdit(row.dataset.tid);
+    });
+  }
+
+  document.getElementById('templateAddBtn').onclick = () => {
+    const t = { id: uid(), name: '新しいテンプレート', head: '', tail: '' };
+    promptTemplates.push(t);
+    saveTemplates();
+    openTemplateEdit(t.id);
+  };
+
+  function openTemplateEdit(id){
+    currentEditingTemplateId = id;
+    const t = promptTemplates.find(x=>x.id===id);
+    if(!t) return;
+    document.getElementById('templateEditTitle').textContent = t.name || '無題テンプレート';
+    document.getElementById('templateNameInput').value = t.name || '';
+    document.getElementById('templateHeadInput').value = t.head || '';
+    document.getElementById('templateTailInput').value = t.tail || '';
+    document.getElementById('templateDeleteBtn').style.display = promptTemplates.length > 1 ? 'inline-block' : 'none';
+    document.getElementById('templateListModalOverlay').classList.remove('active');
+    document.getElementById('templateEditModalOverlay').classList.add('active');
+  }
+
+  document.getElementById('templateEditModalClose').onclick = () => {
+    document.getElementById('templateEditModalOverlay').classList.remove('active');
+    document.getElementById('templateListModalOverlay').classList.add('active');
+    renderTemplateList();
+  };
+
+  document.getElementById('templateSaveBtn').onclick = () => {
+    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    if(!t) return;
+    const name = document.getElementById('templateNameInput').value.trim();
+    if(!name){ alert('テンプレート名を入力してください'); return; }
+    t.name = name;
+    t.head = document.getElementById('templateHeadInput').value;
+    t.tail = document.getElementById('templateTailInput').value;
+    saveTemplates();
+    document.getElementById('templateEditModalOverlay').classList.remove('active');
+    document.getElementById('templateListModalOverlay').classList.add('active');
+    renderTemplateList();
+  };
+
+  document.getElementById('templateDeleteBtn').onclick = () => {
+    if(promptTemplates.length <= 1){ alert('最後の1件は削除できません'); return; }
+    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    if(!t) return;
+    if(!confirm(`テンプレート「${t.name}」を削除します。よろしいですか？`)) return;
+    promptTemplates = promptTemplates.filter(x => x.id !== currentEditingTemplateId);
+    saveTemplates();
+    document.getElementById('templateEditModalOverlay').classList.remove('active');
+    document.getElementById('templateListModalOverlay').classList.add('active');
+    renderTemplateList();
+  };
+
   // ---------- Init ----------
   load();
+  loadTemplates();
   renderGrid();
   updateStorageUsageDisplay();
 
