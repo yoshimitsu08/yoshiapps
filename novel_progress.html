@@ -1445,6 +1445,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 </div>
 
 <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+<input type="file" id="importTemplateFileInput" accept="application/json" style="display:none;">
 
 <!-- ============ Prompt Template List Modal ============ -->
 <div class="modal-overlay" id="templateListModalOverlay">
@@ -1459,6 +1460,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
       <div id="templateListWrap"></div>
       <button type="button" class="add-section-btn" id="templateAddBtn">＋ テンプレートを追加</button>
+      <button type="button" class="add-section-btn" id="templateImportBtn" style="margin-top:8px;">📥 テンプレートをインポート</button>
     </div>
   </div>
 </div>
@@ -1487,6 +1489,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-footer">
       <button class="btn" id="templateDeleteBtn" style="color:var(--danger); border-color:var(--danger);">削除</button>
+      <button class="btn" id="templateExportBtn">📤 エクスポート</button>
       <button class="btn primary" id="templateSaveBtn">保存</button>
     </div>
   </div>
@@ -2028,6 +2031,57 @@ h1 .mark { color:var(--accent); font-style:italic; }
       save();
       renderGrid();
       alert(`「${imported.title}」としてインポートしました。`);
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Export / Import (per-template) ----------
+  function exportTemplate(t){
+    const payload = {
+      exportedFrom: 'Manuscript',
+      exportKind: 'promptTemplate',
+      exportVersion: 1,
+      exportedAt: new Date().toISOString(),
+      template: t
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (t.name || '無題テンプレート').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+    a.href = url;
+    a.download = `manuscript_template_${safeName}_${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importTemplateFromFile(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let payload;
+      try {
+        payload = JSON.parse(e.target.result);
+      } catch(_e){
+        alert('ファイルを読み込めませんでした。正しいエクスポートファイルか確認してください。');
+        return;
+      }
+      const t = payload && payload.template ? payload.template : payload;
+      if(!t || typeof t !== 'object' || !('head' in t || 'tail' in t)){
+        alert('テンプレートデータとして認識できませんでした。');
+        return;
+      }
+      const imported = {
+        id: uid(),
+        name: (t.name || '無題テンプレート') + '（インポート）',
+        head: t.head || '',
+        tail: t.tail || ''
+      };
+      promptTemplates.push(imported);
+      saveTemplates();
+      renderTemplateList();
+      alert(`「${imported.name}」としてインポートしました。`);
     };
     reader.readAsText(file);
   }
@@ -3776,6 +3830,15 @@ ${pasted}
     openTemplateEdit(t.id);
   };
 
+  document.getElementById('templateImportBtn').onclick = () => {
+    document.getElementById('importTemplateFileInput').click();
+  };
+  document.getElementById('importTemplateFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(file) importTemplateFromFile(file);
+    e.target.value = '';
+  });
+
   function openTemplateEdit(id){
     currentEditingTemplateId = id;
     const t = promptTemplates.find(x=>x.id===id);
@@ -3819,6 +3882,12 @@ ${pasted}
     document.getElementById('templateEditModalOverlay').classList.remove('active');
     document.getElementById('templateListModalOverlay').classList.add('active');
     renderTemplateList();
+  };
+
+  document.getElementById('templateExportBtn').onclick = () => {
+    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    if(!t) return;
+    exportTemplate(t);
   };
 
   // ---------- Init ----------
