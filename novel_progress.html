@@ -1544,6 +1544,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
+        <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆者を編集</button>
         <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
         <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
       </div>
@@ -1559,7 +1560,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
       <div class="detail-section">
         <div class="detail-section-title">
-          <span id="detailStatus"></span>
+          <span id="detailAuthorDisplay" style="font-family:var(--font-body); font-size:0.95rem; color:var(--text2);"></span>
           <button class="btn" id="pinToggleBtn" style="padding:6px 10px; font-size:0.6rem;">📌 優先に設定</button>
         </div>
       </div>
@@ -1863,6 +1864,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.roughMemo === undefined) p.roughMemo = '';
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
       if(p.writingPrompt === undefined) p.writingPrompt = '';
+      if(p.author === undefined) p.author = '';
       delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
     });
   }
@@ -2034,6 +2036,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return {
       id: uid(),
       title: '',
+      author: '',
       cover: null,
       wordcount: 0,
       wordLog: [],
@@ -2347,7 +2350,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(!p) return;
 
     document.getElementById('detailTitle').textContent = p.title || '無題';
-    document.getElementById('detailStatus').textContent = phaseLabel(p);
+    document.getElementById('detailAuthorDisplay').textContent = p.author ? `執筆者：${p.author}` : '';
     document.getElementById('pinToggleBtn').textContent = p.pinned ? '📌 優先を解除' : '📌 優先に設定';
     document.getElementById('pinToggleBtn').classList.toggle('active', p.pinned);
     if(p.pinned){
@@ -2626,6 +2629,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     p.updatedAt = Date.now();
     save();
     document.getElementById('detailTitle').textContent = p.title;
+  };
+  document.getElementById('menuEditAuthorBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newAuthor = prompt('執筆者名を入力してください（空欄で未設定にできます）', p.author || '');
+    if(newAuthor === null) return;
+    p.author = newAuthor.trim();
+    p.updatedAt = Date.now();
+    save();
+    document.getElementById('detailAuthorDisplay').textContent = p.author ? `執筆者：${p.author}` : '';
   };
   document.getElementById('menuExportBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
