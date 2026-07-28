@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CryptoBox — ファイル暗号化</title>
+<style>
+:root {
+  --bg:#1a1814;
+  --bg2:#211f1b;
+  --bg3:#2a2722;
+  --surface:#302d27;
+  --accent:#c8a96e;
+  --text:#e8e0d0;
+  --text2:#a09880;
+  --text3:#706858;
+  --border:#3f3b34;
+  --ok:#7ec8a8;
+  --danger:#c06040;
+  --font-ui:'Courier New',monospace;
+  --font-body:'Georgia',serif;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  padding:20px;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.wrap { max-width:640px; margin:0 auto; }
+
+header {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:24px;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+h1 {
+  font-family:var(--font-ui);
+  font-size:20px;
+  letter-spacing:1px;
+  color:var(--text);
+  font-weight:normal;
+}
+h1 .lock { color:var(--accent); }
+
+.mode-badge {
+  font-family:var(--font-ui);
+  font-size:11px;
+  color:var(--text3);
+  border:1px solid var(--border);
+  padding:3px 8px;
+  border-radius:3px;
+}
+.mode-badge.full { color:var(--ok); border-color:var(--ok); }
+
+/* ドロップゾーン */
+.dropzone {
+  background:var(--bg2);
+  border:2px dashed var(--border);
+  border-radius:8px;
+  padding:48px 20px;
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+  margin-bottom:16px;
+}
+.dropzone:hover, .dropzone.drag {
+  border-color:var(--accent);
+  background:var(--surface);
+}
+.dropzone .icon {
+  font-size:36px;
+  margin-bottom:12px;
+  opacity:.7;
+}
+.dropzone .main {
+  font-family:var(--font-ui);
+  font-size:14px;
+  color:var(--text);
+  margin-bottom:6px;
+}
+.dropzone .sub {
+  font-size:12px;
+  color:var(--text3);
+  font-family:var(--font-ui);
+}
+input[type=file] { display:none; }
+
+/* ファイルキュー */
+.queue { margin-bottom:16px; }
+.item {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:12px 14px;
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.item .tag {
+  font-family:var(--font-ui);
+  font-size:10px;
+  padding:2px 6px;
+  border-radius:3px;
+  flex-shrink:0;
+  white-space:nowrap;
+}
+.tag.enc { background:rgba(200,169,110,.15); color:var(--accent); border:1px solid var(--accent); }
+.tag.dec { background:rgba(126,200,168,.15); color:var(--ok); border:1px solid var(--ok); }
+.item .name {
+  flex:1;
+  min-width:0;
+  font-size:14px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.item .size {
+  font-family:var(--font-ui);
+  font-size:11px;
+  color:var(--text3);
+  flex-shrink:0;
+}
+.item .status {
+  font-family:var(--font-ui);
+  font-size:11px;
+  flex-shrink:0;
+  min-width:60px;
+  text-align:right;
+}
+.status.wait { color:var(--text3); }
+.status.busy { color:var(--accent); }
+.status.done { color:var(--ok); }
+.status.err { color:var(--danger); }
+
+.progress-bar {
+  height:2px;
+  background:var(--border);
+  border-radius:1px;
+  overflow:hidden;
+  margin-top:8px;
+}
+.progress-bar .fill {
+  height:100%;
+  background:var(--accent);
+  width:0%;
+  transition:width .2s;
+}
+
+.actions {
+  display:flex;
+  gap:10px;
+  margin-bottom:24px;
+}
+button {
+  font-family:var(--font-ui);
+  font-size:13px;
+  padding:12px 18px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--bg3);
+  color:var(--text);
+  cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+button:hover { background:var(--surface); border-color:var(--accent); }
+button:active { transform:translateY(1px); }
+button:disabled { opacity:.4; cursor:default; }
+button.primary {
+  background:var(--accent);
+  color:var(--bg);
+  border-color:var(--accent);
+  font-weight:bold;
+  flex:1;
+}
+button.primary:hover { background:#d8bc88; }
+button.ghost { background:transparent; }
+
+.savefolder {
+  font-size:12px;
+  color:var(--text3);
+  font-family:var(--font-ui);
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.savefolder .path {
+  color:var(--text2);
+  border:1px solid var(--border);
+  padding:3px 8px;
+  border-radius:3px;
+}
+
+footer {
+  border-top:1px solid var(--border);
+  padding-top:16px;
+  margin-top:32px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.footer-link {
+  font-family:var(--font-ui);
+  font-size:11px;
+  color:var(--text3);
+  text-decoration:none;
+  cursor:pointer;
+  background:none;
+  border:none;
+  padding:0;
+}
+.footer-link:hover { color:var(--text2); }
+
+/* モーダル */
+.modal-overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+}
+.modal-overlay.show { display:flex; }
+.modal {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:28px;
+  max-width:400px;
+  width:100%;
+}
+.modal h2 {
+  font-family:var(--font-ui);
+  font-size:16px;
+  margin-bottom:8px;
+  color:var(--accent);
+}
+.modal p {
+  font-size:13px;
+  color:var(--text2);
+  line-height:1.6;
+  margin-bottom:16px;
+}
+.modal input[type=password] {
+  width:100%;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:12px;
+  border-radius:6px;
+  font-family:var(--font-ui);
+  font-size:14px;
+  margin-bottom:14px;
+}
+.modal input[type=password]:focus { outline:none; border-color:var(--accent); }
+.modal .row { display:flex; gap:10px; }
+.modal .row button { flex:1; }
+.modal .err-msg {
+  color:var(--danger);
+  font-size:12px;
+  font-family:var(--font-ui);
+  margin:-8px 0 12px;
+  display:none;
+}
+.modal .err-msg.show { display:block; }
+
+.hint {
+  font-size:12px;
+  color:var(--text3);
+  line-height:1.6;
+  margin-bottom:20px;
+  font-family:var(--font-ui);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="lock">&#128274;</span> CryptoBox</h1>
+    <span class="mode-badge" id="modeBadge">確認中...</span>
+  </header>
+
+  <div class="hint" id="hintText"></div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="icon">&#128193;</div>
+    <div class="main">ファイルをドロップ、またはタップして選択</div>
+    <div class="sub">暗号化・復号は拡張子で自動判別されます</div>
+  </div>
+  <input type="file" id="fileInput" multiple>
+
+  <div class="savefolder" id="savefolderRow" style="display:none;">
+    保存先：<span class="path" id="saveFolderPath">未選択（都度ダイアログ）</span>
+    <button id="chooseFolderBtn" class="ghost" style="padding:4px 10px;font-size:11px;">変更</button>
+  </div>
+
+  <div class="queue" id="queue"></div>
+
+  <div class="actions" id="actionsRow" style="display:none;">
+    <button class="primary" id="runBtn">実行</button>
+    <button class="ghost" id="clearBtn">クリア</button>
+  </div>
+
+  <footer>
+    <span class="footer-link" style="font-size:11px;color:var(--text3);">拡張子：.ykx</span>
+    <button class="footer-link" id="resetPassBtn">パスワードをリセット</button>
+  </footer>
+</div>
+
+<!-- 初回パスワード設定モーダル -->
+<div class="modal-overlay" id="setupModal">
+  <div class="modal">
+    <h2>初回セットアップ</h2>
+    <p>このデバイスで使うパスワードを決めてください。次回以降は自動的に使われるので、入力は今回だけです。<br><br>
+    ※このパスワードはこの端末のブラウザ内にのみ保存されます。突破されても支障のないファイル用の、簡易的な保護です。</p>
+    <input type="password" id="setupPassInput" placeholder="パスワード" autocomplete="new-password">
+    <div class="err-msg" id="setupErr">2文字以上で入力してください</div>
+    <div class="row">
+      <button class="primary" id="setupConfirmBtn">設定して開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- リセット確認モーダル -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal">
+    <h2>パスワードのリセット</h2>
+    <p>新しいパスワードに切り替えます。<br><b style="color:var(--danger)">古いパスワードで暗号化された既存の.ykxファイルは、リセット後は復号できなくなります。</b>ご注意ください。</p>
+    <input type="password" id="resetPassInput" placeholder="新しいパスワード" autocomplete="new-password">
+    <div class="err-msg" id="resetErr">2文字以上で入力してください</div>
+    <div class="row">
+      <button class="ghost" id="resetCancelBtn">キャンセル</button>
+      <button class="primary" id="resetConfirmBtn">切り替える</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const ENC_EXT = 'ykx';
+  const MAGIC = 'CBX1'; // ファイル先頭に埋め込む識別子
+  const STORAGE_KEY = 'cryptobox_pw_v1';
+  const SALT_KEY = 'cryptobox_salt_v1';
+  const FSA_SUPPORTED = 'showOpenFilePicker' in window;
+
+  let dirHandle = null; // File System Access APIでの保存先フォルダ
+
+  // ---------- パスワード管理（軽い難読化のみ / 気休め） ----------
+  function obfuscate(s){ return btoa(unescape(encodeURIComponent(s))); }
+  function deobfuscate(s){ return decodeURIComponent(escape(atob(s))); }
+
+  function getSavedPassword(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    try { return deobfuscate(raw); } catch(e){ return null; }
+  }
+  function savePassword(pw){
+    localStorage.setItem(STORAGE_KEY, obfuscate(pw));
+    if(!localStorage.getItem(SALT_KEY)){
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      localStorage.setItem(SALT_KEY, btoa(String.fromCharCode(...salt)));
+    }
+  }
+  function getSalt(){
+    let s = localStorage.getItem(SALT_KEY);
+    if(!s){
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      s = btoa(String.fromCharCode(...salt));
+      localStorage.setItem(SALT_KEY, s);
+    }
+    return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  }
+
+  let currentPassword = getSavedPassword();
+
+  // ---------- 鍵導出 ----------
+  async function deriveKey(password){
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt:getSalt(), iterations:150000, hash:'SHA-256' },
+      keyMaterial,
+      { name:'AES-GCM', length:256 },
+      false,
+      ['encrypt','decrypt']
+    );
+  }
+
+  // ---------- 暗号化フォーマット ----------
+  // [MAGIC(4)] [IV(12)] [拡張子長(1)] [拡張子(可変・UTF8)] [暗号文...]
+  async function encryptFile(file, password){
+    const key = await deriveKey(password);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const buf = await file.arrayBuffer();
+    const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf);
+
+    const origExt = getExt(file.name); // 拡張子なしなら空文字
+    const extBytes = new TextEncoder().encode(origExt);
+    const magicBytes = new TextEncoder().encode(MAGIC);
+
+    const header = new Uint8Array(magicBytes.length + iv.length + 1 + extBytes.length);
+    let off = 0;
+    header.set(magicBytes, off); off += magicBytes.length;
+    header.set(iv, off); off += iv.length;
+    header[off] = extBytes.length; off += 1;
+    header.set(extBytes, off);
+
+    const outBuf = new Uint8Array(header.length + cipher.byteLength);
+    outBuf.set(header, 0);
+    outBuf.set(new Uint8Array(cipher), header.length);
+
+    const baseName = stripExt(file.name);
+    return { blob: new Blob([outBuf], {type:'application/octet-stream'}), outName: baseName + '.' + ENC_EXT };
+  }
+
+  async function decryptFile(file, password){
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const magic = new TextDecoder().decode(buf.slice(0,4));
+    if(magic !== MAGIC){
+      throw new Error('NOT_CRYPTOBOX_FILE');
+    }
+    const iv = buf.slice(4, 16);
+    const extLen = buf[16];
+    const extBytes = buf.slice(17, 17+extLen);
+    const origExt = new TextDecoder().decode(extBytes);
+    const cipherStart = 17 + extLen;
+    const cipherBuf = buf.slice(cipherStart);
+
+    const key = await deriveKey(password);
+    let plain;
+    try {
+      plain = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, cipherBuf);
+    } catch(e){
+      throw new Error('WRONG_PASSWORD');
+    }
+    const baseName = stripExt(file.name);
+    const outName = origExt ? baseName + '.' + origExt : baseName;
+    return { blob: new Blob([plain]), outName };
+  }
+
+  function getExt(name){
+    const i = name.lastIndexOf('.');
+    if(i < 0 || i === 0) return '';
+    return name.slice(i+1);
+  }
+  function stripExt(name){
+    const i = name.lastIndexOf('.');
+    if(i < 0 || i === 0) return name;
+    return name.slice(0,i);
+  }
+  function fmtSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  // ---------- キュー管理 ----------
+  let queue = []; // {file, mode:'enc'|'dec', status, el}
+  const queueEl = document.getElementById('queue');
+  const actionsRow = document.getElementById('actionsRow');
+  const runBtn = document.getElementById('runBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  function addFiles(fileList){
+    for(const file of fileList){
+      const isEnc = getExt(file.name).toLowerCase() === ENC_EXT;
+      queue.push({
+        file,
+        mode: isEnc ? 'dec' : 'enc',
+        status: 'wait'
+      });
+    }
+    renderQueue();
+  }
+
+  function renderQueue(){
+    queueEl.innerHTML = '';
+    queue.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = 'item';
+      const tagClass = item.mode === 'enc' ? 'enc' : 'dec';
+      const tagLabel = item.mode === 'enc' ? '暗号化' : '復号';
+      const statusLabel = {
+        wait: '待機中', busy: '処理中...', done: '完了', err: 'エラー'
+      }[item.status];
+      const statusClass = item.status;
+      el.innerHTML = `
+        <span class="tag ${tagClass}">${tagLabel}</span>
+        <span class="name">${escapeHtml(item.file.name)}</span>
+        <span class="size">${fmtSize(item.file.size)}</span>
+        <span class="status ${statusClass}">${statusLabel}</span>
+      `;
+      queueEl.appendChild(el);
+      item._el = el;
+    });
+    actionsRow.style.display = queue.length ? 'flex' : 'none';
+  }
+
+  function escapeHtml(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function updateItemStatus(item, status){
+    item.status = status;
+    const statusLabel = {
+      wait:'待機中', busy:'処理中...', done:'完了', err:'エラー'
+    }[status];
+    const s = item._el.querySelector('.status');
+    s.className = 'status ' + status;
+    s.textContent = statusLabel;
+  }
+
+  // ---------- 保存 ----------
+  async function saveOutput(blob, name){
+    if(FSA_SUPPORTED && dirHandle){
+      try{
+        const fh = await dirHandle.getFileHandle(name, {create:true});
+        const w = await fh.createWritable();
+        await w.write(blob);
+        await w.close();
+        return;
+      }catch(e){
+        // フォールバックへ
+      }
+    }
+    // ダウンロード方式フォールバック
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  // ---------- 実行 ----------
+  async function runQueue(){
+    if(!currentPassword){
+      showSetupModal();
+      return;
+    }
+    runBtn.disabled = true;
+    for(const item of queue){
+      if(item.status === 'done') continue;
+      updateItemStatus(item, 'busy');
+      try{
+        let result;
+        if(item.mode === 'enc'){
+          result = await encryptFile(item.file, currentPassword);
+        } else {
+          result = await decryptFile(item.file, currentPassword);
+        }
+        await saveOutput(result.blob, result.outName);
+        updateItemStatus(item, 'done');
+      }catch(e){
+        updateItemStatus(item, 'err');
+        if(e.message === 'WRONG_PASSWORD'){
+          alert(`「${item.file.name}」はパスワードが違うため復号できませんでした。`);
+        } else if(e.message === 'NOT_CRYPTOBOX_FILE'){
+          alert(`「${item.file.name}」はCryptoBoxで暗号化されたファイルではないようです。`);
+        } else {
+          alert(`「${item.file.name}」の処理中にエラーが発生しました。`);
+          console.error(e);
+        }
+      }
+    }
+    runBtn.disabled = false;
+  }
+
+  // ---------- 保存先フォルダ選択（PC / FSA対応時） ----------
+  async function chooseFolder(){
+    if(!FSA_SUPPORTED) return;
+    try{
+      dirHandle = await window.showDirectoryPicker();
+      document.getElementById('saveFolderPath').textContent = dirHandle.name;
+    }catch(e){
+      // キャンセル時は何もしない
+    }
+  }
+
+  // ---------- UI初期化 ----------
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => {
+    if(e.target.files.length) addFiles(e.target.files);
+    fileInput.value = '';
+  });
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+
+  runBtn.addEventListener('click', runQueue);
+  clearBtn.addEventListener('click', () => { queue = []; renderQueue(); });
+  document.getElementById('chooseFolderBtn').addEventListener('click', chooseFolder);
+
+  // ---------- 初回セットアップモーダル ----------
+  const setupModal = document.getElementById('setupModal');
+  const setupPassInput = document.getElementById('setupPassInput');
+  const setupErr = document.getElementById('setupErr');
+
+  function showSetupModal(){
+    setupModal.classList.add('show');
+    setTimeout(() => setupPassInput.focus(), 50);
+  }
+  document.getElementById('setupConfirmBtn').addEventListener('click', () => {
+    const pw = setupPassInput.value;
+    if(pw.length < 2){
+      setupErr.classList.add('show');
+      return;
+    }
+    savePassword(pw);
+    currentPassword = pw;
+    setupModal.classList.remove('show');
+    setupPassInput.value = '';
+    setupErr.classList.remove('show');
+    updateModeBadge();
+    if(queue.length) runQueue();
+  });
+  setupPassInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') document.getElementById('setupConfirmBtn').click();
+  });
+
+  // ---------- リセットモーダル ----------
+  const resetModal = document.getElementById('resetModal');
+  const resetPassInput = document.getElementById('resetPassInput');
+  const resetErr = document.getElementById('resetErr');
+
+  document.getElementById('resetPassBtn').addEventListener('click', () => {
+    resetModal.classList.add('show');
+    setTimeout(() => resetPassInput.focus(), 50);
+  });
+  document.getElementById('resetCancelBtn').addEventListener('click', () => {
+    resetModal.classList.remove('show');
+    resetPassInput.value = '';
+    resetErr.classList.remove('show');
+  });
+  document.getElementById('resetConfirmBtn').addEventListener('click', () => {
+    const pw = resetPassInput.value;
+    if(pw.length < 2){
+      resetErr.classList.add('show');
+      return;
+    }
+    // ソルトも作り直す（鍵を完全に別物にする）
+    localStorage.removeItem(SALT_KEY);
+    savePassword(pw);
+    currentPassword = pw;
+    resetModal.classList.remove('show');
+    resetPassInput.value = '';
+    resetErr.classList.remove('show');
+  });
+  resetPassInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') document.getElementById('resetConfirmBtn').click();
+  });
+
+  // ---------- モード表示 ----------
+  function updateModeBadge(){
+    const badge = document.getElementById('modeBadge');
+    const hint = document.getElementById('hintText');
+    if(FSA_SUPPORTED){
+      badge.textContent = 'PCモード：直接保存';
+      badge.classList.add('full');
+      document.getElementById('savefolderRow').style.display = 'flex';
+      hint.textContent = '保存先フォルダを指定すれば、処理後のファイルはダウンロードフォルダを経由せず直接そこに保存されます（SD/USBメモリのフォルダを直接指定可能）。';
+    } else {
+      badge.textContent = 'スマホモード：ダウンロード保存';
+      badge.classList.remove('full');
+      hint.textContent = '処理後のファイルはダウンロードとして保存されます。ファイルアプリでSD/USBメモリへ移動してください。';
+    }
+  }
+
+  // ---------- 初期表示 ----------
+  updateModeBadge();
+  if(!currentPassword){
+    showSetupModal();
+  }
+
+})();
+</script>
+</body>
+</html>
