@@ -1213,12 +1213,234 @@ h1 .mark { color:var(--accent); font-style:italic; }
   resize:vertical;
 }
 .manuscript-textarea:focus { outline:none; border-color:var(--accent); }
+.manuscript-preview {
+  width:100%;
+  min-height:40vh;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:16px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.82rem;
+  line-height:1.7;
+  white-space:pre-wrap;
+}
+.manuscript-preview-empty {
+  color:var(--text3);
+  font-size:0.75rem;
+}
 .manuscript-empty-state {
   text-align:center;
   padding:60px 20px;
   color:var(--text3);
 }
 .manuscript-empty-state .glyph { font-size:2rem; margin-bottom:10px; color:var(--border); }
+
+/* ---------- Sentence Selector ---------- */
+.selector-legend {
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:12px 20px 0;
+}
+.selector-legend-item {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text2);
+}
+.selector-legend-dot {
+  width:9px; height:9px;
+  border-radius:2px;
+  flex-shrink:0;
+}
+
+.selector-row-group {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:22px;
+}
+.selector-row-num-row {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:8px;
+}
+.selector-row-num-tag {
+  font-family:var(--font-body);
+  font-size:0.68rem;
+  color:var(--text3);
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:1px 8px;
+}
+.selector-insert-btn {
+  display:flex;
+  align-items:center;
+  gap:2px;
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  color:var(--text3);
+  background:none;
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:1px 6px;
+  cursor:pointer;
+}
+.selector-row-cells {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.selector-card {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px 12px 10px 8px;
+  cursor:pointer;
+  background:var(--bg2);
+  user-select:none;
+  position:relative;
+}
+.selector-card.selected {
+  background:var(--bg3);
+}
+.selector-card-empty {
+  cursor:pointer;
+  opacity:0.55;
+  padding:10px 14px;
+}
+.selector-card-badge {
+  flex-shrink:0;
+  width:26px; height:26px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:5px;
+  color:var(--bg);
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  font-weight:700;
+}
+.selector-card-text-wrap { flex:1; min-width:0; }
+.selector-card-tag {
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  margin-bottom:4px;
+  font-weight:600;
+}
+.selector-card-text {
+  font-family:var(--font-body);
+  font-size:0.86rem;
+  line-height:1.7;
+  color:var(--text);
+}
+.selector-gear-btn {
+  flex-shrink:0;
+  width:28px; height:28px;
+  border-radius:5px;
+  border:1px solid var(--border);
+  background:none;
+  color:var(--text3);
+  font-size:0.8rem;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.selector-empty-text { font-family:var(--font-ui); font-size:0.68rem; color:var(--text3); }
+
+.selector-gear-menu {
+  position:absolute;
+  top:100%; right:4px;
+  margin-top:4px;
+  background:var(--bg3);
+  border:1px solid var(--accent);
+  border-radius:6px;
+  padding:10px 12px 12px;
+  z-index:20;
+  min-width:190px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.selector-gear-menu-head {
+  display:flex; align-items:center; gap:6px;
+  margin-bottom:10px; padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+}
+.selector-gear-menu-head-dot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.selector-gear-menu-head-text { flex:1; font-family:var(--font-ui); font-size:0.6rem; color:var(--text2); }
+.selector-gear-menu-close {
+  flex-shrink:0; width:18px; height:18px; border:none; background:none;
+  color:var(--text3); font-size:0.95rem; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.selector-gear-menu-row { display:flex; gap:6px; }
+.selector-gear-menu-btn {
+  flex:1;
+  font-family:var(--font-ui);
+  font-size:0.63rem;
+  padding:7px 8px;
+  border-radius:4px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+}
+.selector-gear-menu-btn.back { border-color:#8a4a3f; color:#e8a99a; }
+.selector-gear-menu-btn.fwd { border-color:#3f5a7a; color:#9fc0e0; }
+.selector-gear-menu-arrow { font-weight:900; }
+
+.selector-edit-textarea {
+  width:100%;
+  min-height:70px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:8px 10px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.86rem;
+  line-height:1.7;
+  resize:vertical;
+  margin-top:2px;
+}
+.selector-edit-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
+.selector-edit-cancel {
+  font-family:var(--font-ui); font-size:0.63rem; padding:6px 12px;
+  border-radius:4px; border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer;
+}
+.selector-edit-confirm {
+  font-family:var(--font-ui); font-weight:700; font-size:0.63rem; padding:6px 14px;
+  border-radius:4px; border:none; color:var(--bg); cursor:pointer;
+}
+
+.composed-panel {
+  background:var(--bg2);
+  border:1px solid var(--accent);
+  border-radius:6px;
+  padding:16px;
+}
+.composed-panel-head {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px;
+}
+.composed-count { font-family:var(--font-ui); font-size:0.65rem; color:var(--text2); }
+.composed-preview {
+  font-family:var(--font-body);
+  font-size:0.9rem;
+  line-height:1.9;
+  color:var(--text);
+  white-space:pre-wrap;
+  max-height:260px;
+  overflow-y:auto;
+}
+.composed-preview-empty { color:var(--text3); font-family:var(--font-ui); font-size:0.72rem; }
+
 .manuscript-empty-state p { font-family:var(--font-ui); font-size:0.7rem; line-height:1.8; }
 
 /* ---------- AI import parse preview ---------- */
@@ -1770,6 +1992,60 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
 </div>
 
+<!-- ============ Sentence Selector View ============ -->
+<div class="view" id="selectorView">
+  <div class="editor-header">
+    <button class="back-btn" id="selectorBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="selectorWorkTitle">—</div>
+      <div class="et-label" id="selectorChapterLabel">Sentence Selector</div>
+    </div>
+    <button class="btn" id="selectorAddDraftBtn" style="flex-shrink:0; padding:8px 12px; font-size:0.65rem;">＋ドラフト</button>
+  </div>
+
+  <div class="selector-legend" id="selectorLegend"></div>
+
+  <div class="editor-body" id="selectorRows">
+    <!-- rows rendered here -->
+  </div>
+
+  <div class="editor-body" style="padding-top:0;">
+    <div class="composed-panel">
+      <div class="composed-panel-head">
+        <span class="pt-label">合成結果</span>
+        <span class="composed-count" id="selectorComposedCount">0 字</span>
+      </div>
+      <div class="composed-preview" id="selectorComposedPreview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Add Draft Modal ============ -->
+<div class="modal-overlay" id="addDraftModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>ドラフトを追加</h2>
+      <button class="modal-close" id="addDraftModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:10px;">
+        AIの回答や自分で書いた文章を貼り付けてください。句点（。）で自動的にセンテンス単位に分割し、既存の行に割り当てます。
+      </div>
+      <div class="field">
+        <label>ドラフト名（任意）</label>
+        <input type="text" id="addDraftNameInput" placeholder="例：Draft D、丁寧語版 など">
+      </div>
+      <div class="field">
+        <label>本文</label>
+        <textarea id="addDraftTextarea" class="section-textarea" style="min-height:220px;" placeholder="ここに文章を貼り付けてください"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" id="addDraftConfirmBtn" style="width:100%;">追加する</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Setting/Plot Editor View ============ -->
 <div class="view" id="settingView">
   <div class="editor-header">
@@ -1838,12 +2114,54 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const TEMPLATES_STORAGE_KEY = 'manuscript_prompt_templates_v1';
   const STAGE_COLORS = { genan:'var(--c-genan)', plot:'var(--c-plot)', honbun:'var(--c-honbun)', kousei:'var(--c-kousei)' };
   const TRI_LABELS = ['未着手','着手','完了'];
+  const SELECTOR_COLORS = ['#8fa8c8', '#c8a96e', '#7ec8a8', '#c08a6e', '#a88fc8', '#c86e8f', '#6ec8b8', '#c8c06e'];
+  const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
   let projects = [];
   let currentDetailId = null;
   let selectMode = false;
   let selectedIds = new Set();
   let promptTemplates = [];
+
+  // 句点「。」区切りの簡易文分割（「」内の句点は無視する）
+  function splitIntoSentences(text){
+    const sentences = [];
+    let buf = '';
+    let inQuote = false;
+    for(const ch of text){
+      buf += ch;
+      if(ch === '「') inQuote = true;
+      if(ch === '」') inQuote = false;
+      if(ch === '。' && !inQuote){
+        sentences.push(buf.trim());
+        buf = '';
+      }
+    }
+    if(buf.trim()) sentences.push(buf.trim());
+    return sentences;
+  }
+
+  function selectorUid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  function ensureSelector(entry){
+    if(!entry.selector) entry.selector = { series: [], rows: [] };
+    if(!entry.selector.series) entry.selector.series = [];
+    if(!entry.selector.rows) entry.selector.rows = [];
+    return entry.selector;
+  }
+
+  // 選択中カードだけを結合して合成テキストを作る
+  function composeSelectorText(selector){
+    const parts = [];
+    (selector.rows || []).forEach(row => {
+      (selector.series || []).forEach(s => {
+        (row[s.id] || []).forEach(card => {
+          if(card.selected) parts.push(card.text);
+        });
+      });
+    });
+    return parts.join('');
+  }
 
   function load(){
     try {
@@ -1862,6 +2180,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
       Object.values(p.manuscript).forEach(entry => {
         if(!entry.status){
           entry.status = entry.done ? 'done' : 'writing';
+        }
+        // migration: text直書き構造 -> Sentence Selector構造（selector）へ移行
+        if(!entry.selector){
+          entry.selector = { series: [], rows: [] };
+          const existingText = (entry.text || '').trim();
+          if(existingText){
+            const sid = 'sr' + Math.random().toString(36).slice(2,8);
+            entry.selector.series = [{ id: sid, label: 'A', color: SELECTOR_COLORS[0] }];
+            const sentences = splitIntoSentences(existingText);
+            entry.selector.rows = sentences.map(sentence => {
+              const row = {};
+              entry.selector.series.forEach(s => { row[s.id] = []; });
+              row[sid] = [{ id: 'sc' + Math.random().toString(36).slice(2,8), text: sentence, selected: true }];
+              return row;
+            });
+          }
         }
       });
       if(p.roughMemo === undefined) p.roughMemo = '';
@@ -2100,7 +2434,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       pinned: false,
       sections: defaultSections(),
       plotChapters: [],
-      manuscript: {}, // chapterId -> { text, done }
+      manuscript: {}, // chapterId -> { status, selector: { series:[], rows:[] } }
       roughMemo: '',
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
@@ -3165,15 +3499,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     const idx = p.plotChapters.findIndex(c => c.id === currentChapterId);
     const ch = p.plotChapters[idx];
-    if(!p.manuscript[ch.id]) p.manuscript[ch.id] = { text:'', status:'writing' };
-    if(!p.manuscript[ch.id].status) p.manuscript[ch.id].status = 'writing';
+    if(!p.manuscript[ch.id]) p.manuscript[ch.id] = { status:'writing', selector:{ series:[], rows:[] } };
     const entry = p.manuscript[ch.id];
+    if(!entry.status) entry.status = 'writing';
+    const selector = ensureSelector(entry);
+    const composedText = composeSelectorText(selector);
 
     area.innerHTML = `
       <div class="manuscript-textarea-wrap">
         <div class="manuscript-toolbar">
           <div class="mt-left">
-            <span class="manuscript-wordcount-live" id="mtWordcount">${(entry.text||'').length.toLocaleString()} 字</span>
+            <span class="manuscript-wordcount-live" id="mtWordcount">${composedText.length.toLocaleString()} 字</span>
           </div>
           <div class="chapter-status-select" id="mtStatusSelect">
             <button type="button" class="chapter-status-btn" data-cstatus="writing">執筆中</button>
@@ -3181,7 +3517,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
             <button type="button" class="chapter-status-btn" data-cstatus="done">完了</button>
           </div>
         </div>
-        <textarea class="manuscript-textarea" id="mtTextarea" placeholder="第${idx+1}章の本文をここに書いてください">${escapeHTML(entry.text||'')}</textarea>
+        <div class="manuscript-preview" id="mtPreview">${
+          composedText
+            ? escapeHTML(composedText)
+            : `<span class="manuscript-preview-empty">まだ本文がありません。下の「Sentence Selectorへ」から執筆・編集してください。</span>`
+        }</div>
+        <button type="button" class="btn primary" id="openSelectorBtn" style="margin-top:14px;">✒ Sentence Selectorへ</button>
       </div>
     `;
 
@@ -3198,22 +3539,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
       };
     });
 
-    const ta = document.getElementById('mtTextarea');
-    ta.oninput = () => {
-      entry.text = ta.value;
-      document.getElementById('mtWordcount').textContent = entry.text.length.toLocaleString() + ' 字';
-      recomputeTotalWordcount(p);
-      p.updatedAt = Date.now();
-      save();
-      // タブの再描画はしない（フォーカス・スクロール位置を保持するため）。文字数はカードで自動集計される。
+    document.getElementById('openSelectorBtn').onclick = () => {
+      openSentenceSelector(p.id, ch.id);
     };
   }
 
   function recomputeTotalWordcount(p){
-    // 全章のテキスト文字数を合算して合計文字数として反映
+    // 全章の合成テキスト文字数を合算して合計文字数として反映
     let total = 0;
     Object.values(p.manuscript || {}).forEach(entry => {
-      total += (entry.text || '').length;
+      const selector = ensureSelector(entry);
+      total += composeSelectorText(selector).length;
     });
     p.wordcount = total;
     const today = todayISO();
@@ -3222,6 +3558,421 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(existing) existing.value = total;
     else p.wordLog.push({date: today, value: total});
   }
+
+  // ================= Sentence Selector =================
+  let currentSelectorProjectId = null;
+  let currentSelectorChapterId = null;
+  let selectorMenuOpenFor = null; // { rowIdx, seriesId, cardId } | null
+  let selectorEditingCardId = null;
+  let selectorEditingDraft = '';
+  let selectorLongPressTimer = null;
+  let selectorLongPressFired = false;
+
+  function getSelectorEntry(){
+    const p = projects.find(x=>x.id===currentSelectorProjectId);
+    if(!p) return null;
+    if(!p.manuscript[currentSelectorChapterId]) p.manuscript[currentSelectorChapterId] = { status:'writing', selector:{ series:[], rows:[] } };
+    return p.manuscript[currentSelectorChapterId];
+  }
+
+  function openSentenceSelector(projectId, chapterId){
+    currentSelectorProjectId = projectId;
+    currentSelectorChapterId = chapterId;
+    selectorMenuOpenFor = null;
+    selectorEditingCardId = null;
+
+    const p = projects.find(x=>x.id===projectId);
+    const ch = (p.plotChapters||[]).find(c => c.id === chapterId);
+    document.getElementById('selectorWorkTitle').textContent = p.title || '無題';
+    document.getElementById('selectorChapterLabel').textContent = ch ? `第${(p.plotChapters.indexOf(ch)+1)}章 ${ch.title||''} — Sentence Selector` : 'Sentence Selector';
+
+    renderSelectorAll();
+    switchView('selectorView');
+  }
+
+  document.getElementById('selectorBackBtn').onclick = () => {
+    switchView('manuscriptView');
+    const p = projects.find(x=>x.id===currentSelectorProjectId);
+    if(p){ renderChapterTabs(p); renderManuscriptEditArea(p); }
+  };
+
+  function selectorColorOf(seriesId, selector){
+    const s = selector.series.find(x=>x.id===seriesId);
+    return s ? s.color : '#8fa8c8';
+  }
+  function selectorLabelOf(seriesId, selector){
+    const s = selector.series.find(x=>x.id===seriesId);
+    return s ? s.label : '?';
+  }
+
+  function renderSelectorAll(){
+    const entry = getSelectorEntry();
+    if(!entry) return;
+    const selector = ensureSelector(entry);
+
+    // legend
+    document.getElementById('selectorLegend').innerHTML = selector.series.map(s => `
+      <div class="selector-legend-item"><span class="selector-legend-dot" style="background:${s.color}"></span>Draft ${s.label}</div>
+    `).join('') || '<div class="selector-empty-text">まだドラフトがありません。右上の「＋ドラフト」から追加してください。</div>';
+
+    renderSelectorRows();
+    renderSelectorComposed();
+  }
+
+  function renderSelectorRows(){
+    const entry = getSelectorEntry();
+    if(!entry) return;
+    const selector = ensureSelector(entry);
+    const wrap = document.getElementById('selectorRows');
+
+    if(selector.series.length === 0){
+      wrap.innerHTML = `<div class="manuscript-empty-state"><div class="glyph">✒</div><p>まだドラフトがありません。<br>右上の「＋ドラフト」から文章を追加してください。</p></div>`;
+      return;
+    }
+
+    wrap.innerHTML = '';
+    selector.rows.forEach((row, rowIdx) => {
+      const group = document.createElement('div');
+      group.className = 'selector-row-group';
+
+      const numRow = document.createElement('div');
+      numRow.className = 'selector-row-num-row';
+      numRow.innerHTML = `
+        <div class="selector-row-num-tag">${rowIdx+1}</div>
+        <button type="button" class="selector-insert-btn" title="この行の上に新しい行を追加">
+          <span class="selector-gear-menu-arrow">⇧</span>+
+        </button>
+      `;
+      numRow.querySelector('.selector-insert-btn').onclick = () => insertSelectorRowBefore(rowIdx);
+      group.appendChild(numRow);
+
+      const cellsWrap = document.createElement('div');
+      cellsWrap.className = 'selector-row-cells';
+
+      selector.series.forEach(s => {
+        const cards = row[s.id] || [];
+        if(cards.length === 0){
+          const emptyEl = document.createElement('div');
+          emptyEl.className = 'selector-card selector-card-empty';
+          emptyEl.innerHTML = `
+            <span class="selector-card-badge" style="background:${s.color}; opacity:0.6; width:24px; height:24px;">${s.label}</span>
+            <span class="selector-empty-text">長押しで文を追加</span>
+          `;
+          bindLongPress(emptyEl, () => createSelectorCardAt(rowIdx, s.id));
+          cellsWrap.appendChild(emptyEl);
+          return;
+        }
+        cards.forEach(card => {
+          cellsWrap.appendChild(renderSelectorCardEl(rowIdx, s, card, selector));
+        });
+      });
+
+      group.appendChild(cellsWrap);
+      wrap.appendChild(group);
+    });
+  }
+
+  function bindLongPress(el, onLongPress, delay){
+    delay = delay || 550;
+    let timer = null;
+    const start = () => { timer = setTimeout(onLongPress, delay); };
+    const end = () => { if(timer){ clearTimeout(timer); timer = null; } };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
+    el.addEventListener('touchstart', start);
+    el.addEventListener('touchend', end);
+  }
+
+  function renderSelectorCardEl(rowIdx, s, card, selector){
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    wrapper.dataset.cardId = card.id;
+
+    if(selectorEditingCardId === card.id){
+      wrapper.innerHTML = `
+        <div class="selector-card" style="cursor:default; align-items:flex-start; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);">
+          <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
+          <div class="selector-card-text-wrap">
+            <textarea class="selector-edit-textarea" id="selectorEditTextarea">${escapeHTML(selectorEditingDraft)}</textarea>
+            <div class="selector-edit-actions">
+              <button type="button" class="selector-edit-cancel" id="selectorEditCancelBtn">キャンセル</button>
+              <button type="button" class="selector-edit-confirm" id="selectorEditConfirmBtn" style="background:${s.color}">確定</button>
+            </div>
+          </div>
+        </div>
+      `;
+      setTimeout(() => {
+        const ta = document.getElementById('selectorEditTextarea');
+        if(ta){
+          ta.focus();
+          ta.oninput = () => { selectorEditingDraft = ta.value; };
+          // 編集対象を画面上端付近の絶対位置へスクロール
+          const rect = ta.closest('[data-card-id]').getBoundingClientRect();
+          const currentScrollY = window.scrollY || window.pageYOffset;
+          const elTop = rect.top + currentScrollY;
+          window.scrollTo({ top: elTop - 24, behavior: 'smooth' });
+        }
+      }, 0);
+      wrapper.querySelector('#selectorEditCancelBtn').onclick = () => {
+        selectorEditingCardId = null;
+        renderSelectorRows();
+      };
+      wrapper.querySelector('#selectorEditConfirmBtn').onclick = () => {
+        confirmSelectorEdit(rowIdx, s.id, card.id);
+      };
+      return wrapper;
+    }
+
+    const isSelected = !!card.selected;
+    const isMenuOpen = selectorMenuOpenFor && selectorMenuOpenFor.cardId === card.id;
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'selector-card' + (isSelected ? ' selected' : '');
+    cardEl.style.borderColor = isSelected ? s.color : 'var(--border)';
+    cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
+    cardEl.innerHTML = `
+      <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
+      <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
+      <div class="selector-card-text-wrap">
+        ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
+        <div class="selector-card-text">${escapeHTML(card.text)}</div>
+      </div>
+    `;
+
+    let longPressTimer = null;
+    let longPressFired = false;
+    const start = () => {
+      longPressFired = false;
+      longPressTimer = setTimeout(() => {
+        longPressFired = true;
+        selectorEditingCardId = card.id;
+        selectorEditingDraft = card.text;
+        selectorMenuOpenFor = null;
+        renderSelectorRows();
+      }, 550);
+    };
+    const end = () => { if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; } };
+    cardEl.addEventListener('mousedown', start);
+    cardEl.addEventListener('mouseup', end);
+    cardEl.addEventListener('mouseleave', end);
+    cardEl.addEventListener('touchstart', start);
+    cardEl.addEventListener('touchend', end);
+    cardEl.addEventListener('click', (e) => {
+      if(e.target.closest('.selector-gear-btn')) return;
+      if(longPressFired){ longPressFired = false; return; }
+      toggleSelectorCard(card.id);
+    });
+
+    cardEl.querySelector('.selector-gear-btn').onclick = (e) => {
+      e.stopPropagation();
+      selectorMenuOpenFor = isMenuOpen ? null : { rowIdx, seriesId: s.id, cardId: card.id };
+      renderSelectorRows();
+    };
+
+    wrapper.appendChild(cardEl);
+
+    if(isMenuOpen){
+      const menu = document.createElement('div');
+      menu.className = 'selector-gear-menu';
+      menu.innerHTML = `
+        <div class="selector-gear-menu-head">
+          <span class="selector-gear-menu-head-dot" style="background:${s.color}"></span>
+          <span class="selector-gear-menu-head-text">${rowIdx+1}行目 / Draft ${s.label}</span>
+          <button type="button" class="selector-gear-menu-close">×</button>
+        </div>
+        <div class="selector-gear-menu-row">
+          <button type="button" class="selector-gear-menu-btn back" data-dir="-1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇧</span>STAY</button>
+          <button type="button" class="selector-gear-menu-btn back" data-dir="-1" data-mode="push"><span class="selector-gear-menu-arrow">⇧⇧</span>PUSH</button>
+        </div>
+        <div class="selector-gear-menu-row" style="margin-top:6px;">
+          <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇩</span>STAY</button>
+          <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="push"><span class="selector-gear-menu-arrow">⇩⇩</span>PUSH</button>
+        </div>
+      `;
+      menu.querySelector('.selector-gear-menu-close').onclick = (e) => {
+        e.stopPropagation();
+        selectorMenuOpenFor = null;
+        renderSelectorRows();
+      };
+      menu.querySelectorAll('.selector-gear-menu-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          moveSelectorCard(rowIdx, s.id, card.id, parseInt(btn.dataset.dir,10), btn.dataset.mode);
+        };
+      });
+      wrapper.appendChild(menu);
+    }
+
+    return wrapper;
+  }
+
+  function toggleSelectorCard(cardId){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    selector.rows.forEach(row => {
+      selector.series.forEach(s => {
+        (row[s.id]||[]).forEach(c => {
+          if(c.id === cardId) c.selected = !c.selected;
+        });
+      });
+    });
+    afterSelectorMutate();
+  }
+
+  function confirmSelectorEdit(rowIdx, seriesId, cardId){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    const row = selector.rows[rowIdx];
+    if(row && row[seriesId]){
+      row[seriesId] = row[seriesId].map(c => c.id === cardId ? { ...c, text: selectorEditingDraft } : c);
+    }
+    selectorEditingCardId = null;
+    selectorEditingDraft = '';
+    afterSelectorMutate();
+  }
+
+  function createSelectorCardAt(rowIdx, seriesId){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    const newCard = { id: selectorUid('sc'), text: '', selected: false };
+    selector.rows[rowIdx][seriesId] = [...(selector.rows[rowIdx][seriesId]||[]), newCard];
+    selectorEditingCardId = newCard.id;
+    selectorEditingDraft = '';
+    selectorMenuOpenFor = null;
+    afterSelectorMutate();
+  }
+
+  function insertSelectorRowBefore(rowIdx){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    const newRow = {};
+    selector.series.forEach(s => { newRow[s.id] = []; });
+    const firstSeriesId = selector.series[0] && selector.series[0].id;
+    let newCard = null;
+    if(firstSeriesId){
+      newCard = { id: selectorUid('sc'), text: '', selected: false };
+      newRow[firstSeriesId] = [newCard];
+    }
+    selector.rows.splice(rowIdx, 0, newRow);
+    if(newCard){
+      selectorEditingCardId = newCard.id;
+      selectorEditingDraft = '';
+    }
+    afterSelectorMutate();
+  }
+
+  function cleanupEmptySelectorRows(selector){
+    const filtered = selector.rows.filter(row => selector.series.some(s => (row[s.id]||[]).length > 0));
+    selector.rows = filtered.length > 0 ? filtered : selector.rows;
+  }
+
+  function moveSelectorCard(rowIdx, seriesId, cardId, direction, mode){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    const targetIdx = rowIdx + direction;
+
+    const sourceRow = selector.rows[rowIdx];
+    const card = (sourceRow[seriesId]||[]).find(c => c.id === cardId);
+    if(!card) return;
+    sourceRow[seriesId] = sourceRow[seriesId].filter(c => c.id !== cardId);
+
+    if(targetIdx < 0 || targetIdx >= selector.rows.length){
+      const emptyRow = {};
+      selector.series.forEach(s => { emptyRow[s.id] = []; });
+      if(targetIdx < 0){
+        selector.rows.unshift(emptyRow);
+        selector.rows[0][seriesId] = [card];
+      } else {
+        selector.rows.push(emptyRow);
+        selector.rows[selector.rows.length-1][seriesId] = [card];
+      }
+    } else if(mode === 'coexist'){
+      selector.rows[targetIdx][seriesId] = [...(selector.rows[targetIdx][seriesId]||[]), card];
+    } else {
+      const existing = selector.rows[targetIdx][seriesId] || [];
+      selector.rows[targetIdx][seriesId] = [card];
+      if(existing.length > 0){
+        const newRow = {};
+        selector.series.forEach(s => { newRow[s.id] = []; });
+        newRow[seriesId] = existing;
+        const insertAt = direction > 0 ? targetIdx + 1 : targetIdx;
+        selector.rows.splice(insertAt, 0, newRow);
+      }
+    }
+
+    cleanupEmptySelectorRows(selector);
+    selectorMenuOpenFor = null;
+    afterSelectorMutate();
+  }
+
+  function afterSelectorMutate(){
+    const p = projects.find(x=>x.id===currentSelectorProjectId);
+    if(!p) return;
+    p.updatedAt = Date.now();
+    recomputeTotalWordcount(p);
+    save();
+    renderSelectorRows();
+    renderSelectorComposed();
+  }
+
+  function renderSelectorComposed(){
+    const entry = getSelectorEntry();
+    if(!entry) return;
+    const selector = ensureSelector(entry);
+    const text = composeSelectorText(selector);
+    document.getElementById('selectorComposedCount').textContent = text.length.toLocaleString() + ' 字';
+    document.getElementById('selectorComposedPreview').innerHTML = text
+      ? escapeHTML(text)
+      : `<span class="composed-preview-empty">カードを選択すると、ここに合成テキストが表示されます</span>`;
+  }
+
+  // ---- Add draft modal ----
+  document.getElementById('selectorAddDraftBtn').onclick = () => {
+    document.getElementById('addDraftNameInput').value = '';
+    document.getElementById('addDraftTextarea').value = '';
+    document.getElementById('addDraftModalOverlay').classList.add('active');
+  };
+  document.getElementById('addDraftModalClose').onclick = () => {
+    document.getElementById('addDraftModalOverlay').classList.remove('active');
+  };
+  document.getElementById('addDraftModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'addDraftModalOverlay') document.getElementById('addDraftModalOverlay').classList.remove('active');
+  });
+
+  document.getElementById('addDraftConfirmBtn').onclick = () => {
+    const text = document.getElementById('addDraftTextarea').value;
+    if(!text.trim()){ alert('本文を入力してください'); return; }
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+
+    const usedLabels = new Set(selector.series.map(s=>s.label));
+    let labelChar = SELECTOR_LABELS.split('').find(ch => !usedLabels.has(ch)) || '?';
+    const nameInput = document.getElementById('addDraftNameInput').value.trim();
+
+    const newSeriesId = selectorUid('sr');
+    const color = SELECTOR_COLORS[selector.series.length % SELECTOR_COLORS.length];
+    selector.series.push({ id: newSeriesId, label: labelChar, name: nameInput, color });
+
+    // 既存行にこの系列の空配列を用意
+    selector.rows.forEach(row => { row[newSeriesId] = []; });
+
+    const sentences = splitIntoSentences(text);
+    sentences.forEach((sentence, i) => {
+      const card = { id: selectorUid('sc'), text: sentence, selected: false };
+      if(!selector.rows[i]){
+        const newRow = {};
+        selector.series.forEach(s => { newRow[s.id] = []; });
+        selector.rows.push(newRow);
+      }
+      selector.rows[i][newSeriesId] = [card];
+    });
+
+    document.getElementById('addDraftModalOverlay').classList.remove('active');
+    renderSelectorAll();
+    const p = projects.find(x=>x.id===currentSelectorProjectId);
+    if(p){ p.updatedAt = Date.now(); recomputeTotalWordcount(p); save(); }
+  };
 
   // ================= Manuscript Edit Tools (space trim / find-replace) =================
   document.getElementById('manuscriptToolsBtn').onclick = () => {
@@ -3253,6 +4004,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderManuscriptEditArea(p);
   }
 
+  function forEachSelectorCard(entry, fn){
+    const selector = ensureSelector(entry);
+    selector.rows.forEach(row => {
+      selector.series.forEach(s => {
+        (row[s.id]||[]).forEach(card => fn(card));
+      });
+    });
+  }
+
   document.getElementById('trimSpaceExecBtn').onclick = () => {
     const p = projects.find(x=>x.id===currentManuscriptId);
     if(!p) return;
@@ -3261,21 +4021,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(scope === 'current'){
       if(!currentChapterId || !p.manuscript[currentChapterId]){ alert('編集中の章がありません'); return; }
       const entry = p.manuscript[currentChapterId];
-      const count = (entry.text.match(/ /g) || []).length;
+      let count = 0;
+      forEachSelectorCard(entry, card => { count += (card.text.match(/ /g) || []).length; });
       if(count === 0){ alert('半角スペースは見つかりませんでした'); return; }
-      if(!confirm(`編集中の章から半角スペースを${count}件除去します。よろしいですか？`)) return;
-      entry.text = entry.text.split(' ').join('');
+      if(!confirm(`編集中の章（全ドラフトカード）から半角スペースを${count}件除去します。よろしいですか？`)) return;
+      forEachSelectorCard(entry, card => { card.text = card.text.split(' ').join(''); });
     } else {
       let total = 0;
       (p.plotChapters||[]).forEach(ch => {
         const entry = p.manuscript[ch.id];
-        if(entry) total += (entry.text.match(/ /g) || []).length;
+        if(entry) forEachSelectorCard(entry, card => { total += (card.text.match(/ /g) || []).length; });
       });
       if(total === 0){ alert('半角スペースは見つかりませんでした'); return; }
-      if(!confirm(`全章から半角スペースを合計${total}件除去します。よろしいですか？`)) return;
+      if(!confirm(`全章（全ドラフトカード）から半角スペースを合計${total}件除去します。よろしいですか？`)) return;
       (p.plotChapters||[]).forEach(ch => {
         const entry = p.manuscript[ch.id];
-        if(entry) entry.text = entry.text.split(' ').join('');
+        if(entry) forEachSelectorCard(entry, card => { card.text = card.text.split(' ').join(''); });
       });
     }
 
@@ -3307,21 +4068,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(scope === 'current'){
       if(!currentChapterId || !p.manuscript[currentChapterId]){ alert('編集中の章がありません'); return; }
       const entry = p.manuscript[currentChapterId];
-      const count = countOccurrences(entry.text, findText);
+      let count = 0;
+      forEachSelectorCard(entry, card => { count += countOccurrences(card.text, findText); });
       if(count === 0){ alert('一致する文字列が見つかりませんでした'); return; }
-      if(!confirm(`編集中の章で「${findText}」が${count}件見つかりました。「${replaceText}」に置換します。よろしいですか？`)) return;
-      entry.text = entry.text.split(findText).join(replaceText);
+      if(!confirm(`編集中の章（全ドラフトカード）で「${findText}」が${count}件見つかりました。「${replaceText}」に置換します。よろしいですか？`)) return;
+      forEachSelectorCard(entry, card => { card.text = card.text.split(findText).join(replaceText); });
     } else {
       let total = 0;
       (p.plotChapters||[]).forEach(ch => {
         const entry = p.manuscript[ch.id];
-        if(entry) total += countOccurrences(entry.text, findText);
+        if(entry) forEachSelectorCard(entry, card => { total += countOccurrences(card.text, findText); });
       });
       if(total === 0){ alert('一致する文字列が見つかりませんでした'); return; }
-      if(!confirm(`全章で「${findText}」が合計${total}件見つかりました。「${replaceText}」に置換します。よろしいですか？`)) return;
+      if(!confirm(`全章（全ドラフトカード）で「${findText}」が合計${total}件見つかりました。「${replaceText}」に置換します。よろしいですか？`)) return;
       (p.plotChapters||[]).forEach(ch => {
         const entry = p.manuscript[ch.id];
-        if(entry) entry.text = entry.text.split(findText).join(replaceText);
+        if(entry) forEachSelectorCard(entry, card => { card.text = card.text.split(findText).join(replaceText); });
       });
     }
 
