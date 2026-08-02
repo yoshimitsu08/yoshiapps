@@ -1271,10 +1271,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .selector-row-num-tag {
   font-family:var(--font-body);
-  font-size:0.68rem;
-  color:var(--text3);
-  background:var(--bg2);
-  border:1px solid var(--border);
+  font-size:0.7rem;
+  font-weight:600;
+  color:#2a2722;
+  background:#e8e0d0;
+  border:1px solid #e8e0d0;
   border-radius:3px;
   padding:1px 8px;
 }
@@ -1340,8 +1341,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .selector-card-badge.unselected {
   background:var(--bg3) !important;
-  color:var(--text3);
-  opacity:0.6;
+  color:var(--text2);
+  opacity:1;
+  border-color:#e8e0d0;
 }
 .selector-card-text-wrap-outer {
   flex:1;
@@ -1367,7 +1369,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-ui);
   font-size:0.7rem;
   font-weight:700;
+  opacity:0;
+  transition:opacity .1s;
 }
+.selector-card-delete-bg.visible { opacity:1; }
 .selector-card-tag {
   font-family:var(--font-ui);
   font-size:0.58rem;
@@ -1395,7 +1400,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 .selector-gear-menu {
   position:absolute;
-  top:0; left:calc(100% + 6px);
+  top:0; left:0;
   background:var(--bg3);
   border:1px solid var(--accent);
   border-radius:6px;
@@ -1755,46 +1760,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
 </div>
 
-<!-- ============ Manuscript Edit Tools Modal ============ -->
-<div class="modal-overlay" id="manuscriptToolsModalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>編集ツール</h2>
-      <button class="modal-close" id="manuscriptToolsModalClose">×</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="detail-section">
-        <div class="detail-section-title">半角スペース除去</div>
-        <div class="chapter-note" style="margin-bottom:10px;">本文中の半角スペースをすべて削除します。</div>
-        <div class="status-select" style="margin-bottom:10px;">
-          <button type="button" class="btn tool-scope-btn active" data-tool="trim" data-scope="current">編集中の章のみ</button>
-          <button type="button" class="btn tool-scope-btn" data-tool="trim" data-scope="all">全章</button>
-        </div>
-        <button class="btn primary" id="trimSpaceExecBtn" style="width:100%;">半角スペースを除去する</button>
-      </div>
-
-      <div class="detail-section">
-        <div class="detail-section-title">文字検索＋置換</div>
-        <div class="field">
-          <label>検索する文字列</label>
-          <input type="text" id="findTextInput" placeholder="検索したい文字列">
-        </div>
-        <div class="field">
-          <label>置換後の文字列（空欄で削除）</label>
-          <input type="text" id="replaceTextInput" placeholder="置換後の文字列">
-        </div>
-        <div class="status-select" style="margin-bottom:10px;">
-          <button type="button" class="btn tool-scope-btn active" data-tool="replace" data-scope="current">編集中の章のみ</button>
-          <button type="button" class="btn tool-scope-btn" data-tool="replace" data-scope="all">全章</button>
-        </div>
-        <button class="btn primary" id="findReplaceExecBtn" style="width:100%;">検索して置換する</button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
 <!-- ============ Detail Modal ============ -->
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal">
@@ -2027,6 +1992,46 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   <div class="editor-body" style="padding-top:0;" id="manuscriptEditArea">
     <!-- selected chapter textarea -->
+  </div>
+</div>
+
+<!-- ============ Manuscript Edit Tools Modal ============ -->
+<div class="modal-overlay" id="manuscriptToolsModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>編集ツール</h2>
+      <button class="modal-close" id="manuscriptToolsModalClose">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="detail-section">
+        <div class="detail-section-title">半角スペース除去</div>
+        <div class="chapter-note" style="margin-bottom:10px;">本文中の半角スペースをすべて削除します。</div>
+        <div class="status-select" style="margin-bottom:10px;">
+          <button type="button" class="btn tool-scope-btn active" data-tool="trim" data-scope="current">編集中の章のみ</button>
+          <button type="button" class="btn tool-scope-btn" data-tool="trim" data-scope="all">全章</button>
+        </div>
+        <button class="btn primary" id="trimSpaceExecBtn" style="width:100%;">半角スペースを除去する</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">文字検索＋置換</div>
+        <div class="field">
+          <label>検索する文字列</label>
+          <input type="text" id="findTextInput" placeholder="検索したい文字列">
+        </div>
+        <div class="field">
+          <label>置換後の文字列（空欄で削除）</label>
+          <input type="text" id="replaceTextInput" placeholder="置換後の文字列">
+        </div>
+        <div class="status-select" style="margin-bottom:10px;">
+          <button type="button" class="btn tool-scope-btn active" data-tool="replace" data-scope="current">編集中の章のみ</button>
+          <button type="button" class="btn tool-scope-btn" data-tool="replace" data-scope="all">全章</button>
+        </div>
+        <button class="btn primary" id="findReplaceExecBtn" style="width:100%;">検索して置換する</button>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -3804,6 +3809,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     // テキスト領域 = 長押しで編集、右スワイプで削除
     const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
     const textWrap = cardEl.querySelector('.selector-card-text-wrap');
+    const deleteBgEl = cardEl.querySelector('.selector-card-delete-bg');
 
     let longPressTimer = null;
     let longPressFired = false;
@@ -3842,6 +3848,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(isDragging && delta > 0){
         dragCurrentX = delta;
         textWrap.style.transform = `translateX(${delta}px)`;
+        deleteBgEl.classList.add('visible');
       }
     }
     function endPress(){
@@ -3855,6 +3862,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         } else {
           textWrap.style.transition = 'transform .18s ease';
           textWrap.style.transform = 'translateX(0)';
+          deleteBgEl.classList.remove('visible');
           setTimeout(() => { textWrap.style.transition = ''; }, 200);
         }
       }
