@@ -48,9 +48,8 @@ header {
 }
 .header-row {
   display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:12px;
+  align-items:center;
+  gap:14px;
 }
 h1 {
   font-family:var(--font-body);
@@ -245,7 +244,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .btn.primary:hover { opacity:0.9; background:var(--accent); }
 .toolbar .sort-select {
-  margin-left:auto;
+  margin-left:0;
   font-family:var(--font-ui);
   font-size:0.68rem;
   background:var(--bg2);
@@ -409,7 +408,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   display:none;
   position:fixed; inset:0;
   background:rgba(10,9,7,0.75);
-  z-index:100;
+  z-index:500;
   align-items:flex-start;
   justify-content:center;
   overflow-y:auto;
@@ -1300,15 +1299,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 .selector-card {
   display:flex;
-  align-items:center;
-  gap:10px;
+  align-items:stretch;
+  gap:8px;
   border:1px solid var(--border);
   border-radius:6px;
-  padding:10px 12px 10px 8px;
-  cursor:pointer;
   background:var(--bg2);
-  user-select:none;
   position:relative;
+  overflow:hidden;
 }
 .selector-card.selected {
   background:var(--bg3);
@@ -1317,6 +1314,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
   cursor:pointer;
   opacity:0.55;
   padding:10px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.selector-card-left-col {
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:8px 0 8px 8px;
 }
 .selector-card-badge {
   flex-shrink:0;
@@ -1327,8 +1334,40 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-ui);
   font-size:0.7rem;
   font-weight:700;
+  cursor:pointer;
+  border:2px solid transparent;
+  transition:background .15s, opacity .15s;
 }
-.selector-card-text-wrap { flex:1; min-width:0; }
+.selector-card-badge.unselected {
+  background:var(--bg3) !important;
+  color:var(--text3);
+  opacity:0.6;
+}
+.selector-card-text-wrap-outer {
+  flex:1;
+  min-width:0;
+  position:relative;
+  touch-action:pan-y;
+}
+.selector-card-text-wrap {
+  padding:10px 12px 10px 0;
+  position:relative;
+  background:var(--bg2);
+  transition:transform .05s linear;
+}
+.selector-card.selected .selector-card-text-wrap { background:var(--bg3); }
+.selector-card-delete-bg {
+  position:absolute;
+  inset:0;
+  background:var(--danger);
+  display:flex;
+  align-items:center;
+  padding-left:16px;
+  color:#fff;
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  font-weight:700;
+}
 .selector-card-tag {
   font-family:var(--font-ui);
   font-size:0.58rem;
@@ -1343,12 +1382,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .selector-gear-btn {
   flex-shrink:0;
-  width:28px; height:28px;
+  width:26px; height:26px;
   border-radius:5px;
   border:1px solid var(--border);
   background:none;
   color:var(--text3);
-  font-size:0.8rem;
+  font-size:0.75rem;
   cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
@@ -1356,8 +1395,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 .selector-gear-menu {
   position:absolute;
-  top:100%; right:4px;
-  margin-top:4px;
+  top:0; left:calc(100% + 6px);
   background:var(--bg3);
   border:1px solid var(--accent);
   border-radius:6px;
@@ -1579,18 +1617,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 <header>
   <div class="header-row">
+    <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
     <div>
       <h1>Manu<span class="mark">script</span></h1>
       <div class="subtitle">novel progress dashboard</div>
     </div>
-    <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
-    <div class="dropdown-menu" id="dashDropdown">
+    <div class="dropdown-menu" id="dashDropdown" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
-    <div class="dropdown-menu" id="dashDropdownSelectMode">
+    <div class="dropdown-menu" id="dashDropdownSelectMode" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuCancelSelectBtn">✕ 選択モードをキャンセル</button>
     </div>
   </div>
@@ -3517,12 +3555,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
             <button type="button" class="chapter-status-btn" data-cstatus="done">完了</button>
           </div>
         </div>
+        <button type="button" class="btn primary" id="openSelectorBtn" style="width:100%; margin-bottom:16px;">✒ Sentence Selectorへ</button>
         <div class="manuscript-preview" id="mtPreview">${
           composedText
             ? escapeHTML(composedText)
-            : `<span class="manuscript-preview-empty">まだ本文がありません。下の「Sentence Selectorへ」から執筆・編集してください。</span>`
+            : `<span class="manuscript-preview-empty">まだ本文がありません。上の「Sentence Selectorへ」から執筆・編集してください。</span>`
         }</div>
-        <button type="button" class="btn primary" id="openSelectorBtn" style="margin-top:14px;">✒ Sentence Selectorへ</button>
       </div>
     `;
 
@@ -3691,13 +3729,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     if(selectorEditingCardId === card.id){
       wrapper.innerHTML = `
-        <div class="selector-card" style="cursor:default; align-items:flex-start; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);">
-          <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
-          <div class="selector-card-text-wrap">
-            <textarea class="selector-edit-textarea" id="selectorEditTextarea">${escapeHTML(selectorEditingDraft)}</textarea>
-            <div class="selector-edit-actions">
-              <button type="button" class="selector-edit-cancel" id="selectorEditCancelBtn">キャンセル</button>
-              <button type="button" class="selector-edit-confirm" id="selectorEditConfirmBtn" style="background:${s.color}">確定</button>
+        <div class="selector-card" style="border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);">
+          <div class="selector-card-left-col">
+            <div style="width:26px; height:26px;"></div>
+            <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
+          </div>
+          <div class="selector-card-text-wrap-outer">
+            <div class="selector-card-text-wrap">
+              <textarea class="selector-edit-textarea" id="selectorEditTextarea">${escapeHTML(selectorEditingDraft)}</textarea>
+              <div class="selector-edit-actions">
+                <button type="button" class="selector-edit-cancel" id="selectorEditCancelBtn">キャンセル</button>
+                <button type="button" class="selector-edit-confirm" id="selectorEditConfirmBtn" style="background:${s.color}">確定</button>
+              </div>
             </div>
           </div>
         </div>
@@ -3707,11 +3750,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
         if(ta){
           ta.focus();
           ta.oninput = () => { selectorEditingDraft = ta.value; };
-          // 編集対象を画面上端付近の絶対位置へスクロール
+          // 編集対象を画面上端付近の絶対位置へスクロール（PC/スマホでヘッダー等に隠れないよう適度な余白を確保）
           const rect = ta.closest('[data-card-id]').getBoundingClientRect();
           const currentScrollY = window.scrollY || window.pageYOffset;
           const elTop = rect.top + currentScrollY;
-          window.scrollTo({ top: elTop - 24, behavior: 'smooth' });
+          window.scrollTo({ top: elTop - 90, behavior: 'smooth' });
         }
       }, 0);
       wrapper.querySelector('#selectorEditCancelBtn').onclick = () => {
@@ -3732,43 +3775,104 @@ h1 .mark { color:var(--accent); font-style:italic; }
     cardEl.style.borderColor = isSelected ? s.color : 'var(--border)';
     cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
     cardEl.innerHTML = `
-      <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
-      <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
-      <div class="selector-card-text-wrap">
-        ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
-        <div class="selector-card-text">${escapeHTML(card.text)}</div>
+      <div class="selector-card-left-col">
+        <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
+        <div class="selector-card-badge${isSelected ? '' : ' unselected'}" style="background:${isSelected ? s.color : ''}" title="タップで採用切替">${s.label}</div>
+      </div>
+      <div class="selector-card-text-wrap-outer">
+        <div class="selector-card-delete-bg">🗑 削除</div>
+        <div class="selector-card-text-wrap">
+          ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
+          <div class="selector-card-text">${escapeHTML(card.text)}</div>
+        </div>
       </div>
     `;
 
-    let longPressTimer = null;
-    let longPressFired = false;
-    const start = () => {
-      longPressFired = false;
-      longPressTimer = setTimeout(() => {
-        longPressFired = true;
-        selectorEditingCardId = card.id;
-        selectorEditingDraft = card.text;
-        selectorMenuOpenFor = null;
-        renderSelectorRows();
-      }, 550);
-    };
-    const end = () => { if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; } };
-    cardEl.addEventListener('mousedown', start);
-    cardEl.addEventListener('mouseup', end);
-    cardEl.addEventListener('mouseleave', end);
-    cardEl.addEventListener('touchstart', start);
-    cardEl.addEventListener('touchend', end);
-    cardEl.addEventListener('click', (e) => {
-      if(e.target.closest('.selector-gear-btn')) return;
-      if(longPressFired){ longPressFired = false; return; }
+    // バッジタップ = 採用トグル
+    cardEl.querySelector('.selector-card-badge').onclick = (e) => {
+      e.stopPropagation();
       toggleSelectorCard(card.id);
-    });
+    };
 
+    // 歯車 = STAY/PUSHメニュー
     cardEl.querySelector('.selector-gear-btn').onclick = (e) => {
       e.stopPropagation();
       selectorMenuOpenFor = isMenuOpen ? null : { rowIdx, seriesId: s.id, cardId: card.id };
       renderSelectorRows();
     };
+
+    // テキスト領域 = 長押しで編集、右スワイプで削除
+    const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
+    const textWrap = cardEl.querySelector('.selector-card-text-wrap');
+
+    let longPressTimer = null;
+    let longPressFired = false;
+    let dragStartX = null;
+    let dragCurrentX = 0;
+    let isDragging = false;
+    const DRAG_THRESHOLD = 8; // これ以上動いたらドラッグとみなし長押しをキャンセル
+
+    function getClientX(e){
+      return e.touches ? e.touches[0].clientX : e.clientX;
+    }
+
+    function startPress(e){
+      longPressFired = false;
+      dragStartX = getClientX(e);
+      dragCurrentX = 0;
+      isDragging = false;
+      longPressTimer = setTimeout(() => {
+        if(!isDragging){
+          longPressFired = true;
+          selectorEditingCardId = card.id;
+          selectorEditingDraft = card.text;
+          selectorMenuOpenFor = null;
+          renderSelectorRows();
+        }
+      }, 550);
+    }
+    function movePress(e){
+      if(dragStartX === null) return;
+      const x = getClientX(e);
+      const delta = x - dragStartX;
+      if(Math.abs(delta) > DRAG_THRESHOLD){
+        isDragging = true;
+        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+      }
+      if(isDragging && delta > 0){
+        dragCurrentX = delta;
+        textWrap.style.transform = `translateX(${delta}px)`;
+      }
+    }
+    function endPress(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+      if(isDragging){
+        const cardWidth = textWrapOuter.getBoundingClientRect().width || 1;
+        if(dragCurrentX > cardWidth * 0.5){
+          // 半分以上スワイプされたら削除
+          deleteSelectorCard(rowIdx, s.id, card.id);
+          return;
+        } else {
+          textWrap.style.transition = 'transform .18s ease';
+          textWrap.style.transform = 'translateX(0)';
+          setTimeout(() => { textWrap.style.transition = ''; }, 200);
+        }
+      }
+      dragStartX = null;
+      dragCurrentX = 0;
+      isDragging = false;
+    }
+
+    textWrapOuter.addEventListener('mousedown', startPress);
+    textWrapOuter.addEventListener('mousemove', movePress);
+    textWrapOuter.addEventListener('mouseup', endPress);
+    textWrapOuter.addEventListener('mouseleave', endPress);
+    textWrapOuter.addEventListener('touchstart', startPress, { passive: true });
+    textWrapOuter.addEventListener('touchmove', movePress, { passive: true });
+    textWrapOuter.addEventListener('touchend', endPress);
+    textWrapOuter.addEventListener('click', () => {
+      if(longPressFired){ longPressFired = false; return; }
+    });
 
     wrapper.appendChild(cardEl);
 
@@ -3805,6 +3909,19 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
 
     return wrapper;
+  }
+
+  function deleteSelectorCard(rowIdx, seriesId, cardId){
+    if(!confirm('このドラフトカードを削除します。よろしいですか？')) return;
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    const row = selector.rows[rowIdx];
+    if(row && row[seriesId]){
+      row[seriesId] = row[seriesId].filter(c => c.id !== cardId);
+    }
+    cleanupEmptySelectorRows(selector);
+    selectorMenuOpenFor = null;
+    afterSelectorMutate();
   }
 
   function toggleSelectorCard(cardId){
