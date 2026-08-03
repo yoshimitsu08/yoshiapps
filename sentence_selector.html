@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sentence Selector — いいとこ取り編集</title>
+<style>
+:root {
+  --bg:#1a1814;
+  --bg2:#211f1b;
+  --bg3:#2a2722;
+  --surface:#302d27;
+  --accent:#c8a96e;
+  --text:#e8e0d0;
+  --text2:#a09880;
+  --text3:#706858;
+  --border:#3f3b34;
+  --ok:#7ec8a8;
+  --danger:#c06040;
+  --font-ui:'Courier New',monospace;
+  --font-body:'Georgia',serif;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  padding-bottom:60px;
+}
+
+header {
+  padding:20px 20px 14px;
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  background:rgba(26,24,20,0.96);
+  backdrop-filter:blur(6px);
+  z-index:50;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.header-title { flex:1; min-width:0; }
+h1 {
+  font-family:var(--font-body);
+  font-size:1.25rem;
+  font-weight:400;
+  letter-spacing:0.02em;
+  color:var(--text);
+}
+h1 .mark { color:var(--accent); font-style:italic; }
+.subtitle {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.06em;
+  margin-top:2px;
+  text-transform:uppercase;
+}
+.header-btn {
+  flex-shrink:0;
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  padding:8px 12px;
+  border-radius:4px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text);
+  cursor:pointer;
+}
+.header-btn:hover { border-color:var(--accent); }
+.header-btn.primary {
+  background:var(--accent);
+  color:var(--bg);
+  border-color:var(--accent);
+  font-weight:bold;
+}
+
+.hamburger-btn {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text2);
+  width:36px; height:36px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:1rem;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.hamburger-btn:hover { border-color:var(--accent); color:var(--text); }
+
+.dropdown-menu {
+  position:absolute;
+  top:56px; right:12px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  min-width:200px;
+  z-index:80;
+  display:none;
+  overflow:hidden;
+  box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.dropdown-menu.active { display:block; }
+.dropdown-item {
+  display:block;
+  width:100%;
+  text-align:left;
+  padding:12px 16px;
+  background:none;
+  border:none;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  letter-spacing:0.03em;
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+}
+.dropdown-item:last-child { border-bottom:none; }
+.dropdown-item:hover { background:var(--surface); }
+.dropdown-item.danger { color:var(--danger); }
+
+.selector-legend {
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:14px 20px 0;
+}
+.selector-legend-item {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text2);
+}
+.selector-legend-dot {
+  width:9px; height:9px;
+  border-radius:2px;
+  flex-shrink:0;
+}
+
+.editor-body {
+  padding:20px;
+  max-width:640px;
+  margin:0 auto;
+}
+
+.top-actions {
+  display:flex;
+  gap:8px;
+  max-width:640px;
+  margin:0 auto;
+  padding:16px 20px 0;
+  flex-wrap:wrap;
+}
+
+.empty-state {
+  text-align:center;
+  padding:80px 20px;
+  color:var(--text3);
+}
+.empty-state .glyph { font-size:2.4rem; margin-bottom:12px; color:var(--border); }
+.empty-state p { font-family:var(--font-ui); font-size:0.72rem; letter-spacing:0.04em; line-height:1.8; }
+
+.selector-row-group {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:22px;
+}
+.selector-row-num-row {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:8px;
+}
+.selector-row-num-tag {
+  font-family:var(--font-body);
+  font-size:0.7rem;
+  font-weight:600;
+  color:#2a2722;
+  background:#e8e0d0;
+  border:1px solid #e8e0d0;
+  border-radius:3px;
+  padding:1px 8px;
+}
+.selector-insert-btn {
+  display:flex;
+  align-items:center;
+  gap:2px;
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  color:var(--text3);
+  background:none;
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:1px 6px;
+  cursor:pointer;
+}
+.selector-row-cells {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.selector-card {
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--bg2);
+  position:relative;
+  overflow:hidden;
+}
+.selector-card.selected {
+  background:var(--bg3);
+}
+.selector-card-empty {
+  cursor:pointer;
+  opacity:0.55;
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.selector-card-left-col {
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:8px 0 8px 8px;
+}
+.selector-card-badge {
+  flex-shrink:0;
+  width:26px; height:26px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:5px;
+  color:var(--bg);
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  font-weight:700;
+  cursor:pointer;
+  border:2px solid transparent;
+  transition:background .15s, opacity .15s;
+}
+.selector-card-badge.unselected {
+  background:var(--bg3) !important;
+  color:var(--text2);
+  opacity:1;
+  border-color:#e8e0d0;
+}
+.selector-card-text-wrap-outer {
+  flex:1;
+  min-width:0;
+  position:relative;
+  touch-action:pan-y;
+}
+.selector-card-text-wrap {
+  padding:10px 12px 10px 0;
+  position:relative;
+  background:var(--bg2);
+  transition:transform .05s linear;
+}
+.selector-card.selected .selector-card-text-wrap { background:var(--bg3); }
+.selector-card-delete-bg {
+  position:absolute;
+  inset:0;
+  background:var(--danger);
+  display:flex;
+  align-items:center;
+  padding-left:16px;
+  color:#fff;
+  font-family:var(--font-ui);
+  font-size:0.7rem;
+  font-weight:700;
+  opacity:0;
+  transition:opacity .1s;
+}
+.selector-card-delete-bg.visible { opacity:1; }
+.selector-card-tag {
+  font-family:var(--font-ui);
+  font-size:0.58rem;
+  margin-bottom:4px;
+  font-weight:600;
+}
+.selector-card-text {
+  font-family:var(--font-body);
+  font-size:0.86rem;
+  line-height:1.7;
+  color:var(--text);
+}
+.selector-gear-btn {
+  flex-shrink:0;
+  width:26px; height:26px;
+  border-radius:5px;
+  border:1px solid var(--border);
+  background:none;
+  color:var(--text3);
+  font-size:0.75rem;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.selector-empty-text { font-family:var(--font-ui); font-size:0.68rem; color:var(--text3); }
+
+.selector-gear-menu {
+  position:absolute;
+  top:0; left:0;
+  background:var(--bg3);
+  border:1px solid var(--accent);
+  border-radius:6px;
+  padding:10px 12px 12px;
+  z-index:20;
+  min-width:190px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.selector-gear-menu-head {
+  display:flex; align-items:center; gap:6px;
+  margin-bottom:10px; padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+}
+.selector-gear-menu-head-dot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.selector-gear-menu-head-text { flex:1; font-family:var(--font-ui); font-size:0.6rem; color:var(--text2); }
+.selector-gear-menu-close {
+  flex-shrink:0; width:18px; height:18px; border:none; background:none;
+  color:var(--text3); font-size:0.95rem; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.selector-gear-menu-row { display:flex; gap:6px; }
+.selector-gear-menu-btn {
+  flex:1;
+  font-family:var(--font-ui);
+  font-size:0.63rem;
+  padding:7px 8px;
+  border-radius:4px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+}
+.selector-gear-menu-btn.back { border-color:#8a4a3f; color:#e8a99a; }
+.selector-gear-menu-btn.fwd { border-color:#3f5a7a; color:#9fc0e0; }
+.selector-gear-menu-arrow { font-weight:900; }
+
+.selector-edit-textarea {
+  width:100%;
+  min-height:70px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:8px 10px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.86rem;
+  line-height:1.7;
+  resize:vertical;
+  margin-top:2px;
+}
+.selector-edit-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
+.selector-edit-cancel {
+  font-family:var(--font-ui); font-size:0.63rem; padding:6px 12px;
+  border-radius:4px; border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer;
+}
+.selector-edit-confirm {
+  font-family:var(--font-ui); font-weight:700; font-size:0.63rem; padding:6px 14px;
+  border-radius:4px; border:none; color:var(--bg); cursor:pointer;
+}
+
+.composed-panel {
+  background:var(--bg2);
+  border:1px solid var(--accent);
+  border-radius:6px;
+  padding:16px;
+  max-width:640px;
+  margin:0 auto;
+}
+.composed-panel-head {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px;
+}
+.pt-label {
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--accent);
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.composed-count { font-family:var(--font-ui); font-size:0.65rem; color:var(--text2); }
+.composed-preview {
+  font-family:var(--font-body);
+  font-size:0.9rem;
+  line-height:1.9;
+  color:var(--text);
+  white-space:pre-wrap;
+  max-height:260px;
+  overflow-y:auto;
+}
+.composed-preview-empty { color:var(--text3); font-family:var(--font-ui); font-size:0.72rem; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(10,9,7,0.75);
+  z-index:500;
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  padding:20px 12px 40px;
+}
+.modal-overlay.active { display:flex; }
+.modal {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  width:100%;
+  max-width:520px;
+  margin-top:20px;
+}
+.modal-header {
+  padding:18px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.modal-header h2 {
+  font-family:var(--font-body);
+  font-size:1.1rem;
+  font-weight:400;
+  color:var(--text);
+}
+.modal-close {
+  background:none; border:none;
+  color:var(--text3);
+  font-size:1.4rem;
+  cursor:pointer;
+  line-height:1;
+  padding:4px 8px;
+}
+.modal-close:hover { color:var(--text); }
+.modal-body { padding:20px; }
+.modal-footer {
+  padding:16px 20px;
+  border-top:1px solid var(--border);
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+}
+.field { margin-bottom:16px; }
+.field label {
+  display:block;
+  font-family:var(--font-ui);
+  font-size:0.65rem;
+  color:var(--text2);
+  letter-spacing:0.06em;
+  margin-bottom:6px;
+  text-transform:uppercase;
+}
+.field input[type="text"] {
+  width:100%;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:10px 12px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:0.95rem;
+}
+.field textarea {
+  width:100%;
+  min-height:200px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:12px 14px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:0.82rem;
+  line-height:1.7;
+  resize:vertical;
+}
+.field input:focus, .field textarea:focus { outline:none; border-color:var(--accent); }
+.chapter-note {
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--text3);
+  line-height:1.6;
+}
+
+@media (max-width:480px) {
+  header { padding:16px 14px 12px; }
+  h1 { font-size:1.1rem; }
+  .editor-body { padding:14px; }
+  .top-actions { padding:14px 14px 0; }
+  .composed-panel { margin:0 14px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Sentence<span class="mark"> Selector</span></h1>
+    <div class="subtitle">draft comparison &amp; merge editor</div>
+  </div>
+  <button class="hamburger-btn" id="hamburgerBtn">☰</button>
+  <div class="dropdown-menu" id="dropdownMenu">
+    <button type="button" class="dropdown-item" id="menuExportBtn">📤 エクスポート</button>
+    <button type="button" class="dropdown-item" id="menuImportBtn">📥 インポート（上書き）</button>
+    <button type="button" class="dropdown-item danger" id="menuResetBtn">🗑 すべてクリア</button>
+  </div>
+</header>
+
+<div class="selector-legend" id="selectorLegend"></div>
+
+<div class="top-actions">
+  <button class="header-btn primary" id="addDraftBtn">＋ ドラフトを追加</button>
+</div>
+
+<div class="editor-body" id="selectorRows"></div>
+
+<div class="editor-body" style="padding-top:0;">
+  <div class="composed-panel">
+    <div class="composed-panel-head">
+      <span class="pt-label">合成結果</span>
+      <span class="composed-count" id="composedCount">0 字</span>
+    </div>
+    <div class="composed-preview" id="composedPreview"></div>
+  </div>
+</div>
+
+<!-- ============ Add Draft Modal ============ -->
+<div class="modal-overlay" id="addDraftModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>ドラフトを追加</h2>
+      <button class="modal-close" id="addDraftModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:10px;">
+        AIの回答や自分で書いた文章を貼り付けてください。句点（。）で自動的にセンテンス単位に分割し、既存の行に割り当てます。
+      </div>
+      <div class="field">
+        <label>ドラフト名（任意）</label>
+        <input type="text" id="addDraftNameInput" placeholder="例：Draft D、丁寧語版 など">
+      </div>
+      <div class="field">
+        <label>本文</label>
+        <textarea id="addDraftTextarea" placeholder="ここに文章を貼り付けてください"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="header-btn primary" id="addDraftConfirmBtn" style="width:100%;">追加する</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept="application/json" style="display:none;">
+
+<script>
+(function(){
+  'use strict';
+
+  const STORAGE_KEY = 'sentence_selector_v1';
+  const SELECTOR_COLORS = ['#8fa8c8', '#c8a96e', '#7ec8a8', '#c08a6e', '#a88fc8', '#c86e8f', '#6ec8b8', '#c8c06e'];
+  const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  // ---- data ----
+  let data = { series: [], rows: [] };
+  let menuOpenFor = null; // { rowIdx, seriesId, cardId } | null
+  let editingCardId = null;
+  let editingDraft = '';
+
+  function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  function escapeHTML(s){
+    return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // 句点「。」区切りの簡易文分割（「」内の句点は無視する）
+  function splitIntoSentences(text){
+    const sentences = [];
+    let buf = '';
+    let inQuote = false;
+    for(const ch of text){
+      buf += ch;
+      if(ch === '「') inQuote = true;
+      if(ch === '」') inQuote = false;
+      if(ch === '。' && !inQuote){
+        sentences.push(buf.trim());
+        buf = '';
+      }
+    }
+    if(buf.trim()) sentences.push(buf.trim());
+    return sentences;
+  }
+
+  function composeText(){
+    const parts = [];
+    data.rows.forEach(row => {
+      data.series.forEach(s => {
+        (row[s.id]||[]).forEach(card => {
+          if(card.selected) parts.push(card.text);
+        });
+      });
+    });
+    return parts.join('');
+  }
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.series) && Array.isArray(parsed.rows)){
+          data = parsed;
+        }
+      }
+    } catch(_e){ /* keep default */ }
+  }
+  function save(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch(_e){ alert('保存に失敗しました。ブラウザのストレージ容量を確認してください。'); }
+  }
+
+  // ---- hamburger menu ----
+  document.getElementById('hamburgerBtn').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('dropdownMenu').classList.toggle('active');
+  };
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('dropdownMenu');
+    if(menu.classList.contains('active') && !menu.contains(e.target) && e.target.id !== 'hamburgerBtn'){
+      menu.classList.remove('active');
+    }
+  });
+
+  document.getElementById('menuExportBtn').onclick = () => {
+    document.getElementById('dropdownMenu').classList.remove('active');
+    const payload = {
+      exportedFrom: 'Sentence Selector',
+      exportVersion: 1,
+      exportedAt: new Date().toISOString(),
+      data: data
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `sentence_selector_${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById('menuImportBtn').onclick = () => {
+    document.getElementById('dropdownMenu').classList.remove('active');
+    if(data.series.length > 0 || data.rows.length > 0){
+      if(!confirm('現在の作業内容は上書きされます。よろしいですか？')) return;
+    }
+    document.getElementById('importFileInput').click();
+  };
+  document.getElementById('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let payload;
+      try {
+        payload = JSON.parse(ev.target.result);
+      } catch(_e){
+        alert('ファイルを読み込めませんでした。正しいエクスポートファイルか確認してください。');
+        return;
+      }
+      const d = payload && payload.data ? payload.data : payload;
+      if(!d || !Array.isArray(d.series) || !Array.isArray(d.rows)){
+        alert('Sentence Selectorのデータとして認識できませんでした。');
+        return;
+      }
+      data = d;
+      menuOpenFor = null;
+      editingCardId = null;
+      save();
+      renderAll();
+      alert('インポートしました。');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('menuResetBtn').onclick = () => {
+    document.getElementById('dropdownMenu').classList.remove('active');
+    if(!confirm('すべてのドラフト・行を削除します。この操作は元に戻せません。よろしいですか？')) return;
+    data = { series: [], rows: [] };
+    menuOpenFor = null;
+    editingCardId = null;
+    save();
+    renderAll();
+  };
+
+  // ---- render ----
+  function renderAll(){
+    document.getElementById('selectorLegend').innerHTML = data.series.map(s => `
+      <div class="selector-legend-item"><span class="selector-legend-dot" style="background:${s.color}"></span>Draft ${s.label}</div>
+    `).join('') || '<div class="selector-empty-text">まだドラフトがありません。「＋ドラフトを追加」から始めてください。</div>';
+
+    renderRows();
+    renderComposed();
+  }
+
+  function renderRows(){
+    const wrap = document.getElementById('selectorRows');
+
+    if(data.series.length === 0){
+      wrap.innerHTML = `<div class="empty-state"><div class="glyph">✒</div><p>まだドラフトがありません。<br>「＋ドラフトを追加」から文章を追加してください。</p></div>`;
+      return;
+    }
+
+    wrap.innerHTML = '';
+    data.rows.forEach((row, rowIdx) => {
+      const group = document.createElement('div');
+      group.className = 'selector-row-group';
+
+      const numRow = document.createElement('div');
+      numRow.className = 'selector-row-num-row';
+      numRow.innerHTML = `
+        <div class="selector-row-num-tag">${rowIdx+1}</div>
+        <button type="button" class="selector-insert-btn" title="この行の上に新しい行を追加">
+          <span class="selector-gear-menu-arrow">⇧</span>+
+        </button>
+      `;
+      numRow.querySelector('.selector-insert-btn').onclick = () => insertRowBefore(rowIdx);
+      group.appendChild(numRow);
+
+      const cellsWrap = document.createElement('div');
+      cellsWrap.className = 'selector-row-cells';
+
+      data.series.forEach(s => {
+        const cards = row[s.id] || [];
+        if(cards.length === 0){
+          const emptyEl = document.createElement('div');
+          emptyEl.className = 'selector-card selector-card-empty';
+          emptyEl.innerHTML = `
+            <span class="selector-card-badge" style="background:${s.color}; opacity:0.6; width:24px; height:24px;">${s.label}</span>
+            <span class="selector-empty-text">長押しで文を追加</span>
+          `;
+          bindLongPress(emptyEl, () => createCardAt(rowIdx, s.id));
+          cellsWrap.appendChild(emptyEl);
+          return;
+        }
+        cards.forEach(card => {
+          cellsWrap.appendChild(renderCardEl(rowIdx, s, card));
+        });
+      });
+
+      group.appendChild(cellsWrap);
+      wrap.appendChild(group);
+    });
+  }
+
+  function bindLongPress(el, onLongPress, delay){
+    delay = delay || 550;
+    let timer = null;
+    const start = () => { timer = setTimeout(onLongPress, delay); };
+    const end = () => { if(timer){ clearTimeout(timer); timer = null; } };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
+    el.addEventListener('touchstart', start);
+    el.addEventListener('touchend', end);
+  }
+
+  function renderCardEl(rowIdx, s, card){
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    wrapper.dataset.cardId = card.id;
+
+    if(editingCardId === card.id){
+      wrapper.innerHTML = `
+        <div class="selector-card" style="border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);">
+          <div class="selector-card-left-col">
+            <div style="width:26px; height:26px;"></div>
+            <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
+          </div>
+          <div class="selector-card-text-wrap-outer">
+            <div class="selector-card-text-wrap">
+              <textarea class="selector-edit-textarea" id="editTextarea">${escapeHTML(editingDraft)}</textarea>
+              <div class="selector-edit-actions">
+                <button type="button" class="selector-edit-cancel" id="editCancelBtn">キャンセル</button>
+                <button type="button" class="selector-edit-confirm" id="editConfirmBtn" style="background:${s.color}">確定</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      setTimeout(() => {
+        const ta = document.getElementById('editTextarea');
+        if(ta){
+          ta.focus();
+          ta.oninput = () => { editingDraft = ta.value; };
+          const rect = ta.closest('[data-card-id]').getBoundingClientRect();
+          const currentScrollY = window.scrollY || window.pageYOffset;
+          const elTop = rect.top + currentScrollY;
+          window.scrollTo({ top: elTop - 90, behavior: 'smooth' });
+        }
+      }, 0);
+      wrapper.querySelector('#editCancelBtn').onclick = () => {
+        editingCardId = null;
+        renderRows();
+      };
+      wrapper.querySelector('#editConfirmBtn').onclick = () => {
+        confirmEdit(rowIdx, s.id, card.id);
+      };
+      return wrapper;
+    }
+
+    const isSelected = !!card.selected;
+    const isMenuOpen = menuOpenFor && menuOpenFor.cardId === card.id;
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'selector-card' + (isSelected ? ' selected' : '');
+    cardEl.style.borderColor = isSelected ? s.color : 'var(--border)';
+    cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
+    cardEl.innerHTML = `
+      <div class="selector-card-left-col">
+        <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
+        <div class="selector-card-badge${isSelected ? '' : ' unselected'}" style="background:${isSelected ? s.color : ''}" title="タップで採用切替">${s.label}</div>
+      </div>
+      <div class="selector-card-text-wrap-outer">
+        <div class="selector-card-delete-bg">🗑 削除</div>
+        <div class="selector-card-text-wrap">
+          ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
+          <div class="selector-card-text">${escapeHTML(card.text)}</div>
+        </div>
+      </div>
+    `;
+
+    cardEl.querySelector('.selector-card-badge').onclick = (e) => {
+      e.stopPropagation();
+      toggleCard(card.id);
+    };
+
+    cardEl.querySelector('.selector-gear-btn').onclick = (e) => {
+      e.stopPropagation();
+      menuOpenFor = isMenuOpen ? null : { rowIdx, seriesId: s.id, cardId: card.id };
+      renderRows();
+    };
+
+    const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
+    const textWrap = cardEl.querySelector('.selector-card-text-wrap');
+    const deleteBgEl = cardEl.querySelector('.selector-card-delete-bg');
+
+    let longPressTimer = null;
+    let longPressFired = false;
+    let dragStartX = null;
+    let dragCurrentX = 0;
+    let isDragging = false;
+    const DRAG_THRESHOLD = 8;
+
+    function getClientX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+
+    function startPress(e){
+      longPressFired = false;
+      dragStartX = getClientX(e);
+      dragCurrentX = 0;
+      isDragging = false;
+      longPressTimer = setTimeout(() => {
+        if(!isDragging){
+          longPressFired = true;
+          editingCardId = card.id;
+          editingDraft = card.text;
+          menuOpenFor = null;
+          renderRows();
+        }
+      }, 550);
+    }
+    function movePress(e){
+      if(dragStartX === null) return;
+      const x = getClientX(e);
+      const delta = x - dragStartX;
+      if(Math.abs(delta) > DRAG_THRESHOLD){
+        isDragging = true;
+        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+      }
+      if(isDragging && delta > 0){
+        dragCurrentX = delta;
+        textWrap.style.transform = `translateX(${delta}px)`;
+        deleteBgEl.classList.add('visible');
+      }
+    }
+    function endPress(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+      if(isDragging){
+        const cardWidth = textWrapOuter.getBoundingClientRect().width || 1;
+        if(dragCurrentX > cardWidth * 0.5){
+          deleteCard(rowIdx, s.id, card.id);
+          return;
+        } else {
+          textWrap.style.transition = 'transform .18s ease';
+          textWrap.style.transform = 'translateX(0)';
+          deleteBgEl.classList.remove('visible');
+          setTimeout(() => { textWrap.style.transition = ''; }, 200);
+        }
+      }
+      dragStartX = null;
+      dragCurrentX = 0;
+      isDragging = false;
+    }
+
+    textWrapOuter.addEventListener('mousedown', startPress);
+    textWrapOuter.addEventListener('mousemove', movePress);
+    textWrapOuter.addEventListener('mouseup', endPress);
+    textWrapOuter.addEventListener('mouseleave', endPress);
+    textWrapOuter.addEventListener('touchstart', startPress, { passive: true });
+    textWrapOuter.addEventListener('touchmove', movePress, { passive: true });
+    textWrapOuter.addEventListener('touchend', endPress);
+    textWrapOuter.addEventListener('click', () => {
+      if(longPressFired){ longPressFired = false; return; }
+    });
+
+    wrapper.appendChild(cardEl);
+
+    if(isMenuOpen){
+      const menu = document.createElement('div');
+      menu.className = 'selector-gear-menu';
+      menu.innerHTML = `
+        <div class="selector-gear-menu-head">
+          <span class="selector-gear-menu-head-dot" style="background:${s.color}"></span>
+          <span class="selector-gear-menu-head-text">${rowIdx+1}行目 / Draft ${s.label}</span>
+          <button type="button" class="selector-gear-menu-close">×</button>
+        </div>
+        <div class="selector-gear-menu-row">
+          <button type="button" class="selector-gear-menu-btn back" data-dir="-1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇧</span>STAY</button>
+          <button type="button" class="selector-gear-menu-btn back" data-dir="-1" data-mode="push"><span class="selector-gear-menu-arrow">⇧⇧</span>PUSH</button>
+        </div>
+        <div class="selector-gear-menu-row" style="margin-top:6px;">
+          <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇩</span>STAY</button>
+          <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="push"><span class="selector-gear-menu-arrow">⇩⇩</span>PUSH</button>
+        </div>
+      `;
+      menu.querySelector('.selector-gear-menu-close').onclick = (e) => {
+        e.stopPropagation();
+        menuOpenFor = null;
+        renderRows();
+      };
+      menu.querySelectorAll('.selector-gear-menu-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          moveCard(rowIdx, s.id, card.id, parseInt(btn.dataset.dir,10), btn.dataset.mode);
+        };
+      });
+      wrapper.appendChild(menu);
+    }
+
+    return wrapper;
+  }
+
+  function deleteCard(rowIdx, seriesId, cardId){
+    if(!confirm('このドラフトカードを削除します。よろしいですか？')) return;
+    const row = data.rows[rowIdx];
+    if(row && row[seriesId]){
+      row[seriesId] = row[seriesId].filter(c => c.id !== cardId);
+    }
+    cleanupEmptyRows();
+    menuOpenFor = null;
+    afterMutate();
+  }
+
+  function toggleCard(cardId){
+    data.rows.forEach(row => {
+      data.series.forEach(s => {
+        (row[s.id]||[]).forEach(c => {
+          if(c.id === cardId) c.selected = !c.selected;
+        });
+      });
+    });
+    afterMutate();
+  }
+
+  function confirmEdit(rowIdx, seriesId, cardId){
+    const row = data.rows[rowIdx];
+    if(row && row[seriesId]){
+      row[seriesId] = row[seriesId].map(c => c.id === cardId ? { ...c, text: editingDraft } : c);
+    }
+    editingCardId = null;
+    editingDraft = '';
+    afterMutate();
+  }
+
+  function createCardAt(rowIdx, seriesId){
+    const newCard = { id: uid('sc'), text: '', selected: false };
+    data.rows[rowIdx][seriesId] = [...(data.rows[rowIdx][seriesId]||[]), newCard];
+    editingCardId = newCard.id;
+    editingDraft = '';
+    menuOpenFor = null;
+    afterMutate();
+  }
+
+  function insertRowBefore(rowIdx){
+    const newRow = {};
+    data.series.forEach(s => { newRow[s.id] = []; });
+    const firstSeriesId = data.series[0] && data.series[0].id;
+    let newCard = null;
+    if(firstSeriesId){
+      newCard = { id: uid('sc'), text: '', selected: false };
+      newRow[firstSeriesId] = [newCard];
+    }
+    data.rows.splice(rowIdx, 0, newRow);
+    if(newCard){
+      editingCardId = newCard.id;
+      editingDraft = '';
+    }
+    afterMutate();
+  }
+
+  function cleanupEmptyRows(){
+    const filtered = data.rows.filter(row => data.series.some(s => (row[s.id]||[]).length > 0));
+    data.rows = filtered.length > 0 ? filtered : data.rows;
+  }
+
+  function moveCard(rowIdx, seriesId, cardId, direction, mode){
+    const targetIdx = rowIdx + direction;
+    const sourceRow = data.rows[rowIdx];
+    const card = (sourceRow[seriesId]||[]).find(c => c.id === cardId);
+    if(!card) return;
+    sourceRow[seriesId] = sourceRow[seriesId].filter(c => c.id !== cardId);
+
+    if(targetIdx < 0 || targetIdx >= data.rows.length){
+      const emptyRow = {};
+      data.series.forEach(s => { emptyRow[s.id] = []; });
+      if(targetIdx < 0){
+        data.rows.unshift(emptyRow);
+        data.rows[0][seriesId] = [card];
+      } else {
+        data.rows.push(emptyRow);
+        data.rows[data.rows.length-1][seriesId] = [card];
+      }
+    } else if(mode === 'coexist'){
+      data.rows[targetIdx][seriesId] = [...(data.rows[targetIdx][seriesId]||[]), card];
+    } else {
+      const existing = data.rows[targetIdx][seriesId] || [];
+      data.rows[targetIdx][seriesId] = [card];
+      if(existing.length > 0){
+        const newRow = {};
+        data.series.forEach(s => { newRow[s.id] = []; });
+        newRow[seriesId] = existing;
+        const insertAt = direction > 0 ? targetIdx + 1 : targetIdx;
+        data.rows.splice(insertAt, 0, newRow);
+      }
+    }
+
+    cleanupEmptyRows();
+    menuOpenFor = null;
+    afterMutate();
+  }
+
+  function afterMutate(){
+    save();
+    renderRows();
+    renderComposed();
+  }
+
+  function renderComposed(){
+    const text = composeText();
+    document.getElementById('composedCount').textContent = text.length.toLocaleString() + ' 字';
+    document.getElementById('composedPreview').innerHTML = text
+      ? escapeHTML(text)
+      : `<span class="composed-preview-empty">カードを選択すると、ここに合成テキストが表示されます</span>`;
+  }
+
+  // ---- add draft modal ----
+  document.getElementById('addDraftBtn').onclick = () => {
+    document.getElementById('addDraftNameInput').value = '';
+    document.getElementById('addDraftTextarea').value = '';
+    document.getElementById('addDraftModalOverlay').classList.add('active');
+  };
+  document.getElementById('addDraftModalClose').onclick = () => {
+    document.getElementById('addDraftModalOverlay').classList.remove('active');
+  };
+  document.getElementById('addDraftModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'addDraftModalOverlay') document.getElementById('addDraftModalOverlay').classList.remove('active');
+  });
+
+  document.getElementById('addDraftConfirmBtn').onclick = () => {
+    const text = document.getElementById('addDraftTextarea').value;
+    if(!text.trim()){ alert('本文を入力してください'); return; }
+
+    const usedLabels = new Set(data.series.map(s=>s.label));
+    let labelChar = SELECTOR_LABELS.split('').find(ch => !usedLabels.has(ch)) || '?';
+    const nameInput = document.getElementById('addDraftNameInput').value.trim();
+
+    const newSeriesId = uid('sr');
+    const color = SELECTOR_COLORS[data.series.length % SELECTOR_COLORS.length];
+    data.series.push({ id: newSeriesId, label: labelChar, name: nameInput, color });
+
+    data.rows.forEach(row => { row[newSeriesId] = []; });
+
+    const sentences = splitIntoSentences(text);
+    sentences.forEach((sentence, i) => {
+      const card = { id: uid('sc'), text: sentence, selected: false };
+      if(!data.rows[i]){
+        const newRow = {};
+        data.series.forEach(s => { newRow[s.id] = []; });
+        data.rows.push(newRow);
+      }
+      data.rows[i][newSeriesId] = [card];
+    });
+
+    document.getElementById('addDraftModalOverlay').classList.remove('active');
+    save();
+    renderAll();
+  };
+
+  // ---- init ----
+  load();
+  renderAll();
+
+})();
+</script>
+</body>
+</html>
