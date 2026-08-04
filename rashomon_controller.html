@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ラショウモンコントローラ</title>
+<style>
+:root{
+  --bg:#1a1814;
+  --bg2:#211f1b;
+  --bg3:#2a2722;
+  --surface:#302d27;
+  --accent:#c8a96e;
+  --text:#e8e0d0;
+  --text2:#a09880;
+  --text3:#706858;
+  --border:#3f3b34;
+  --ok:#7ec8a8;
+  --danger:#c06040;
+  --font-ui:'Courier New',monospace;
+  --font-body:'Georgia',serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);height:100%;}
+body{padding-bottom:60px;}
+button{font-family:var(--font-ui);cursor:pointer;}
+input,textarea,select{font-family:var(--font-ui);}
+
+/* ヘッダー */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  padding:10px 12px;
+  display:flex;align-items:center;gap:10px;
+}
+.topbar .app-title{
+  font-family:var(--font-body);
+  font-size:17px;
+  color:var(--accent);
+  flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.iconbtn{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:8px;
+  width:38px;height:38px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  flex-shrink:0;
+}
+.iconbtn:active{background:var(--surface);}
+
+/* ダッシュボード（作品一覧） */
+#dashboardView{padding:14px;}
+.project-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.project-card .pname{font-family:var(--font-body);font-size:16px;color:var(--text);}
+.project-card .psub{font-size:11px;color:var(--text3);margin-top:4px;}
+.newproj-btn{
+  width:100%;
+  padding:14px;
+  background:var(--bg3);
+  border:1px dashed var(--border);
+  border-radius:12px;
+  color:var(--accent);
+  font-size:14px;
+  margin-top:6px;
+}
+
+/* ボードビュー */
+#boardView{display:none;padding:10px;}
+.board-header{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 4px 14px;
+}
+.board-header .back-btn{
+  background:none;border:none;color:var(--text2);font-size:14px;padding:6px 4px;
+}
+.board-title{font-family:var(--font-body);font-size:16px;color:var(--accent);flex:1;}
+
+.event-area{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.event-area.dragging{opacity:0.4;}
+.event-head{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 10px 8px 6px;
+  border-bottom:1px solid var(--border);
+}
+.event-drag-handle{
+  color:var(--text3);
+  font-size:16px;
+  padding:4px 6px;
+  flex-shrink:0;
+  cursor:grab;
+  touch-action:none;
+}
+.event-titles{flex:1;min-width:0;}
+.event-title{
+  font-family:var(--font-body);
+  font-size:15px;
+  color:var(--text);
+}
+.event-desc{
+  font-size:11px;
+  color:var(--text3);
+  margin-top:2px;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.event-add-card-btn{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--accent);
+  border-radius:8px;
+  width:32px;height:32px;
+  font-size:18px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.event-menu-btn{
+  background:none;border:none;color:var(--text3);font-size:16px;padding:4px 6px;flex-shrink:0;
+}
+
+.pov-cards{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:10px;
+}
+.pov-card{
+  border-radius:10px;
+  border:1px solid var(--border);
+  padding:10px 12px;
+  position:relative;
+  min-height:52px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:2px;
+  user-select:none;
+}
+.pov-card .pov-name{
+  font-size:11px;
+  font-weight:bold;
+  letter-spacing:0.02em;
+  opacity:0.9;
+}
+.pov-card .pov-status{
+  font-family:var(--font-body);
+  font-size:14px;
+}
+.pov-card.unset{
+  background:repeating-linear-gradient(135deg,var(--bg3),var(--bg3) 8px,var(--surface) 8px,var(--surface) 16px);
+  border-style:dashed;
+}
+.pov-card.unset .pov-status{color:var(--text3);}
+.pov-card .pov-memo-flag{
+  position:absolute;
+  top:6px;right:8px;
+  font-size:10px;
+  color:var(--text3);
+}
+
+/* ハンバーガーメニュー（ドロワー） */
+.drawer-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.5);
+  z-index:60;
+}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;
+  width:82%;max-width:340px;
+  background:var(--bg2);
+  border-left:1px solid var(--border);
+  z-index:61;
+  transform:translateX(100%);
+  transition:transform 0.2s ease;
+  overflow-y:auto;
+  padding:16px 14px 40px;
+}
+.drawer.open{transform:translateX(0);}
+.drawer-overlay.open{display:block;}
+.drawer h3{
+  font-family:var(--font-body);
+  color:var(--accent);
+  font-size:15px;
+  margin:18px 0 8px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+.drawer h3:first-child{margin-top:0;}
+.drawer-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 8px;
+  border-radius:8px;
+}
+.drawer-item:active{background:var(--surface);}
+.drawer-item span.label{flex:1;font-size:13px;}
+.drawer-close{
+  position:absolute;top:12px;right:12px;
+  background:none;border:none;color:var(--text3);font-size:20px;
+}
+
+/* モーダル共通 */
+.modal-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);
+  z-index:70;
+  align-items:flex-end;
+  justify-content:center;
+}
+.modal-overlay.open{display:flex;}
+.modal-sheet{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:16px 16px 0 0;
+  width:100%;
+  max-width:480px;
+  max-height:85vh;
+  overflow-y:auto;
+  padding:18px 16px 24px;
+}
+.modal-overlay.center{align-items:center;}
+.modal-overlay.center .modal-sheet{
+  border-radius:14px;
+  max-width:420px;
+  margin:0 16px;
+}
+.modal-title{
+  font-family:var(--font-body);
+  font-size:16px;
+  color:var(--accent);
+  margin-bottom:14px;
+}
+.form-row{margin-bottom:12px;}
+.form-row label{
+  display:block;
+  font-size:11px;
+  color:var(--text3);
+  margin-bottom:5px;
+}
+.form-row input[type=text],
+.form-row input[type=color],
+.form-row textarea,
+.form-row select{
+  width:100%;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:8px;
+  padding:9px 10px;
+  font-size:14px;
+}
+.form-row textarea{resize:vertical;min-height:70px;}
+.modal-actions{
+  display:flex;gap:8px;margin-top:16px;
+}
+.btn{
+  flex:1;
+  padding:11px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--bg3);
+  color:var(--text);
+  font-size:13px;
+}
+.btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:bold;}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger);}
+.btn.ghost{background:none;}
+
+/* ステータス選択ポップアップ */
+.status-choice{
+  display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;
+}
+.status-choice .chip{
+  padding:9px 14px;
+  border-radius:20px;
+  border:1px solid var(--border);
+  background:var(--bg3);
+  font-size:13px;
+}
+.status-choice .chip.selected{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent) inset;
+}
+
+/* 視点キャラ管理・ステータス管理リスト */
+.manage-list-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 4px;
+  border-bottom:1px solid var(--border);
+}
+.color-dot{
+  width:16px;height:16px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);
+}
+.manage-list-item .mname{flex:1;font-size:13px;}
+.manage-list-item .mbtn{
+  background:none;border:none;color:var(--text3);font-size:14px;padding:4px 6px;
+}
+.manage-list-item .mbtn.del{color:var(--danger);}
+.add-inline-btn{
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  background:var(--bg3);
+  border:1px dashed var(--border);
+  border-radius:8px;
+  color:var(--accent);
+  font-size:13px;
+}
+
+/* 視点別ビュー */
+#povView{display:none;padding:10px;}
+.pov-view-select{
+  width:100%;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:8px;
+  padding:10px;
+  font-size:14px;
+  margin-bottom:14px;
+}
+.pov-timeline-row{
+  display:flex;
+  border-bottom:1px solid var(--border);
+  padding:12px 4px;
+  gap:10px;
+}
+.pov-timeline-row .col-event{
+  width:38%;
+  flex-shrink:0;
+  font-size:13px;
+  color:var(--text);
+}
+.pov-timeline-row .col-memo{
+  flex:1;
+  font-family:var(--font-body);
+  font-size:13px;
+  color:var(--text2);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.pov-timeline-row .col-event .ev-status{
+  display:inline-block;
+  margin-top:4px;
+  font-size:10px;
+  padding:2px 7px;
+  border-radius:10px;
+  background:var(--bg3);
+  color:var(--text3);
+}
+.empty-state{
+  text-align:center;
+  color:var(--text3);
+  font-size:12px;
+  padding:40px 20px;
+  line-height:1.8;
+}
+</style>
+</head>
+<body>
+
+<!-- ===== トップバー ===== -->
+<div class="topbar">
+  <div class="app-title" id="topbarTitle">ラショウモンコントローラ</div>
+  <button class="iconbtn" id="hamburgerBtn">☰</button>
+</div>
+
+<!-- ===== ダッシュボード ===== -->
+<div id="dashboardView">
+  <div id="projectList"></div>
+  <button class="newproj-btn" id="newProjectBtn">＋ 新規作品を作成</button>
+</div>
+
+<!-- ===== ボードビュー（出来事×視点） ===== -->
+<div id="boardView">
+  <div class="board-header">
+    <button class="back-btn" id="backToDashBtn">← 作品一覧</button>
+  </div>
+  <div id="eventAreaList"></div>
+  <button class="newproj-btn" id="newEventBtn">＋ 出来事を追加</button>
+</div>
+
+<!-- ===== 視点別ビュー ===== -->
+<div id="povView">
+  <div class="board-header">
+    <button class="back-btn" id="backFromPovBtn">← ボードへ戻る</button>
+  </div>
+  <select class="pov-view-select" id="povSelectDropdown"></select>
+  <div id="povTimelineList"></div>
+</div>
+
+<!-- ===== ハンバーガードロワー ===== -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+  <button class="drawer-close" id="drawerCloseBtn">✕</button>
+  <h3>この作品</h3>
+  <div class="drawer-item" id="menuPovView"><span class="label">👁 視点別ビューを見る</span></div>
+  <div class="drawer-item" id="menuCharManage"><span class="label">🧑 視点キャラ管理</span></div>
+  <div class="drawer-item" id="menuStatusManage"><span class="label">🏷 ステータス管理</span></div>
+  <h3>データ</h3>
+  <div class="drawer-item" id="menuExport"><span class="label">⬇ この作品をエクスポート</span></div>
+  <div class="drawer-item" id="menuImport"><span class="label">⬆ 作品をインポート</span></div>
+  <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+</div>
+
+<!-- ===== モーダル：新規作品 ===== -->
+<div class="modal-overlay center" id="modalNewProject">
+  <div class="modal-sheet">
+    <div class="modal-title">新規作品</div>
+    <div class="form-row">
+      <label>作品タイトル</label>
+      <input type="text" id="npTitle" placeholder="例：とある殺人事件">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalNewProject">キャンセル</button>
+      <button class="btn primary" id="npCreateBtn">作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：出来事 追加/編集 ===== -->
+<div class="modal-overlay center" id="modalEvent">
+  <div class="modal-sheet">
+    <div class="modal-title" id="eventModalTitle">出来事を追加</div>
+    <div class="form-row">
+      <label>タイトル</label>
+      <input type="text" id="evTitle" placeholder="例：密室で死体が発見される">
+    </div>
+    <div class="form-row">
+      <label>簡単な説明</label>
+      <textarea id="evDesc" placeholder="この出来事の概要"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="evDeleteBtn" style="display:none;">削除</button>
+      <button class="btn ghost" data-close="modalEvent">キャンセル</button>
+      <button class="btn primary" id="evSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：ステータス選択（タップ時） ===== -->
+<div class="modal-overlay center" id="modalStatusPick">
+  <div class="modal-sheet">
+    <div class="modal-title" id="statusPickTitle">ステータスを選択</div>
+    <div class="status-choice" id="statusChoiceList"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalStatusPick">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：心境メモ編集（長押し時） ===== -->
+<div class="modal-overlay center" id="modalMemoEdit">
+  <div class="modal-sheet">
+    <div class="modal-title" id="memoEditTitle">心境・メモを編集</div>
+    <div class="form-row">
+      <label>心境・メモ</label>
+      <textarea id="memoEditText" placeholder="このキャラはこの出来事についてどう感じたか、何を知ったか"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalMemoEdit">キャンセル</button>
+      <button class="btn primary" id="memoSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：視点キャラ管理 ===== -->
+<div class="modal-overlay" id="modalCharManage">
+  <div class="modal-sheet">
+    <div class="modal-title">視点キャラ管理</div>
+    <div id="charManageList"></div>
+    <button class="add-inline-btn" id="charAddBtn">＋ 視点キャラを追加</button>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalCharManage">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：視点キャラ 編集 ===== -->
+<div class="modal-overlay center" id="modalCharEdit">
+  <div class="modal-sheet">
+    <div class="modal-title">視点キャラを編集</div>
+    <div class="form-row">
+      <label>名前</label>
+      <input type="text" id="charEditName" placeholder="例：探偵A">
+    </div>
+    <div class="form-row">
+      <label>カードの色</label>
+      <input type="color" id="charEditColor">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalCharEdit">キャンセル</button>
+      <button class="btn primary" id="charEditSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：ステータス管理 ===== -->
+<div class="modal-overlay" id="modalStatusManage">
+  <div class="modal-sheet">
+    <div class="modal-title">ステータス管理</div>
+    <div id="statusManageList"></div>
+    <button class="add-inline-btn" id="statusAddBtn">＋ ステータスを追加</button>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalStatusManage">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル：ステータス 編集 ===== -->
+<div class="modal-overlay center" id="modalStatusEdit">
+  <div class="modal-sheet">
+    <div class="modal-title">ステータスを編集</div>
+    <div class="form-row">
+      <label>ラベル</label>
+      <input type="text" id="statusEditLabel" placeholder="例：経験">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" data-close="modalStatusEdit">キャンセル</button>
+      <button class="btn primary" id="statusEditSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   ラショウモンコントローラ
+   出来事×視点カードによる多視点物語の整合性管理ツール
+========================================================= */
+
+const STORAGE_KEY = 'rashomon_controller_projects_v1';
+
+/* ---------- デフォルトステータス ---------- */
+function defaultStatuses(){
+  return [
+    { id: uid(), label: '未知', builtin:true },
+    { id: uid(), label: '伝聞' },
+    { id: uid(), label: '経験' }
+  ];
+}
+function defaultChars(){
+  return [
+    { id: uid(), name: '視点A', color: '#c8a96e' },
+    { id: uid(), name: '視点B', color: '#7ec8a8' }
+  ];
+}
+
+/* ---------- ユーティリティ ---------- */
+function uid(){
+  return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+}
+function escapeHtml(s){
+  if(s===undefined||s===null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function loadProjects(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(migrateProject) : [];
+  }catch(e){
+    console.error('load error', e);
+    return [];
+  }
+}
+function saveProjects(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.projects));
+  }catch(e){
+    alert('保存に失敗しました。ストレージ容量を確認してください。');
+    console.error(e);
+  }
+}
+function migrateProject(p){
+  if(!p.chars) p.chars = defaultChars();
+  if(!p.statuses) p.statuses = defaultStatuses();
+  if(!p.events) p.events = [];
+  p.events.forEach(ev=>{
+    if(!ev.desc) ev.desc = '';
+    if(!ev.cards) ev.cards = {};
+  });
+  if(!p.createdAt) p.createdAt = Date.now();
+  return p;
+}
+
+/* ---------- アプリ状態 ---------- */
+const state = {
+  projects: loadProjects(),
+  currentProjectId: null,
+  editingEventId: null,      // 出来事モーダルで編集中の出来事ID（nullなら新規）
+  statusPickCtx: null,       // {eventId, charId}
+  memoEditCtx: null,         // {eventId, charId}
+  charEditingId: null,
+  statusEditingId: null,
+  dragEventId: null
+};
+
+function currentProject(){
+  return state.projects.find(p => p.id === state.currentProjectId) || null;
+}
+
+/* =========================================================
+   画面切り替え
+========================================================= */
+function showView(name){
+  document.getElementById('dashboardView').style.display = name==='dashboard' ? 'block' : 'none';
+  document.getElementById('boardView').style.display = name==='board' ? 'block' : 'none';
+  document.getElementById('povView').style.display = name==='pov' ? 'block' : 'none';
+}
+
+/* =========================================================
+   ダッシュボード
+========================================================= */
+function renderDashboard(){
+  document.getElementById('topbarTitle').textContent = 'ラショウモンコントローラ';
+  const list = document.getElementById('projectList');
+  if(state.projects.length===0){
+    list.innerHTML = '<div class="empty-state">まだ作品がありません。<br>「＋ 新規作品を作成」から始めましょう。</div>';
+    return;
+  }
+  list.innerHTML = state.projects.map(p=>{
+    const evCount = p.events.length;
+    return `<div class="project-card" data-id="${p.id}">
+      <div>
+        <div class="pname">${escapeHtml(p.title)}</div>
+        <div class="psub">出来事 ${evCount}件 ／ 視点 ${p.chars.length}人</div>
+      </div>
+      <div style="color:var(--text3);font-size:18px;">›</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.project-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      state.currentProjectId = el.dataset.id;
+      showView('board');
+      renderBoard();
+    });
+  });
+}
+
+document.getElementById('newProjectBtn').addEventListener('click', ()=>{
+  document.getElementById('npTitle').value = '';
+  openModal('modalNewProject');
+  setTimeout(()=>document.getElementById('npTitle').focus(), 50);
+});
+document.getElementById('npCreateBtn').addEventListener('click', ()=>{
+  const title = document.getElementById('npTitle').value.trim();
+  if(!title){ alert('タイトルを入力してください'); return; }
+  const proj = {
+    id: uid(),
+    title,
+    chars: defaultChars(),
+    statuses: defaultStatuses(),
+    events: [],
+    createdAt: Date.now()
+  };
+  state.projects.push(proj);
+  saveProjects();
+  closeModal('modalNewProject');
+  state.currentProjectId = proj.id;
+  showView('board');
+  renderBoard();
+});
+
+document.getElementById('backToDashBtn').addEventListener('click', ()=>{
+  state.currentProjectId = null;
+  showView('dashboard');
+  renderDashboard();
+});
+
+/* =========================================================
+   ボードビュー（出来事エリア × 視点カード）
+========================================================= */
+function renderBoard(){
+  const p = currentProject();
+  if(!p) return;
+  document.getElementById('topbarTitle').textContent = p.title;
+  const list = document.getElementById('eventAreaList');
+
+  if(p.events.length===0){
+    list.innerHTML = '<div class="empty-state">出来事がまだありません。<br>下のボタンから最初の出来事を追加してください。</div>';
+    return;
+  }
+
+  list.innerHTML = p.events.map(ev=>{
+    const cardsHtml = p.chars.map(ch=>{
+      const card = ev.cards[ch.id];
+      const hasStatus = card && card.statusId;
+      const status = hasStatus ? p.statuses.find(s=>s.id===card.statusId) : null;
+      const hasMemo = card && card.memo && card.memo.trim().length>0;
+      const style = hasStatus
+        ? `background:${ch.color}22;border-color:${ch.color}88;`
+        : '';
+      return `<div class="pov-card ${hasStatus?'':'unset'}" style="${style}" data-event="${ev.id}" data-char="${ch.id}">
+        <div class="pov-name" style="color:${ch.color};">${escapeHtml(ch.name)}</div>
+        <div class="pov-status">${status ? escapeHtml(status.label) : '未設定'}</div>
+        ${hasMemo ? '<div class="pov-memo-flag">✎</div>' : ''}
+      </div>`;
+    }).join('');
+
+    return `<div class="event-area" data-event="${ev.id}" draggable="true">
+      <div class="event-head">
+        <div class="event-drag-handle">⠿</div>
+        <div class="event-titles">
+          <div class="event-title">${escapeHtml(ev.title)}</div>
+          ${ev.desc ? `<div class="event-desc">${escapeHtml(ev.desc)}</div>` : ''}
+        </div>
+        <button class="event-menu-btn" data-editevent="${ev.id}">✎</button>
+      </div>
+      <div class="pov-cards">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+
+  // カードのタップ / 長押し
+  list.querySelectorAll('.pov-card').forEach(card=>{
+    attachCardHandlers(card);
+  });
+  // 出来事編集ボタン
+  list.querySelectorAll('[data-editevent]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEventModal(btn.dataset.editevent));
+  });
+  // ドラッグ並べ替え
+  attachDragHandlers(list);
+}
+
+/* ---- カード：タップ＝ステータス選択／長押し＝メモ編集 ---- */
+function attachCardHandlers(card){
+  let pressTimer = null;
+  let longPressed = false;
+  const eventId = card.dataset.event;
+  const charId = card.dataset.char;
+
+  const start = (e)=>{
+    longPressed = false;
+    pressTimer = setTimeout(()=>{
+      longPressed = true;
+      openMemoModal(eventId, charId);
+    }, 480);
+  };
+  const cancel = ()=>{
+    clearTimeout(pressTimer);
+  };
+  const end = ()=>{
+    clearTimeout(pressTimer);
+    if(!longPressed){
+      openStatusPickModal(eventId, charId);
+    }
+  };
+
+  card.addEventListener('touchstart', start, {passive:true});
+  card.addEventListener('touchend', end);
+  card.addEventListener('touchmove', cancel);
+  card.addEventListener('touchcancel', cancel);
+  card.addEventListener('mousedown', start);
+  card.addEventListener('mouseup', end);
+  card.addEventListener('mouseleave', cancel);
+  card.addEventListener('contextmenu', e=>e.preventDefault());
+}
+
+/* ---- ドラッグ＆ドロップ並べ替え（出来事エリア） ---- */
+function attachDragHandlers(list){
+  let dragEl = null;
+  list.querySelectorAll('.event-area').forEach(area=>{
+    area.addEventListener('dragstart', ()=>{
+      dragEl = area;
+      setTimeout(()=>area.classList.add('dragging'), 0);
+    });
+    area.addEventListener('dragend', ()=>{
+      area.classList.remove('dragging');
+      dragEl = null;
+      persistEventOrder(list);
+    });
+    area.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      if(!dragEl || dragEl===area) return;
+      const rect = area.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height/2;
+      area.parentNode.insertBefore(dragEl, before ? area : area.nextSibling);
+    });
+  });
+}
+function persistEventOrder(list){
+  const p = currentProject();
+  if(!p) return;
+  const ids = Array.from(list.querySelectorAll('.event-area')).map(el=>el.dataset.event);
+  p.events.sort((a,b)=> ids.indexOf(a.id) - ids.indexOf(b.id));
+  saveProjects();
+}
+
+/* =========================================================
+   出来事：追加／編集／削除
+========================================================= */
+document.getElementById('newEventBtn').addEventListener('click', ()=> openEventModal(null));
+
+function openEventModal(eventId){
+  state.editingEventId = eventId;
+  const p = currentProject();
+  const titleEl = document.getElementById('eventModalTitle');
+  const delBtn = document.getElementById('evDeleteBtn');
+  if(eventId){
+    const ev = p.events.find(e=>e.id===eventId);
+    document.getElementById('evTitle').value = ev.title;
+    document.getElementById('evDesc').value = ev.desc || '';
+    titleEl.textContent = '出来事を編集';
+    delBtn.style.display = 'block';
+  }else{
+    document.getElementById('evTitle').value = '';
+    document.getElementById('evDesc').value = '';
+    titleEl.textContent = '出来事を追加';
+    delBtn.style.display = 'none';
+  }
+  openModal('modalEvent');
+  setTimeout(()=>document.getElementById('evTitle').focus(), 50);
+}
+document.getElementById('evSaveBtn').addEventListener('click', ()=>{
+  const title = document.getElementById('evTitle').value.trim();
+  if(!title){ alert('タイトルを入力してください'); return; }
+  const desc = document.getElementById('evDesc').value.trim();
+  const p = currentProject();
+  if(state.editingEventId){
+    const ev = p.events.find(e=>e.id===state.editingEventId);
+    ev.title = title;
+    ev.desc = desc;
+  }else{
+    p.events.push({ id: uid(), title, desc, cards: {} });
+  }
+  saveProjects();
+  closeModal('modalEvent');
+  renderBoard();
+});
+document.getElementById('evDeleteBtn').addEventListener('click', ()=>{
+  if(!confirm('この出来事を削除しますか？含まれる全カードも削除されます。')) return;
+  const p = currentProject();
+  p.events = p.events.filter(e=>e.id!==state.editingEventId);
+  saveProjects();
+  closeModal('modalEvent');
+  renderBoard();
+});
+
+/* =========================================================
+   ステータス選択ポップアップ（カードタップ時）
+========================================================= */
+function openStatusPickModal(eventId, charId){
+  state.statusPickCtx = { eventId, charId };
+  const p = currentProject();
+  const ev = p.events.find(e=>e.id===eventId);
+  const ch = p.chars.find(c=>c.id===charId);
+  document.getElementById('statusPickTitle').textContent = `${ch.name} のステータス`;
+  const current = ev.cards[charId];
+  const currentStatusId = current ? current.statusId : null;
+
+  const listEl = document.getElementById('statusChoiceList');
+  listEl.innerHTML = p.statuses.map(s=>{
+    return `<div class="chip ${s.id===currentStatusId?'selected':''}" data-status="${s.id}">${escapeHtml(s.label)}</div>`;
+  }).join('') + `<div class="chip" data-status="__clear__" style="color:var(--text3);">未設定に戻す</div>`;
+
+  listEl.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const sid = chip.dataset.status;
+      if(!ev.cards[charId]) ev.cards[charId] = { statusId:null, memo:'' };
+      if(sid==='__clear__'){
+        ev.cards[charId].statusId = null;
+      }else{
+        ev.cards[charId].statusId = sid;
+      }
+      saveProjects();
+      closeModal('modalStatusPick');
+      renderBoard();
+    });
+  });
+
+  openModal('modalStatusPick');
+}
+
+/* =========================================================
+   心境メモ編集（カード長押し時）
+========================================================= */
+function openMemoModal(eventId, charId){
+  state.memoEditCtx = { eventId, charId };
+  const p = currentProject();
+  const ev = p.events.find(e=>e.id===eventId);
+  const ch = p.chars.find(c=>c.id===charId);
+  document.getElementById('memoEditTitle').textContent = `${ch.name} の心境・メモ`;
+  const current = ev.cards[charId];
+  document.getElementById('memoEditText').value = current ? (current.memo||'') : '';
+  openModal('modalMemoEdit');
+  setTimeout(()=>document.getElementById('memoEditText').focus(), 50);
+}
+document.getElementById('memoSaveBtn').addEventListener('click', ()=>{
+  const { eventId, charId } = state.memoEditCtx;
+  const p = currentProject();
+  const ev = p.events.find(e=>e.id===eventId);
+  if(!ev.cards[charId]) ev.cards[charId] = { statusId:null, memo:'' };
+  ev.cards[charId].memo = document.getElementById('memoEditText').value;
+  saveProjects();
+  closeModal('modalMemoEdit');
+  renderBoard();
+});
+
+/* =========================================================
+   ハンバーガードロワー
+========================================================= */
+document.getElementById('hamburgerBtn').addEventListener('click', ()=>{
+  if(!currentProject()){
+    // ダッシュボードではメニュー無効
+    return;
+  }
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+});
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
+document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+
+document.getElementById('menuPovView').addEventListener('click', ()=>{
+  closeDrawer();
+  showView('pov');
+  renderPovView();
+});
+document.getElementById('menuCharManage').addEventListener('click', ()=>{
+  closeDrawer();
+  renderCharManage();
+  openModal('modalCharManage');
+});
+document.getElementById('menuStatusManage').addEventListener('click', ()=>{
+  closeDrawer();
+  renderStatusManage();
+  openModal('modalStatusManage');
+});
+document.getElementById('menuExport').addEventListener('click', ()=>{
+  closeDrawer();
+  exportCurrentProject();
+});
+document.getElementById('menuImport').addEventListener('click', ()=>{
+  closeDrawer();
+  document.getElementById('importFileInput').click();
+});
+document.getElementById('importFileInput').addEventListener('change', handleImportFile);
+
+document.getElementById('backFromPovBtn').addEventListener('click', ()=>{
+  showView('board');
+  renderBoard();
+});
+
+/* =========================================================
+   視点別ビュー
+========================================================= */
+function renderPovView(){
+  const p = currentProject();
+  const sel = document.getElementById('povSelectDropdown');
+  sel.innerHTML = p.chars.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  sel.onchange = ()=> renderPovTimeline(sel.value);
+  if(p.chars.length>0){
+    renderPovTimeline(p.chars[0].id);
+  }else{
+    document.getElementById('povTimelineList').innerHTML = '<div class="empty-state">視点キャラがいません。</div>';
+  }
+}
+function renderPovTimeline(charId){
+  const p = currentProject();
+  const list = document.getElementById('povTimelineList');
+  if(p.events.length===0){
+    list.innerHTML = '<div class="empty-state">出来事がありません。</div>';
+    return;
+  }
+  list.innerHTML = p.events.map(ev=>{
+    const card = ev.cards[charId];
+    const status = card && card.statusId ? p.statuses.find(s=>s.id===card.statusId) : null;
+    const memo = card && card.memo ? card.memo : '';
+    return `<div class="pov-timeline-row">
+      <div class="col-event">
+        ${escapeHtml(ev.title)}
+        <div><span class="ev-status">${status ? escapeHtml(status.label) : '未設定'}</span></div>
+      </div>
+      <div class="col-memo">${memo ? escapeHtml(memo) : '<span style="color:var(--text3);">（メモなし）</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   視点キャラ管理
+========================================================= */
+function renderCharManage(){
+  const p = currentProject();
+  const list = document.getElementById('charManageList');
+  list.innerHTML = p.chars.map(c=>{
+    return `<div class="manage-list-item">
+      <div class="color-dot" style="background:${c.color};"></div>
+      <div class="mname">${escapeHtml(c.name)}</div>
+      <button class="mbtn" data-editchar="${c.id}">✎</button>
+      <button class="mbtn del" data-delchar="${c.id}">🗑</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-editchar]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openCharEditModal(btn.dataset.editchar));
+  });
+  list.querySelectorAll('[data-delchar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('この視点キャラを削除しますか？全出来事のこのキャラのカードも削除されます。')) return;
+      const id = btn.dataset.delchar;
+      p.chars = p.chars.filter(c=>c.id!==id);
+      p.events.forEach(ev=>{ delete ev.cards[id]; });
+      saveProjects();
+      renderCharManage();
+    });
+  });
+}
+document.getElementById('charAddBtn').addEventListener('click', ()=> openCharEditModal(null));
+function openCharEditModal(charId){
+  state.charEditingId = charId;
+  const p = currentProject();
+  if(charId){
+    const c = p.chars.find(x=>x.id===charId);
+    document.getElementById('charEditName').value = c.name;
+    document.getElementById('charEditColor').value = c.color;
+  }else{
+    document.getElementById('charEditName').value = '';
+    document.getElementById('charEditColor').value = randomColor();
+  }
+  openModal('modalCharEdit');
+}
+document.getElementById('charEditSaveBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('charEditName').value.trim();
+  if(!name){ alert('名前を入力してください'); return; }
+  const color = document.getElementById('charEditColor').value;
+  const p = currentProject();
+  if(state.charEditingId){
+    const c = p.chars.find(x=>x.id===state.charEditingId);
+    c.name = name; c.color = color;
+  }else{
+    p.chars.push({ id: uid(), name, color });
+  }
+  saveProjects();
+  closeModal('modalCharEdit');
+  renderCharManage();
+});
+function randomColor(){
+  const palette = ['#c8a96e','#7ec8a8','#c06040','#6e8fc8','#a86ec8','#c8c06e','#6ec8b8','#c86e9e'];
+  return palette[Math.floor(Math.random()*palette.length)];
+}
+
+/* =========================================================
+   ステータス管理
+========================================================= */
+function renderStatusManage(){
+  const p = currentProject();
+  const list = document.getElementById('statusManageList');
+  list.innerHTML = p.statuses.map(s=>{
+    return `<div class="manage-list-item">
+      <div class="mname">${escapeHtml(s.label)}</div>
+      <button class="mbtn" data-editstatus="${s.id}">✎</button>
+      <button class="mbtn del" data-delstatus="${s.id}">🗑</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-editstatus]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openStatusEditModal(btn.dataset.editstatus));
+  });
+  list.querySelectorAll('[data-delstatus]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('このステータスを削除しますか？使用中のカードは未設定に戻ります。')) return;
+      const id = btn.dataset.delstatus;
+      p.statuses = p.statuses.filter(s=>s.id!==id);
+      p.events.forEach(ev=>{
+        Object.values(ev.cards).forEach(card=>{
+          if(card.statusId===id) card.statusId = null;
+        });
+      });
+      saveProjects();
+      renderStatusManage();
+    });
+  });
+}
+document.getElementById('statusAddBtn').addEventListener('click', ()=> openStatusEditModal(null));
+function openStatusEditModal(statusId){
+  state.statusEditingId = statusId;
+  const p = currentProject();
+  if(statusId){
+    const s = p.statuses.find(x=>x.id===statusId);
+    document.getElementById('statusEditLabel').value = s.label;
+  }else{
+    document.getElementById('statusEditLabel').value = '';
+  }
+  openModal('modalStatusEdit');
+  setTimeout(()=>document.getElementById('statusEditLabel').focus(), 50);
+}
+document.getElementById('statusEditSaveBtn').addEventListener('click', ()=>{
+  const label = document.getElementById('statusEditLabel').value.trim();
+  if(!label){ alert('ラベルを入力してください'); return; }
+  const p = currentProject();
+  if(state.statusEditingId){
+    const s = p.statuses.find(x=>x.id===state.statusEditingId);
+    s.label = label;
+  }else{
+    p.statuses.push({ id: uid(), label });
+  }
+  saveProjects();
+  closeModal('modalStatusEdit');
+  renderStatusManage();
+});
+
+/* =========================================================
+   エクスポート／インポート
+========================================================= */
+function exportCurrentProject(){
+  const p = currentProject();
+  if(!p) return;
+  const blob = new Blob([JSON.stringify(p, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = p.title.replace(/[\\/:*?"<>|]/g, '_');
+  a.href = url;
+  a.download = `rashomon_${safeName}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function handleImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data.title || !Array.isArray(data.events)){
+        alert('作品データとして読み込めませんでした。');
+        return;
+      }
+      data.id = uid(); // IDは新規発行して重複回避
+      migrateProject(data);
+      state.projects.push(data);
+      saveProjects();
+      alert(`「${data.title}」を読み込みました。`);
+      showView('dashboard');
+      renderDashboard();
+    }catch(err){
+      alert('ファイルの読み込みに失敗しました。');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* =========================================================
+   モーダル共通処理
+========================================================= */
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=> closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click', (e)=>{
+    if(e.target===overlay) closeModal(overlay.id);
+  });
+});
+
+/* =========================================================
+   初期化
+========================================================= */
+renderDashboard();
+showView('dashboard');
+
+</script>
+</body>
+</html>
