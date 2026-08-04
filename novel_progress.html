@@ -2059,6 +2059,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <span class="composed-count" id="selectorComposedCount">0 字</span>
       </div>
       <div class="composed-preview" id="selectorComposedPreview"></div>
+      <button type="button" class="btn primary" id="selectorCopyComposedBtn" style="width:100%; margin-top:12px;">📋 一括コピー</button>
     </div>
   </div>
 </div>
@@ -2953,6 +2954,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const dmenu = document.getElementById('detailDropdown');
     if(dmenu.classList.contains('active') && !dmenu.contains(e.target) && e.target.id !== 'detailHamburgerBtn'){
       dmenu.classList.remove('active');
+    }
+    if(selectorMenuOpenFor && !e.target.closest('.selector-gear-menu') && !e.target.closest('.selector-gear-btn')){
+      selectorMenuOpenFor = null;
+      renderSelectorRows();
     }
   });
   document.getElementById('menuSelectModeBtn').onclick = () => {
@@ -4052,6 +4057,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
       : `<span class="composed-preview-empty">カードを選択すると、ここに合成テキストが表示されます</span>`;
   }
 
+  document.getElementById('selectorCopyComposedBtn').onclick = async () => {
+    const entry = getSelectorEntry();
+    if(!entry) return;
+    const selector = ensureSelector(entry);
+    const text = composeSelectorText(selector);
+    if(!text){ alert('コピーする本文がありません（カードが選択されていません）'); return; }
+    await copyTextWithToast(text);
+  };
+
   // ---- Add draft modal ----
   document.getElementById('selectorAddDraftBtn').onclick = () => {
     document.getElementById('addDraftNameInput').value = '';
@@ -4071,6 +4085,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const entry = getSelectorEntry();
     const selector = ensureSelector(entry);
 
+    const isFirstDraft = selector.series.length === 0; // 最初の1本目だけ全選択でスタート
+
     const usedLabels = new Set(selector.series.map(s=>s.label));
     let labelChar = SELECTOR_LABELS.split('').find(ch => !usedLabels.has(ch)) || '?';
     const nameInput = document.getElementById('addDraftNameInput').value.trim();
@@ -4084,7 +4100,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     const sentences = splitIntoSentences(text);
     sentences.forEach((sentence, i) => {
-      const card = { id: selectorUid('sc'), text: sentence, selected: false };
+      const card = { id: selectorUid('sc'), text: sentence, selected: isFirstDraft };
       if(!selector.rows[i]){
         const newRow = {};
         selector.series.forEach(s => { newRow[s.id] = []; });
