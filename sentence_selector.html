@@ -494,6 +494,24 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text3);
   line-height:1.6;
 }
+.copy-toast {
+  position:fixed;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--accent);
+  color:var(--bg);
+  font-family:var(--font-ui);
+  font-size:0.72rem;
+  font-weight:bold;
+  padding:10px 20px;
+  border-radius:20px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s, transform .2s;
+  z-index:600;
+}
+.copy-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
 @media (max-width:480px) {
   header { padding:16px 14px 12px; }
@@ -534,6 +552,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <span class="composed-count" id="composedCount">0 字</span>
     </div>
     <div class="composed-preview" id="composedPreview"></div>
+    <button type="button" class="header-btn primary" id="copyComposedBtn" style="width:100%; margin-top:12px;">📋 一括コピー</button>
   </div>
 </div>
 
@@ -564,6 +583,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
 </div>
 
 <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+
+<div class="copy-toast" id="copyToast">コピーしました</div>
 
 <script>
 (function(){
@@ -640,6 +661,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const menu = document.getElementById('dropdownMenu');
     if(menu.classList.contains('active') && !menu.contains(e.target) && e.target.id !== 'hamburgerBtn'){
       menu.classList.remove('active');
+    }
+    if(menuOpenFor && !e.target.closest('.selector-gear-menu') && !e.target.closest('.selector-gear-btn')){
+      menuOpenFor = null;
+      renderRows();
     }
   });
 
@@ -1079,6 +1104,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
       : `<span class="composed-preview-empty">カードを選択すると、ここに合成テキストが表示されます</span>`;
   }
 
+  function showCopyToast(){
+    const toast = document.getElementById('copyToast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  document.getElementById('copyComposedBtn').onclick = async () => {
+    const text = composeText();
+    if(!text){ alert('コピーする本文がありません（カードが選択されていません）'); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopyToast();
+    } catch(_e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showCopyToast(); } catch(_e2){ alert('コピーに失敗しました。手動で選択してコピーしてください。'); }
+      document.body.removeChild(ta);
+    }
+  };
+
   // ---- add draft modal ----
   document.getElementById('addDraftBtn').onclick = () => {
     document.getElementById('addDraftNameInput').value = '';
@@ -1096,6 +1143,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const text = document.getElementById('addDraftTextarea').value;
     if(!text.trim()){ alert('本文を入力してください'); return; }
 
+    const isFirstDraft = data.series.length === 0; // 最初の1本目だけ全選択でスタート
+
     const usedLabels = new Set(data.series.map(s=>s.label));
     let labelChar = SELECTOR_LABELS.split('').find(ch => !usedLabels.has(ch)) || '?';
     const nameInput = document.getElementById('addDraftNameInput').value.trim();
@@ -1108,7 +1157,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     const sentences = splitIntoSentences(text);
     sentences.forEach((sentence, i) => {
-      const card = { id: uid('sc'), text: sentence, selected: false };
+      const card = { id: uid('sc'), text: sentence, selected: isFirstDraft };
       if(!data.rows[i]){
         const newRow = {};
         data.series.forEach(s => { newRow[s.id] = []; });
