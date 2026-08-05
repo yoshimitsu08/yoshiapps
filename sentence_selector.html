@@ -144,6 +144,21 @@ h1 .mark { color:var(--accent); font-style:italic; }
   border-radius:2px;
   flex-shrink:0;
 }
+.selector-legend-delete-btn {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text3);
+  font-size:0.62rem;
+  width:20px; height:20px;
+  border-radius:3px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.selector-legend-delete-btn:hover {
+  border-color:var(--danger);
+  color:var(--danger);
+}
 
 .editor-body {
   padding:20px;
@@ -736,12 +751,42 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   // ---- render ----
   function renderAll(){
-    document.getElementById('selectorLegend').innerHTML = data.series.map(s => `
-      <div class="selector-legend-item"><span class="selector-legend-dot" style="background:${s.color}"></span>Draft ${s.label}</div>
-    `).join('') || '<div class="selector-empty-text">まだドラフトがありません。「＋ドラフトを追加」から始めてください。</div>';
+    const legendEl = document.getElementById('selectorLegend');
+    if(data.series.length === 0){
+      legendEl.innerHTML = '<div class="selector-empty-text">まだドラフトがありません。「＋ドラフトを追加」から始めてください。</div>';
+    } else {
+      legendEl.innerHTML = '';
+      data.series.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'selector-legend-item';
+        item.innerHTML = `
+          <span class="selector-legend-dot" style="background:${s.color}"></span>
+          <span>Draft ${s.label}</span>
+          <button type="button" class="selector-legend-delete-btn" title="このドラフトを全削除">🗑</button>
+        `;
+        item.querySelector('.selector-legend-delete-btn').onclick = () => deleteDraft(s.id, s.label);
+        legendEl.appendChild(item);
+      });
+    }
 
     renderRows();
     renderComposed();
+  }
+
+  function deleteDraft(seriesId, label){
+    if(!confirm(`Draft ${label} を丸ごと削除します。このドラフトの全カードが失われ、元に戻せません。よろしいですか？`)) return;
+
+    data.series = data.series.filter(s => s.id !== seriesId);
+    data.rows.forEach(row => { delete row[seriesId]; });
+    cleanupEmptyRows();
+    menuOpenFor = null;
+    if(editingCardId){
+      const stillExists = data.rows.some(row => (row[seriesId]||[]).some(c => c.id === editingCardId));
+      if(!stillExists) editingCardId = null;
+    }
+
+    save();
+    renderAll();
   }
 
   function renderRows(){
