@@ -1256,6 +1256,21 @@ h1 .mark { color:var(--accent); font-style:italic; }
   border-radius:2px;
   flex-shrink:0;
 }
+.selector-legend-delete-btn {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text3);
+  font-size:0.62rem;
+  width:20px; height:20px;
+  border-radius:3px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.selector-legend-delete-btn:hover {
+  border-color:var(--danger);
+  color:var(--danger);
+}
 
 .selector-row-group {
   display:flex;
@@ -3659,12 +3674,46 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const selector = ensureSelector(entry);
 
     // legend
-    document.getElementById('selectorLegend').innerHTML = selector.series.map(s => `
-      <div class="selector-legend-item"><span class="selector-legend-dot" style="background:${s.color}"></span>Draft ${s.label}</div>
-    `).join('') || '<div class="selector-empty-text">まだドラフトがありません。右上の「＋ドラフト」から追加してください。</div>';
+    const legendEl = document.getElementById('selectorLegend');
+    if(selector.series.length === 0){
+      legendEl.innerHTML = '<div class="selector-empty-text">まだドラフトがありません。右上の「＋ドラフト」から追加してください。</div>';
+    } else {
+      legendEl.innerHTML = '';
+      selector.series.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'selector-legend-item';
+        item.innerHTML = `
+          <span class="selector-legend-dot" style="background:${s.color}"></span>
+          <span>Draft ${s.label}</span>
+          <button type="button" class="selector-legend-delete-btn" title="このドラフトを全削除">🗑</button>
+        `;
+        item.querySelector('.selector-legend-delete-btn').onclick = () => deleteSelectorDraft(s.id, s.label);
+        legendEl.appendChild(item);
+      });
+    }
 
     renderSelectorRows();
     renderSelectorComposed();
+  }
+
+  function deleteSelectorDraft(seriesId, label){
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    if(!confirm(`Draft ${label} を丸ごと削除します。このドラフトの全カードが失われ、元に戻せません。よろしいですか？`)) return;
+
+    selector.series = selector.series.filter(s => s.id !== seriesId);
+    selector.rows.forEach(row => { delete row[seriesId]; });
+    cleanupEmptySelectorRows(selector);
+    selectorMenuOpenFor = null;
+    if(selectorEditingCardId){
+      // 編集中のカードがこのドラフトに属していた場合は編集をキャンセル
+      const stillExists = selector.rows.some(row => (row[seriesId]||[]).some(c => c.id === selectorEditingCardId));
+      if(!stillExists) selectorEditingCardId = null;
+    }
+
+    const p = projects.find(x=>x.id===currentSelectorProjectId);
+    if(p){ p.updatedAt = Date.now(); recomputeTotalWordcount(p); save(); }
+    renderSelectorAll();
   }
 
   function renderSelectorRows(){
