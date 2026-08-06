@@ -1229,6 +1229,41 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text3);
   font-size:0.75rem;
 }
+.all-preview-wrap {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:20px;
+}
+.all-preview-title {
+  font-family:var(--font-body);
+  font-size:1.3rem;
+  color:var(--accent);
+  text-align:center;
+  margin-bottom:28px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.all-preview-chapter {
+  margin-bottom:32px;
+}
+.all-preview-chapter:last-child { margin-bottom:0; }
+.all-preview-chapter-heading {
+  font-family:var(--font-body);
+  font-size:1rem;
+  color:var(--text);
+  font-weight:bold;
+  margin-bottom:12px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+.all-preview-chapter-body {
+  font-family:var(--font-ui);
+  font-size:0.82rem;
+  line-height:1.8;
+  color:var(--text);
+  white-space:pre-wrap;
+}
 .manuscript-empty-state {
   text-align:center;
   padding:60px 20px;
@@ -3512,6 +3547,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderGrid();
   };
 
+  const ALL_PREVIEW_TAB_ID = '__ALL_PREVIEW__';
+
   function renderChapterTabs(p){
     const nav = document.getElementById('manuscriptChapterNav');
     if(!p.plotChapters || p.plotChapters.length===0){
@@ -3520,6 +3557,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     // 既存のタブ列があれば使い回し、なければ新規作成（スクロール位置を保持するため丸ごと再生成しない）
     let tabs = nav.querySelector('.chapter-tabs');
+    const expectedCount = p.plotChapters.length + 1; // +1 は全章プレビュータブ
     if(!tabs){
       tabs = document.createElement('div');
       tabs.className = 'chapter-tabs';
@@ -3528,7 +3566,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
 
     // 章の数が変わっている場合のみ全再構築、それ以外は各タブの状態だけ更新
-    const needsRebuild = tabs.children.length !== p.plotChapters.length;
+    const needsRebuild = tabs.children.length !== expectedCount;
     if(needsRebuild){
       tabs.innerHTML = '';
       p.plotChapters.forEach((ch, idx) => {
@@ -3541,6 +3579,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
         };
         tabs.appendChild(tab);
       });
+      const allTab = document.createElement('div');
+      allTab.dataset.chapterId = ALL_PREVIEW_TAB_ID;
+      allTab.onclick = () => {
+        currentChapterId = ALL_PREVIEW_TAB_ID;
+        renderChapterTabs(p);
+        renderManuscriptEditArea(p);
+      };
+      tabs.appendChild(allTab);
     }
 
     p.plotChapters.forEach((ch, idx) => {
@@ -3550,6 +3596,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       tab.className = 'chapter-tab' + (ch.id===currentChapterId ? ' active' : '') + (isDone ? ' is-done' : '');
       tab.innerHTML = `<span class="tab-done-mark"></span>第${idx+1}章${ch.title ? '：'+escapeHTML(ch.title) : ''}`;
     });
+
+    const allTab = tabs.children[p.plotChapters.length];
+    if(allTab){
+      allTab.className = 'chapter-tab' + (currentChapterId===ALL_PREVIEW_TAB_ID ? ' active' : '');
+      allTab.innerHTML = `📖 全章プレビュー`;
+    }
   }
 
   const CHAPTER_STATUS_LABELS = { writing:'執筆中', revising:'推敲中', done:'完了' };
@@ -3558,6 +3610,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const area = document.getElementById('manuscriptEditArea');
     if(!currentChapterId){
       area.innerHTML = `<div class="manuscript-empty-state"><div class="glyph">✏</div><p>章がありません。<br>先に「設定・プロット」で章を追加してください。</p></div>`;
+      return;
+    }
+    if(currentChapterId === ALL_PREVIEW_TAB_ID){
+      renderAllChaptersPreview(p);
       return;
     }
     const idx = p.plotChapters.findIndex(c => c.id === currentChapterId);
@@ -3606,6 +3662,46 @@ h1 .mark { color:var(--accent); font-style:italic; }
       openSentenceSelector(p.id, ch.id);
     };
   }
+
+  function renderAllChaptersPreview(p){
+    const area = document.getElementById('manuscriptEditArea');
+    if(!p.plotChapters || p.plotChapters.length === 0){
+      area.innerHTML = `<div class="manuscript-empty-state"><div class="glyph">📖</div><p>章がありません。<br>先に「設定・プロット」で章を追加してください。</p></div>`;
+      return;
+    }
+
+    let fullText = `${p.title || '無題'}\n\n`;
+    let html = `<div class="all-preview-title">${escapeHTML(p.title || '無題')}</div>`;
+
+    p.plotChapters.forEach((ch, idx) => {
+      const entry = p.manuscript[ch.id];
+      const selector = entry ? ensureSelector(entry) : { series:[], rows:[] };
+      const composedText = composeSelectorText(selector);
+      const heading = `第${idx+1}章${ch.title ? '　' + ch.title : ''}`;
+
+      fullText += `${heading}\n\n${composedText || '（本文未執筆）'}\n\n\n`;
+      html += `
+        <div class="all-preview-chapter">
+          <div class="all-preview-chapter-heading">${escapeHTML(heading)}</div>
+          <div class="all-preview-chapter-body">${
+            composedText ? escapeHTML(composedText) : `<span class="manuscript-preview-empty">（本文未執筆）</span>`
+          }</div>
+        </div>
+      `;
+    });
+
+    area.innerHTML = `
+      <div class="manuscript-textarea-wrap">
+        <button type="button" class="btn primary" id="copyAllPreviewBtn" style="width:100%; margin-bottom:16px;">📋 全章を一括コピー</button>
+        <div class="all-preview-wrap">${html}</div>
+      </div>
+    `;
+
+    document.getElementById('copyAllPreviewBtn').onclick = async () => {
+      await copyTextWithToast(fullText.trim());
+    };
+  }
+
 
   function recomputeTotalWordcount(p){
     // 全章の合成テキスト文字数を合算して合計文字数として反映
