@@ -1768,22 +1768,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <input type="file" id="importFileInput" accept="application/json" style="display:none;">
 <input type="file" id="importTemplateFileInput" accept="application/json" style="display:none;">
 
-<!-- ============ Update History Modal ============ -->
-<div class="modal-overlay" id="historyModalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>更新履歴</h2>
-      <button class="modal-close" id="historyModalClose">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="historyList"></div>
-      <div class="chapter-note" style="margin-top:12px;">
-        同じ日に同じ端末から複数回更新しても1件にまとめて記録します。最大20件保持し、古いものから削除されます。
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ============ Prompt Template List Modal ============ -->
 <div class="modal-overlay" id="templateListModalOverlay">
   <div class="modal">
@@ -1903,6 +1887,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
 </div>
 
 </div><!-- /#dashboardView -->
+
+<!-- ============ Update History Modal ============ -->
+<div class="modal-overlay" id="historyModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>更新履歴</h2>
+      <button class="modal-close" id="historyModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="historyList"></div>
+      <div class="chapter-note" style="margin-top:12px;">
+        同じ日に同じ端末から複数回更新しても1件にまとめて記録します。最大20件保持し、古いものから削除されます。
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ============ AI Import Flow View ============ -->
 <div class="view" id="aiImportView">
