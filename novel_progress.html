@@ -393,6 +393,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
   justify-content:space-between;
 }
 .card-wordcount .num { color:var(--accent); font-weight:bold; }
+.card-last-device {
+  margin-top:6px;
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+}
 
 /* ---------- Empty state ---------- */
 .empty-state {
@@ -1762,6 +1768,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <input type="file" id="importFileInput" accept="application/json" style="display:none;">
 <input type="file" id="importTemplateFileInput" accept="application/json" style="display:none;">
 
+<!-- ============ Update History Modal ============ -->
+<div class="modal-overlay" id="historyModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>更新履歴</h2>
+      <button class="modal-close" id="historyModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="historyList"></div>
+      <div class="chapter-note" style="margin-top:12px;">
+        同じ日に同じ端末から複数回更新しても1件にまとめて記録します。最大20件保持し、古いものから削除されます。
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Prompt Template List Modal ============ -->
 <div class="modal-overlay" id="templateListModalOverlay">
   <div class="modal">
@@ -1823,6 +1845,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
         <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆者を編集</button>
+        <button type="button" class="dropdown-item" id="menuHistoryBtn">🕒 更新履歴を表示</button>
         <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
         <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
       </div>
@@ -2206,16 +2229,54 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   const STORAGE_KEY = 'manuscript_projects_v1';
   const TEMPLATES_STORAGE_KEY = 'manuscript_prompt_templates_v1';
+  const DEVICE_NAME_STORAGE_KEY = 'manuscript_device_name_v1';
   const STAGE_COLORS = { genan:'var(--c-genan)', plot:'var(--c-plot)', honbun:'var(--c-honbun)', kousei:'var(--c-kousei)' };
   const TRI_LABELS = ['未着手','着手','完了'];
   const SELECTOR_COLORS = ['#8fa8c8', '#c8a96e', '#7ec8a8', '#c08a6e', '#a88fc8', '#c86e8f', '#6ec8b8', '#c8c06e'];
   const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const MAX_UPDATE_HISTORY = 20;
 
   let projects = [];
   let currentDetailId = null;
   let selectMode = false;
   let selectedIds = new Set();
   let promptTemplates = [];
+  let deviceName = null;
+
+  // ---------- Device name (per-browser, independent of project data) ----------
+  function getDeviceName(){
+    if(deviceName) return deviceName;
+    try {
+      const saved = localStorage.getItem(DEVICE_NAME_STORAGE_KEY);
+      if(saved && saved.trim()){
+        deviceName = saved.trim();
+        return deviceName;
+      }
+    } catch(_e){ /* ignore */ }
+    const input = prompt('この端末の呼び名を入力してください（例：Xperia、PC など）\n※作品の更新履歴に「いつ・どの端末で更新したか」を記録するために使います。');
+    const name = (input && input.trim()) ? input.trim() : '不明な端末';
+    try { localStorage.setItem(DEVICE_NAME_STORAGE_KEY, name); } catch(_e){ /* ignore */ }
+    deviceName = name;
+    return deviceName;
+  }
+
+  // 作品の更新時に呼ぶ。直近の履歴と「日付・端末名」が完全一致する場合のみ記録をスキップする
+  function recordUpdateHistory(p){
+    if(!p.updateHistory) p.updateHistory = [];
+    const today = todayISO();
+    const device = getDeviceName();
+    const last = p.updateHistory[p.updateHistory.length - 1];
+    if(last && last.date === today && last.device === device) return; // 直近と完全一致なら記録しない
+    p.updateHistory.push({ date: today, device: device });
+    if(p.updateHistory.length > MAX_UPDATE_HISTORY){
+      p.updateHistory.splice(0, p.updateHistory.length - MAX_UPDATE_HISTORY);
+    }
+  }
+
+  function lastUpdateInfo(p){
+    if(!p.updateHistory || p.updateHistory.length === 0) return null;
+    return p.updateHistory[p.updateHistory.length - 1];
+  }
 
   // 句点「。」区切りの簡易文分割（「」内の句点は無視する）
   function splitIntoSentences(text){
@@ -2296,11 +2357,26 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
       if(p.writingPrompt === undefined) p.writingPrompt = '';
       if(p.author === undefined) p.author = '';
+      if(!p.updateHistory) p.updateHistory = [];
+      p._lastSavedUpdatedAt = p.updatedAt; // 読み込み直後は「未変更」扱いにし、次のsave()で不要な履歴追加をしない
       delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
     });
   }
   function save(){
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }
+    projects.forEach(p => {
+      if(p._lastSavedUpdatedAt !== p.updatedAt){
+        recordUpdateHistory(p);
+        p._lastSavedUpdatedAt = p.updatedAt;
+      }
+    });
+    try {
+      // _lastSavedUpdatedAt は内部管理用の一時プロパティなので保存対象から除外
+      const serializable = projects.map(p => {
+        const { _lastSavedUpdatedAt, ...rest } = p;
+        return rest;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+    }
     catch(_e){ alert('保存に失敗しました。ブラウザのストレージ容量を確認してください。'); }
     updateStorageUsageDisplay();
   }
@@ -2532,6 +2608,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       roughMemo: '',
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
+      updateHistory: [], // [{date, device}, ...] 最大MAX_UPDATE_HISTORY件
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -2697,8 +2774,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <span>合計文字数</span>
           <span class="num">${(p.wordcount||0).toLocaleString()} 字</span>
         </div>
+        <div class="card-last-device">${lastUpdateInfoLabel(p)}</div>
       </div>
     </div>`;
+  }
+
+  function lastUpdateInfoLabel(p){
+    const info = lastUpdateInfo(p);
+    if(!info) return '最終更新: —';
+    const d = new Date(info.date + 'T00:00:00');
+    return `最終更新: ${d.toLocaleDateString('ja-JP')}（${escapeHTML(info.device)}）`;
   }
 
   function tripleArgs(val){
@@ -3127,6 +3212,31 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
     document.getElementById('detailAuthorDisplay').textContent = p.author ? `執筆者：${p.author}` : '';
   };
+  document.getElementById('menuHistoryBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    renderHistoryList(p);
+    document.getElementById('historyModalOverlay').classList.add('active');
+  };
+  document.getElementById('historyModalClose').onclick = () => {
+    document.getElementById('historyModalOverlay').classList.remove('active');
+  };
+  document.getElementById('historyModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'historyModalOverlay') document.getElementById('historyModalOverlay').classList.remove('active');
+  });
+  function renderHistoryList(p){
+    const list = document.getElementById('historyList');
+    const history = (p.updateHistory || []).slice().reverse(); // 新しい順に表示
+    if(history.length === 0){
+      list.innerHTML = '<div class="chapter-tabs-empty">まだ更新履歴がありません</div>';
+      return;
+    }
+    list.innerHTML = history.map(h => {
+      const d = new Date(h.date + 'T00:00:00');
+      return `<div class="storage-detail-row"><span class="sd-title">${d.toLocaleDateString('ja-JP')}</span><span class="sd-size">${escapeHTML(h.device)}</span></div>`;
+    }).join('');
+  }
   document.getElementById('menuExportBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
     const p = projects.find(x=>x.id===currentDetailId);
