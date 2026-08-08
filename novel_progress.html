@@ -1405,30 +1405,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
   flex:1;
   min-width:0;
   position:relative;
-  touch-action:pan-y;
 }
 .selector-card-text-wrap {
   padding:10px 12px 10px 0;
   position:relative;
   background:var(--bg2);
-  transition:transform .05s linear;
 }
 .selector-card.selected .selector-card-text-wrap { background:var(--bg3); }
-.selector-card-delete-bg {
-  position:absolute;
-  inset:0;
-  background:var(--danger);
-  display:flex;
-  align-items:center;
-  padding-left:16px;
-  color:#fff;
-  font-family:var(--font-ui);
-  font-size:0.7rem;
-  font-weight:700;
-  opacity:0;
-  transition:opacity .1s;
-}
-.selector-card-delete-bg.visible { opacity:1; }
 .selector-card-tag {
   font-family:var(--font-ui);
   font-size:0.58rem;
@@ -1493,6 +1476,19 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .selector-gear-menu-btn.back { border-color:#8a4a3f; color:#e8a99a; }
 .selector-gear-menu-btn.fwd { border-color:#3f5a7a; color:#9fc0e0; }
 .selector-gear-menu-arrow { font-weight:900; }
+.selector-gear-menu-delete-btn {
+  width:100%;
+  margin-top:10px;
+  font-family:var(--font-ui);
+  font-size:0.63rem;
+  padding:8px;
+  border-radius:4px;
+  border:1px solid var(--danger);
+  background:none;
+  color:var(--danger);
+  cursor:pointer;
+}
+.selector-gear-menu-delete-btn:hover { background:var(--danger); color:#fff; }
 
 .selector-edit-textarea {
   width:100%;
@@ -1927,6 +1923,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <label>思いついた要素を自由に書きなぐってください（箇条書きでもOK）</label>
         <textarea id="aiRoughMemoTextarea" class="section-textarea" style="min-height:280px;" placeholder="例：&#10;・主人公は元傭兵、記憶喪失&#10;・舞台は滅びかけた魔法都市&#10;・裏切り者の親友が鍵になる&#10;・ラストは自己犠牲エンド…みたいな断片でOK"></textarea>
       </div>
+      <div class="field">
+        <label>1章あたりの目安文字数（任意）</label>
+        <input type="number" id="aiTargetLengthInput" placeholder="例：3000" min="0" step="100">
+      </div>
       <button class="btn primary" id="aiStep1NextBtn" style="width:100%;">次へ：プロンプトを作る →</button>
     </div>
   </div>
@@ -2354,6 +2354,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         }
       });
       if(p.roughMemo === undefined) p.roughMemo = '';
+      if(p.aiTargetLength === undefined) p.aiTargetLength = null;
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
       if(p.writingPrompt === undefined) p.writingPrompt = '';
       if(p.author === undefined) p.author = '';
@@ -2606,6 +2607,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       plotChapters: [],
       manuscript: {}, // chapterId -> { status, selector: { series:[], rows:[] } }
       roughMemo: '',
+      aiTargetLength: null, // AIと作るフローで指定する1章あたりの目安文字数
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
       updateHistory: [], // [{date, device}, ...] 最大MAX_UPDATE_HISTORY件
@@ -4041,11 +4043,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
     cardEl.innerHTML = `
       <div class="selector-card-left-col">
-        <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
+        <button type="button" class="selector-gear-btn" title="送る／戻す／削除">⚙</button>
         <div class="selector-card-badge${isSelected ? '' : ' unselected'}" style="background:${isSelected ? s.color : ''}" title="タップで採用切替">${s.label}</div>
       </div>
       <div class="selector-card-text-wrap-outer">
-        <div class="selector-card-delete-bg">🗑 削除</div>
         <div class="selector-card-text-wrap">
           ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
           <div class="selector-card-text">${escapeHTML(card.text)}</div>
@@ -4059,87 +4060,41 @@ h1 .mark { color:var(--accent); font-style:italic; }
       toggleSelectorCard(card.id);
     };
 
-    // 歯車 = STAY/PUSHメニュー
+    // 歯車 = STAY/PUSH/削除メニュー
     cardEl.querySelector('.selector-gear-btn').onclick = (e) => {
       e.stopPropagation();
       selectorMenuOpenFor = isMenuOpen ? null : { rowIdx, seriesId: s.id, cardId: card.id };
       renderSelectorRows();
     };
 
-    // テキスト領域 = 長押しで編集、右スワイプで削除
+    // テキスト領域 = タップで採用トグル、長押しで編集（範囲選択・コピーは編集モードのtextarea上で行う）
     const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
-    const textWrap = cardEl.querySelector('.selector-card-text-wrap');
-    const deleteBgEl = cardEl.querySelector('.selector-card-delete-bg');
 
     let longPressTimer = null;
     let longPressFired = false;
-    let dragStartX = null;
-    let dragCurrentX = 0;
-    let isDragging = false;
-    const DRAG_THRESHOLD = 8; // これ以上動いたらドラッグとみなし長押しをキャンセル
 
-    function getClientX(e){
-      return e.touches ? e.touches[0].clientX : e.clientX;
-    }
-
-    function startPress(e){
+    function startPress(){
       longPressFired = false;
-      dragStartX = getClientX(e);
-      dragCurrentX = 0;
-      isDragging = false;
       longPressTimer = setTimeout(() => {
-        if(!isDragging){
-          longPressFired = true;
-          selectorEditingCardId = card.id;
-          selectorEditingDraft = card.text;
-          selectorMenuOpenFor = null;
-          renderSelectorRows();
-        }
+        longPressFired = true;
+        selectorEditingCardId = card.id;
+        selectorEditingDraft = card.text;
+        selectorMenuOpenFor = null;
+        renderSelectorRows();
       }, 550);
-    }
-    function movePress(e){
-      if(dragStartX === null) return;
-      const x = getClientX(e);
-      const delta = x - dragStartX;
-      if(Math.abs(delta) > DRAG_THRESHOLD){
-        isDragging = true;
-        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-      }
-      if(isDragging && delta > 0){
-        dragCurrentX = delta;
-        textWrap.style.transform = `translateX(${delta}px)`;
-        deleteBgEl.classList.add('visible');
-      }
     }
     function endPress(){
       if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-      if(isDragging){
-        const cardWidth = textWrapOuter.getBoundingClientRect().width || 1;
-        if(dragCurrentX > cardWidth * 0.5){
-          // 半分以上スワイプされたら削除
-          deleteSelectorCard(rowIdx, s.id, card.id);
-          return;
-        } else {
-          textWrap.style.transition = 'transform .18s ease';
-          textWrap.style.transform = 'translateX(0)';
-          deleteBgEl.classList.remove('visible');
-          setTimeout(() => { textWrap.style.transition = ''; }, 200);
-        }
-      }
-      dragStartX = null;
-      dragCurrentX = 0;
-      isDragging = false;
     }
 
     textWrapOuter.addEventListener('mousedown', startPress);
-    textWrapOuter.addEventListener('mousemove', movePress);
     textWrapOuter.addEventListener('mouseup', endPress);
     textWrapOuter.addEventListener('mouseleave', endPress);
     textWrapOuter.addEventListener('touchstart', startPress, { passive: true });
-    textWrapOuter.addEventListener('touchmove', movePress, { passive: true });
     textWrapOuter.addEventListener('touchend', endPress);
-    textWrapOuter.addEventListener('click', () => {
+    textWrapOuter.addEventListener('click', (e) => {
       if(longPressFired){ longPressFired = false; return; }
+      toggleSelectorCard(card.id);
     });
 
     wrapper.appendChild(cardEl);
@@ -4161,6 +4116,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇩</span>STAY</button>
           <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="push"><span class="selector-gear-menu-arrow">⇩⇩</span>PUSH</button>
         </div>
+        <button type="button" class="selector-gear-menu-delete-btn">🗑 このカードを削除</button>
       `;
       menu.querySelector('.selector-gear-menu-close').onclick = (e) => {
         e.stopPropagation();
@@ -4173,6 +4129,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
           moveSelectorCard(rowIdx, s.id, card.id, parseInt(btn.dataset.dir,10), btn.dataset.mode);
         };
       });
+      menu.querySelector('.selector-gear-menu-delete-btn').onclick = (e) => {
+        e.stopPropagation();
+        deleteSelectorCard(rowIdx, s.id, card.id);
+      };
       wrapper.appendChild(menu);
     }
 
@@ -4498,6 +4458,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(!p) return;
     document.getElementById('aiImportWorkTitle').textContent = p.title || '無題';
     document.getElementById('aiRoughMemoTextarea').value = p.roughMemo || '';
+    document.getElementById('aiTargetLengthInput').value = p.aiTargetLength || '';
     document.getElementById('aiPasteTextarea').value = '';
     document.getElementById('aiParsePreviewWrap').style.display = 'none';
     aiParsedResult = null;
@@ -4532,6 +4493,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
   });
 
+  document.getElementById('aiTargetLengthInput').addEventListener('input', (e) => {
+    const p = projects.find(x=>x.id===currentAiImportId);
+    if(!p) return;
+    const val = parseInt(e.target.value, 10);
+    p.aiTargetLength = (e.target.value === '' || isNaN(val)) ? null : val;
+    p.updatedAt = Date.now();
+    save();
+  });
+
   document.getElementById('aiStep1NextBtn').onclick = () => {
     setAiStep('aiStep2');
     renderAiStep2Prompt();
@@ -4542,10 +4512,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const p = projects.find(x=>x.id===currentAiImportId);
     if(!p) return;
     const memo = (p.roughMemo || '').trim() || '（メモなし）';
+    const lengthNote = p.aiTargetLength
+      ? `\n\n【1章あたりの目安文字数】\n各章はおよそ${p.aiTargetLength.toLocaleString()}字を目安にプロットを組み立ててください（出来事の粒度・章数もこの文字数感に合わせて調整してください）。`
+      : '';
     const prompt = `あなたはプロの小説編集者です。以下は、これから書く小説のために書きなぐったメモです。この内容を整理・拡張し、詳細な「設定」と「プロット（章立て）」を作成してください。
 
 【元メモ】
-${memo}
+${memo}${lengthNote}
 
 【出力形式について（厳守してください）】
 以下のフォーマットに沿って、過不足なく出力してください。この見出し記号（【】と■）は省略せず、指定通りの位置に付けてください。
