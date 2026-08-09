@@ -275,30 +275,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
   flex:1;
   min-width:0;
   position:relative;
-  touch-action:pan-y;
 }
 .selector-card-text-wrap {
   padding:10px 12px 10px 0;
   position:relative;
   background:var(--bg2);
-  transition:transform .05s linear;
 }
 .selector-card.selected .selector-card-text-wrap { background:var(--bg3); }
-.selector-card-delete-bg {
-  position:absolute;
-  inset:0;
-  background:var(--danger);
-  display:flex;
-  align-items:center;
-  padding-left:16px;
-  color:#fff;
-  font-family:var(--font-ui);
-  font-size:0.7rem;
-  font-weight:700;
-  opacity:0;
-  transition:opacity .1s;
-}
-.selector-card-delete-bg.visible { opacity:1; }
 .selector-card-tag {
   font-family:var(--font-ui);
   font-size:0.58rem;
@@ -363,6 +346,19 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .selector-gear-menu-btn.back { border-color:#8a4a3f; color:#e8a99a; }
 .selector-gear-menu-btn.fwd { border-color:#3f5a7a; color:#9fc0e0; }
 .selector-gear-menu-arrow { font-weight:900; }
+.selector-gear-menu-delete-btn {
+  width:100%;
+  margin-top:10px;
+  font-family:var(--font-ui);
+  font-size:0.63rem;
+  padding:8px;
+  border-radius:4px;
+  border:1px solid var(--danger);
+  background:none;
+  color:var(--danger);
+  cursor:pointer;
+}
+.selector-gear-menu-delete-btn:hover { background:var(--danger); color:#fff; }
 
 .selector-edit-textarea {
   width:100%;
@@ -546,6 +542,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
   <button class="hamburger-btn" id="hamburgerBtn">☰</button>
   <div class="dropdown-menu" id="dropdownMenu">
+    <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 長押し速度を調整</button>
     <button type="button" class="dropdown-item" id="menuExportBtn">📤 エクスポート</button>
     <button type="button" class="dropdown-item" id="menuImportBtn">📥 インポート（上書き）</button>
     <button type="button" class="dropdown-item danger" id="menuResetBtn">🗑 すべてクリア</button>
@@ -568,6 +565,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="composed-preview" id="composedPreview"></div>
     <button type="button" class="header-btn primary" id="copyComposedBtn" style="width:100%; margin-top:12px;">📋 一括コピー</button>
+  </div>
+</div>
+
+<!-- ============ Long Press Speed Modal ============ -->
+<div class="modal-overlay" id="longPressModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>長押し速度の調整</h2>
+      <button class="modal-close" id="longPressModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:14px;">
+        カードを長押しして編集モードに入るまでの時間を調整できます。すぐ反応しすぎる場合は長めに設定してください。
+      </div>
+      <div class="field">
+        <label>長押し判定時間：<span id="longPressValueLabel">0.55</span>秒</label>
+        <input type="range" id="longPressRangeInput" min="200" max="1500" step="50" style="width:100%;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="header-btn primary" id="longPressSaveBtn" style="width:100%;">保存</button>
+    </div>
   </div>
 </div>
 
@@ -606,14 +625,29 @@ h1 .mark { color:var(--accent); font-style:italic; }
   'use strict';
 
   const STORAGE_KEY = 'sentence_selector_v1';
+  const LONGPRESS_STORAGE_KEY = 'sentence_selector_longpress_ms_v1';
   const SELECTOR_COLORS = ['#8fa8c8', '#c8a96e', '#7ec8a8', '#c08a6e', '#a88fc8', '#c86e8f', '#6ec8b8', '#c8c06e'];
   const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const DEFAULT_LONGPRESS_MS = 550;
 
   // ---- data ----
   let data = { series: [], rows: [] };
   let menuOpenFor = null; // { rowIdx, seriesId, cardId } | null
   let editingCardId = null;
   let editingDraft = '';
+  let longPressMs = DEFAULT_LONGPRESS_MS;
+
+  function loadLongPressMs(){
+    try {
+      const saved = localStorage.getItem(LONGPRESS_STORAGE_KEY);
+      const n = parseInt(saved, 10);
+      if(!isNaN(n) && n >= 200 && n <= 3000) longPressMs = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveLongPressMs(ms){
+    longPressMs = ms;
+    try { localStorage.setItem(LONGPRESS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
+  }
 
   function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
@@ -747,6 +781,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
     editingCardId = null;
     save();
     renderAll();
+  };
+
+  document.getElementById('menuLongPressBtn').onclick = () => {
+    document.getElementById('dropdownMenu').classList.remove('active');
+    const range = document.getElementById('longPressRangeInput');
+    range.value = longPressMs;
+    document.getElementById('longPressValueLabel').textContent = (longPressMs/1000).toFixed(2);
+    document.getElementById('longPressModalOverlay').classList.add('active');
+  };
+  document.getElementById('longPressModalClose').onclick = () => {
+    document.getElementById('longPressModalOverlay').classList.remove('active');
+  };
+  document.getElementById('longPressModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'longPressModalOverlay') document.getElementById('longPressModalOverlay').classList.remove('active');
+  });
+  document.getElementById('longPressRangeInput').addEventListener('input', (e) => {
+    document.getElementById('longPressValueLabel').textContent = (parseInt(e.target.value,10)/1000).toFixed(2);
+  });
+  document.getElementById('longPressSaveBtn').onclick = () => {
+    const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
+    saveLongPressMs(val);
+    document.getElementById('longPressModalOverlay').classList.remove('active');
   };
 
   // ---- render ----
@@ -904,11 +960,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
     cardEl.innerHTML = `
       <div class="selector-card-left-col">
-        <button type="button" class="selector-gear-btn" title="送る／戻す">⚙</button>
+        <button type="button" class="selector-gear-btn" title="送る／戻す／削除">⚙</button>
         <div class="selector-card-badge${isSelected ? '' : ' unselected'}" style="background:${isSelected ? s.color : ''}" title="タップで採用切替">${s.label}</div>
       </div>
       <div class="selector-card-text-wrap-outer">
-        <div class="selector-card-delete-bg">🗑 削除</div>
         <div class="selector-card-text-wrap">
           ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
           <div class="selector-card-text">${escapeHTML(card.text)}</div>
@@ -927,76 +982,34 @@ h1 .mark { color:var(--accent); font-style:italic; }
       renderRows();
     };
 
+    // テキスト領域 = タップで採用トグル、長押しで編集（範囲選択・コピーは編集モードのtextarea上で行う）
     const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
-    const textWrap = cardEl.querySelector('.selector-card-text-wrap');
-    const deleteBgEl = cardEl.querySelector('.selector-card-delete-bg');
 
     let longPressTimer = null;
     let longPressFired = false;
-    let dragStartX = null;
-    let dragCurrentX = 0;
-    let isDragging = false;
-    const DRAG_THRESHOLD = 8;
 
-    function getClientX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
-
-    function startPress(e){
+    function startPress(){
       longPressFired = false;
-      dragStartX = getClientX(e);
-      dragCurrentX = 0;
-      isDragging = false;
       longPressTimer = setTimeout(() => {
-        if(!isDragging){
-          longPressFired = true;
-          editingCardId = card.id;
-          editingDraft = card.text;
-          menuOpenFor = null;
-          renderRows();
-        }
-      }, 550);
-    }
-    function movePress(e){
-      if(dragStartX === null) return;
-      const x = getClientX(e);
-      const delta = x - dragStartX;
-      if(Math.abs(delta) > DRAG_THRESHOLD){
-        isDragging = true;
-        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-      }
-      if(isDragging && delta > 0){
-        dragCurrentX = delta;
-        textWrap.style.transform = `translateX(${delta}px)`;
-        deleteBgEl.classList.add('visible');
-      }
+        longPressFired = true;
+        editingCardId = card.id;
+        editingDraft = card.text;
+        menuOpenFor = null;
+        renderRows();
+      }, longPressMs);
     }
     function endPress(){
       if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-      if(isDragging){
-        const cardWidth = textWrapOuter.getBoundingClientRect().width || 1;
-        if(dragCurrentX > cardWidth * 0.5){
-          deleteCard(rowIdx, s.id, card.id);
-          return;
-        } else {
-          textWrap.style.transition = 'transform .18s ease';
-          textWrap.style.transform = 'translateX(0)';
-          deleteBgEl.classList.remove('visible');
-          setTimeout(() => { textWrap.style.transition = ''; }, 200);
-        }
-      }
-      dragStartX = null;
-      dragCurrentX = 0;
-      isDragging = false;
     }
 
     textWrapOuter.addEventListener('mousedown', startPress);
-    textWrapOuter.addEventListener('mousemove', movePress);
     textWrapOuter.addEventListener('mouseup', endPress);
     textWrapOuter.addEventListener('mouseleave', endPress);
     textWrapOuter.addEventListener('touchstart', startPress, { passive: true });
-    textWrapOuter.addEventListener('touchmove', movePress, { passive: true });
     textWrapOuter.addEventListener('touchend', endPress);
-    textWrapOuter.addEventListener('click', () => {
+    textWrapOuter.addEventListener('click', (e) => {
       if(longPressFired){ longPressFired = false; return; }
+      toggleCard(card.id);
     });
 
     wrapper.appendChild(cardEl);
@@ -1018,6 +1031,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="coexist"><span class="selector-gear-menu-arrow">⇩</span>STAY</button>
           <button type="button" class="selector-gear-menu-btn fwd" data-dir="1" data-mode="push"><span class="selector-gear-menu-arrow">⇩⇩</span>PUSH</button>
         </div>
+        <button type="button" class="selector-gear-menu-delete-btn">🗑 このカードを削除</button>
       `;
       menu.querySelector('.selector-gear-menu-close').onclick = (e) => {
         e.stopPropagation();
@@ -1030,6 +1044,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
           moveCard(rowIdx, s.id, card.id, parseInt(btn.dataset.dir,10), btn.dataset.mode);
         };
       });
+      menu.querySelector('.selector-gear-menu-delete-btn').onclick = (e) => {
+        e.stopPropagation();
+        deleteCard(rowIdx, s.id, card.id);
+      };
       wrapper.appendChild(menu);
     }
 
@@ -1218,6 +1236,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   // ---- init ----
   load();
+  loadLongPressMs();
   renderAll();
 
 })();
