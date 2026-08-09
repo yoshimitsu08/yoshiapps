@@ -1682,6 +1682,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="dropdown-menu" id="dashDropdown" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
+      <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 長押し速度を調整</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
@@ -1896,6 +1897,28 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="chapter-note" style="margin-top:12px;">
         同じ日に同じ端末から複数回更新しても1件にまとめて記録します。最大20件保持し、古いものから削除されます。
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Long Press Speed Modal ============ -->
+<div class="modal-overlay" id="longPressModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>長押し速度の調整</h2>
+      <button class="modal-close" id="longPressModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:14px;">
+        Sentence Selectorでカードを長押しして編集モードに入るまでの時間を調整できます。すぐ反応しすぎる場合は長めに設定してください。
+      </div>
+      <div class="field">
+        <label>長押し判定時間：<span id="longPressValueLabel">0.55</span>秒</label>
+        <input type="range" id="longPressRangeInput" min="200" max="1500" step="50" style="width:100%;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" id="longPressSaveBtn" style="width:100%;">保存</button>
     </div>
   </div>
 </div>
@@ -2230,11 +2253,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const STORAGE_KEY = 'manuscript_projects_v1';
   const TEMPLATES_STORAGE_KEY = 'manuscript_prompt_templates_v1';
   const DEVICE_NAME_STORAGE_KEY = 'manuscript_device_name_v1';
+  const LONGPRESS_STORAGE_KEY = 'manuscript_longpress_ms_v1';
   const STAGE_COLORS = { genan:'var(--c-genan)', plot:'var(--c-plot)', honbun:'var(--c-honbun)', kousei:'var(--c-kousei)' };
   const TRI_LABELS = ['未着手','着手','完了'];
   const SELECTOR_COLORS = ['#8fa8c8', '#c8a96e', '#7ec8a8', '#c08a6e', '#a88fc8', '#c86e8f', '#6ec8b8', '#c8c06e'];
   const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const MAX_UPDATE_HISTORY = 20;
+  const DEFAULT_LONGPRESS_MS = 550;
 
   let projects = [];
   let currentDetailId = null;
@@ -2242,6 +2267,19 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let selectedIds = new Set();
   let promptTemplates = [];
   let deviceName = null;
+  let longPressMs = DEFAULT_LONGPRESS_MS;
+
+  function loadLongPressMs(){
+    try {
+      const saved = localStorage.getItem(LONGPRESS_STORAGE_KEY);
+      const n = parseInt(saved, 10);
+      if(!isNaN(n) && n >= 200 && n <= 3000) longPressMs = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveLongPressMs(ms){
+    longPressMs = ms;
+    try { localStorage.setItem(LONGPRESS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
+  }
 
   // ---------- Device name (per-browser, independent of project data) ----------
   function getDeviceName(){
@@ -3104,6 +3142,27 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('menuCancelSelectBtn').onclick = () => {
     document.getElementById('dashDropdownSelectMode').classList.remove('active');
     exitSelectMode();
+  };
+  document.getElementById('menuLongPressBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    const range = document.getElementById('longPressRangeInput');
+    range.value = longPressMs;
+    document.getElementById('longPressValueLabel').textContent = (longPressMs/1000).toFixed(2);
+    document.getElementById('longPressModalOverlay').classList.add('active');
+  };
+  document.getElementById('longPressModalClose').onclick = () => {
+    document.getElementById('longPressModalOverlay').classList.remove('active');
+  };
+  document.getElementById('longPressModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'longPressModalOverlay') document.getElementById('longPressModalOverlay').classList.remove('active');
+  });
+  document.getElementById('longPressRangeInput').addEventListener('input', (e) => {
+    document.getElementById('longPressValueLabel').textContent = (parseInt(e.target.value,10)/1000).toFixed(2);
+  });
+  document.getElementById('longPressSaveBtn').onclick = () => {
+    const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
+    saveLongPressMs(val);
+    document.getElementById('longPressModalOverlay').classList.remove('active');
   };
   document.getElementById('menuStorageDetailBtn').onclick = () => {
     document.getElementById('dashDropdown').classList.remove('active');
@@ -3978,7 +4037,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   function bindLongPress(el, onLongPress, delay){
-    delay = delay || 550;
+    delay = delay || longPressMs;
     let timer = null;
     const start = () => { timer = setTimeout(onLongPress, delay); };
     const end = () => { if(timer){ clearTimeout(timer); timer = null; } };
@@ -4081,7 +4140,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         selectorEditingDraft = card.text;
         selectorMenuOpenFor = null;
         renderSelectorRows();
-      }, 550);
+      }, longPressMs);
     }
     function endPress(){
       if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
@@ -5024,6 +5083,7 @@ ${pasted}
   // ---------- Init ----------
   load();
   loadTemplates();
+  loadLongPressMs();
   renderGrid();
   updateStorageUsageDisplay();
 
