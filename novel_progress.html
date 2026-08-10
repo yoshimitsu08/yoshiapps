@@ -3842,6 +3842,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
 
     let fullText = `${p.title || '無題'}\n\n`;
+    let mdText = `# ${p.title || '無題'}\n\n`;
     let html = `<div class="all-preview-title">${escapeHTML(p.title || '無題')}</div>`;
 
     p.plotChapters.forEach((ch, idx) => {
@@ -3851,6 +3852,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       const heading = `第${idx+1}章${ch.title ? '　' + ch.title : ''}`;
 
       fullText += `${heading}\n\n${composedText || '（本文未執筆）'}\n\n\n`;
+      mdText += `## ${heading}\n\n${composedText || '（本文未執筆）'}\n\n`;
       html += `
         <div class="all-preview-chapter">
           <div class="all-preview-chapter-heading">${escapeHTML(heading)}</div>
@@ -3863,13 +3865,37 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     area.innerHTML = `
       <div class="manuscript-textarea-wrap">
-        <button type="button" class="btn primary" id="copyAllPreviewBtn" style="width:100%; margin-bottom:16px;">📋 全章を一括コピー</button>
+        <button type="button" class="btn primary" id="copyAllPreviewBtn" style="width:100%; margin-bottom:10px;">📋 全章を一括コピー</button>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <button type="button" class="btn" id="downloadAllPreviewTxtBtn" style="flex:1;">⬇ txtでダウンロード</button>
+          <button type="button" class="btn" id="downloadAllPreviewMdBtn" style="flex:1;">⬇ mdでダウンロード</button>
+        </div>
         <div class="all-preview-wrap">${html}</div>
       </div>
     `;
 
     document.getElementById('copyAllPreviewBtn').onclick = async () => {
       await copyTextWithToast(fullText.trim());
+    };
+
+    function downloadText(content, extension){
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeTitle = (p.title || '無題').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+      a.href = url;
+      a.download = `${safeTitle}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('downloadAllPreviewTxtBtn').onclick = () => {
+      downloadText(fullText.trim(), 'txt');
+    };
+    document.getElementById('downloadAllPreviewMdBtn').onclick = () => {
+      downloadText(mdText.trim(), 'md');
     };
   }
 
