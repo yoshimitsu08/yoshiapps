@@ -982,35 +982,54 @@ h1 .mark { color:var(--accent); font-style:italic; }
       renderRows();
     };
 
-    // テキスト領域 = タップで採用トグル、長押しで編集（範囲選択・コピーは編集モードのtextarea上で行う）
+    // テキスト領域 = 長押しのみで編集（タップは何もしない、範囲選択・コピーは編集モードのtextarea上で行う）
     const textWrapOuter = cardEl.querySelector('.selector-card-text-wrap-outer');
 
     let longPressTimer = null;
-    let longPressFired = false;
+    let pressStartX = null;
+    let pressStartY = null;
+    const MOVE_CANCEL_THRESHOLD = 10; // これ以上動いたら長押し判定をキャンセル（範囲選択・スクロールと区別するため）
 
-    function startPress(){
-      longPressFired = false;
+    function getClientXY(e){
+      if(e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function startPress(e){
+      const pos = getClientXY(e);
+      pressStartX = pos.x;
+      pressStartY = pos.y;
       longPressTimer = setTimeout(() => {
-        longPressFired = true;
+        longPressTimer = null;
         editingCardId = card.id;
         editingDraft = card.text;
         menuOpenFor = null;
         renderRows();
       }, longPressMs);
     }
+    function movePress(e){
+      if(!longPressTimer || pressStartX === null) return;
+      const pos = getClientXY(e);
+      const dx = Math.abs(pos.x - pressStartX);
+      const dy = Math.abs(pos.y - pressStartY);
+      if(dx > MOVE_CANCEL_THRESHOLD || dy > MOVE_CANCEL_THRESHOLD){
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
     function endPress(){
       if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+      pressStartX = null;
+      pressStartY = null;
     }
 
     textWrapOuter.addEventListener('mousedown', startPress);
+    textWrapOuter.addEventListener('mousemove', movePress);
     textWrapOuter.addEventListener('mouseup', endPress);
     textWrapOuter.addEventListener('mouseleave', endPress);
     textWrapOuter.addEventListener('touchstart', startPress, { passive: true });
+    textWrapOuter.addEventListener('touchmove', movePress, { passive: true });
     textWrapOuter.addEventListener('touchend', endPress);
-    textWrapOuter.addEventListener('click', (e) => {
-      if(longPressFired){ longPressFired = false; return; }
-      toggleCard(card.id);
-    });
 
     wrapper.appendChild(cardEl);
 
