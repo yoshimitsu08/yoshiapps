@@ -1235,6 +1235,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text3);
   font-size:0.75rem;
 }
+.bookmark-sentence {
+  border-bottom-style:double;
+  border-bottom-width:3px;
+  padding-bottom:1px;
+}
 .all-preview-wrap {
   background:var(--bg3);
   border:1px solid var(--border);
@@ -1683,6 +1688,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
       <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 長押し速度を調整</button>
+      <button type="button" class="dropdown-item" id="menuBookmarkColorBtn">🔖 しおり色を調整</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
     </div>
@@ -1919,6 +1925,39 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="longPressSaveBtn" style="width:100%;">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Bookmark Color Modal ============ -->
+<div class="modal-overlay" id="bookmarkColorModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>しおり色の調整</h2>
+      <button class="modal-close" id="bookmarkColorModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:14px;">
+        Sentence Selectorと本文プレビューで「前回ここまで」を示すしおりの色を調整できます。
+      </div>
+      <div class="field">
+        <label>縁取りの色</label>
+        <input type="color" id="bookmarkBorderInput" style="width:100%; height:44px; border:1px solid var(--border); border-radius:4px; background:var(--bg3); cursor:pointer;">
+      </div>
+      <div class="field">
+        <label>塗りつぶしの色（Sentence Selectorのカード背景）</label>
+        <input type="color" id="bookmarkFillInput" style="width:100%; height:44px; border:1px solid var(--border); border-radius:4px; background:var(--bg3); cursor:pointer;">
+      </div>
+      <div class="field">
+        <label>プレビュー</label>
+        <div id="bookmarkColorPreview" class="selector-card" style="padding:12px; display:flex; align-items:center; gap:10px;">
+          <span style="font-family:var(--font-ui); font-size:0.7rem; color:var(--text2);">🔖 前回ここまで — サンプル文章です</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="bookmarkColorResetBtn">デフォルトに戻す</button>
+      <button class="btn primary" id="bookmarkColorSaveBtn" style="flex:1;">保存</button>
     </div>
   </div>
 </div>
@@ -2281,6 +2320,29 @@ h1 .mark { color:var(--accent); font-style:italic; }
     try { localStorage.setItem(LONGPRESS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
   }
 
+  // ---------- Bookmark (last-edited card) color customization ----------
+  const BOOKMARK_COLOR_STORAGE_KEY = 'manuscript_bookmark_color_v1';
+  const DEFAULT_BOOKMARK_BORDER = '#f5d90a';
+  const DEFAULT_BOOKMARK_FILL = '#3a0a08';
+  let bookmarkBorderColor = DEFAULT_BOOKMARK_BORDER;
+  let bookmarkFillColor = DEFAULT_BOOKMARK_FILL;
+
+  function loadBookmarkColor(){
+    try {
+      const raw = localStorage.getItem(BOOKMARK_COLOR_STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed.border) bookmarkBorderColor = parsed.border;
+        if(parsed.fill) bookmarkFillColor = parsed.fill;
+      }
+    } catch(_e){ /* keep default */ }
+  }
+  function saveBookmarkColor(border, fill){
+    bookmarkBorderColor = border;
+    bookmarkFillColor = fill;
+    try { localStorage.setItem(BOOKMARK_COLOR_STORAGE_KEY, JSON.stringify({border, fill})); } catch(_e){ /* ignore */ }
+  }
+
   // ---------- Device name (per-browser, independent of project data) ----------
   function getDeviceName(){
     if(deviceName) return deviceName;
@@ -2343,6 +2405,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return entry.selector;
   }
 
+  // 章ごとに「最後に触ったカード」をしおりとして記録（編集確定／採用切替／STAY・PUSH移動のたびに更新）
+  function markCardAsLastEdited(entry, cardId){
+    entry.lastEditedCardId = cardId;
+  }
+
   // 選択中カードだけを結合して合成テキストを作る
   function composeSelectorText(selector){
     const parts = [];
@@ -2350,6 +2417,27 @@ h1 .mark { color:var(--accent); font-style:italic; }
       (selector.series || []).forEach(s => {
         (row[s.id] || []).forEach(card => {
           if(card.selected) parts.push(card.text);
+        });
+      });
+    });
+    return parts.join('\n');
+  }
+
+  // 合成テキストをHTML化し、しおり（lastEditedCardId）に対応する文だけ二重下線を付ける
+  function composeSelectorHtml(entry){
+    const selector = ensureSelector(entry);
+    const bookmarkId = entry.lastEditedCardId;
+    const parts = [];
+    (selector.rows || []).forEach(row => {
+      (selector.series || []).forEach(s => {
+        (row[s.id] || []).forEach(card => {
+          if(!card.selected) return;
+          const text = escapeHTML(card.text);
+          if(bookmarkId && card.id === bookmarkId){
+            parts.push(`<span class="bookmark-sentence" style="border-bottom-color:${bookmarkBorderColor};">${text}</span>`);
+          } else {
+            parts.push(text);
+          }
         });
       });
     });
@@ -2390,6 +2478,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
             });
           }
         }
+        if(entry.lastEditedCardId === undefined) entry.lastEditedCardId = null;
       });
       if(p.roughMemo === undefined) p.roughMemo = '';
       if(p.aiTargetLength === undefined) p.aiTargetLength = null;
@@ -3164,6 +3253,40 @@ h1 .mark { color:var(--accent); font-style:italic; }
     saveLongPressMs(val);
     document.getElementById('longPressModalOverlay').classList.remove('active');
   };
+  document.getElementById('menuBookmarkColorBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    document.getElementById('bookmarkBorderInput').value = bookmarkBorderColor;
+    document.getElementById('bookmarkFillInput').value = bookmarkFillColor;
+    updateBookmarkColorPreview();
+    document.getElementById('bookmarkColorModalOverlay').classList.add('active');
+  };
+  document.getElementById('bookmarkColorModalClose').onclick = () => {
+    document.getElementById('bookmarkColorModalOverlay').classList.remove('active');
+  };
+  document.getElementById('bookmarkColorModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'bookmarkColorModalOverlay') document.getElementById('bookmarkColorModalOverlay').classList.remove('active');
+  });
+  function updateBookmarkColorPreview(){
+    const border = document.getElementById('bookmarkBorderInput').value;
+    const fill = document.getElementById('bookmarkFillInput').value;
+    const preview = document.getElementById('bookmarkColorPreview');
+    preview.style.borderColor = border;
+    preview.style.background = fill;
+    preview.style.boxShadow = `0 0 0 1px ${border}`;
+  }
+  document.getElementById('bookmarkBorderInput').addEventListener('input', updateBookmarkColorPreview);
+  document.getElementById('bookmarkFillInput').addEventListener('input', updateBookmarkColorPreview);
+  document.getElementById('bookmarkColorResetBtn').onclick = () => {
+    document.getElementById('bookmarkBorderInput').value = DEFAULT_BOOKMARK_BORDER;
+    document.getElementById('bookmarkFillInput').value = DEFAULT_BOOKMARK_FILL;
+    updateBookmarkColorPreview();
+  };
+  document.getElementById('bookmarkColorSaveBtn').onclick = () => {
+    const border = document.getElementById('bookmarkBorderInput').value;
+    const fill = document.getElementById('bookmarkFillInput').value;
+    saveBookmarkColor(border, fill);
+    document.getElementById('bookmarkColorModalOverlay').classList.remove('active');
+  };
   document.getElementById('menuStorageDetailBtn').onclick = () => {
     document.getElementById('dashDropdown').classList.remove('active');
     updateStorageUsageDisplay();
@@ -3810,7 +3933,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <button type="button" class="btn primary" id="openSelectorBtn" style="width:100%; margin-bottom:16px;">✒ Sentence Selectorへ</button>
         <div class="manuscript-preview" id="mtPreview">${
           composedText
-            ? escapeHTML(composedText)
+            ? composeSelectorHtml(entry)
             : `<span class="manuscript-preview-empty">まだ本文がありません。上の「Sentence Selectorへ」から執筆・編集してください。</span>`
         }</div>
       </div>
@@ -4079,9 +4202,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     wrapper.style.position = 'relative';
     wrapper.dataset.cardId = card.id;
 
+    const entry = getSelectorEntry();
+    const isBookmarked = entry && entry.lastEditedCardId === card.id;
+    const bookmarkStyle = isBookmarked
+      ? `border-color:${bookmarkBorderColor} !important; background:${bookmarkFillColor} !important; box-shadow:0 0 0 1px ${bookmarkBorderColor} !important;`
+      : '';
+
     if(selectorEditingCardId === card.id){
       wrapper.innerHTML = `
-        <div class="selector-card" style="border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);">
+        <div class="selector-card" style="border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); ${bookmarkStyle}">
           <div class="selector-card-left-col">
             <div style="width:26px; height:26px;"></div>
             <div class="selector-card-badge" style="background:${s.color}">${s.label}</div>
@@ -4124,16 +4253,23 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     const cardEl = document.createElement('div');
     cardEl.className = 'selector-card' + (isSelected ? ' selected' : '');
-    cardEl.style.borderColor = isSelected ? s.color : 'var(--border)';
-    cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
+    if(isBookmarked){
+      cardEl.style.borderColor = bookmarkBorderColor;
+      cardEl.style.background = bookmarkFillColor;
+      cardEl.style.boxShadow = `0 0 0 1px ${bookmarkBorderColor}`;
+    } else {
+      cardEl.style.borderColor = isSelected ? s.color : 'var(--border)';
+      cardEl.style.boxShadow = isSelected ? `0 0 0 1px ${s.color}` : 'none';
+    }
     cardEl.innerHTML = `
       <div class="selector-card-left-col">
         <button type="button" class="selector-gear-btn" title="送る／戻す／削除">⚙</button>
         <div class="selector-card-badge${isSelected ? '' : ' unselected'}" style="background:${isSelected ? s.color : ''}" title="タップで採用切替">${s.label}</div>
       </div>
       <div class="selector-card-text-wrap-outer">
-        <div class="selector-card-text-wrap">
+        <div class="selector-card-text-wrap"${isBookmarked ? ` style="background:transparent;"` : ''}>
           ${isSelected ? `<div class="selector-card-tag" style="color:${s.color}">✓ 採用中</div>` : ''}
+          ${isBookmarked ? `<div class="selector-card-tag" style="color:${bookmarkBorderColor};">🔖 前回ここまで</div>` : ''}
           <div class="selector-card-text">${escapeHTML(card.text)}</div>
         </div>
       </div>
@@ -4266,6 +4402,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         });
       });
     });
+    markCardAsLastEdited(entry, cardId);
     afterSelectorMutate();
   }
 
@@ -4276,6 +4413,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(row && row[seriesId]){
       row[seriesId] = row[seriesId].map(c => c.id === cardId ? { ...c, text: selectorEditingDraft } : c);
     }
+    markCardAsLastEdited(entry, cardId);
     selectorEditingCardId = null;
     selectorEditingDraft = '';
     afterSelectorMutate();
@@ -4351,6 +4489,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
 
     cleanupEmptySelectorRows(selector);
+    markCardAsLastEdited(entry, cardId);
     selectorMenuOpenFor = null;
     afterSelectorMutate();
   }
@@ -5129,6 +5268,7 @@ ${pasted}
   load();
   loadTemplates();
   loadLongPressMs();
+  loadBookmarkColor();
   renderGrid();
   updateStorageUsageDisplay();
 
