@@ -3369,6 +3369,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     btn.onclick = () => {
       document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b===btn));
       document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id===btn.dataset.page));
+      // プロット/設定タブ切り替え時、非表示だった側のauto-resize-textareaの高さを再計算する
+      if(btn.dataset.page){
+        requestAnimationFrame(() => {
+          document.querySelectorAll(`#${btn.dataset.page} .auto-resize-textarea`).forEach(ta => {
+            ta.style.height = 'auto';
+            ta.style.height = (ta.scrollHeight + 2) + 'px';
+          });
+        });
+      }
     };
   });
 
