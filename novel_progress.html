@@ -210,11 +210,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text);
   margin-top:2px;
 }
-.priority-banner .pin-deadline {
-  font-family:var(--font-ui);
-  font-size:0.68rem;
-  color:var(--text2);
-}
 
 /* ---------- Toolbar ---------- */
 .toolbar {
@@ -311,7 +306,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   letter-spacing:0.05em;
   z-index:2;
 }
-.status-badge {
+.editor-badge {
   position:absolute;
   top:8px; right:8px;
   background:rgba(26,24,20,0.85);
@@ -323,6 +318,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   letter-spacing:0.06em;
   z-index:2;
   border:1px solid var(--border);
+  max-width:60%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .card-body { padding:14px 14px 16px; }
@@ -330,19 +329,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-body);
   font-size:1.05rem;
   color:var(--text);
-  margin-bottom:2px;
+  margin-bottom:10px;
   line-height:1.3;
 }
-.card-meta {
-  font-family:var(--font-ui);
-  font-size:0.62rem;
-  color:var(--text3);
-  margin-bottom:12px;
-  display:flex;
-  justify-content:space-between;
-}
-.card-meta .deadline-warn { color:var(--danger); }
-.card-meta .deadline-ok { color:var(--text3); }
 
 /* dot-grid progress (signature element) */
 .stage-row {
@@ -600,34 +589,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .status-select .btn { padding:8px 12px; font-size:0.65rem; }
 .status-select .btn.active { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:bold; }
 
-/* deadline list */
-.deadline-list { display:flex; flex-direction:column; gap:8px; }
-.deadline-row {
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-.deadline-row input[type="text"] { flex:1.4; }
-.deadline-row input[type="date"] { flex:1; }
-.deadline-row .del-btn {
-  background:none; border:none; color:var(--text3);
-  cursor:pointer; font-size:1rem; padding:6px;
-  flex-shrink:0;
-}
-.deadline-row .del-btn:hover { color:var(--danger); }
-.add-deadline-btn {
-  font-family:var(--font-ui);
-  font-size:0.65rem;
-  color:var(--accent);
-  background:none;
-  border:1px dashed var(--border);
-  border-radius:3px;
-  padding:8px;
-  cursor:pointer;
-  margin-top:4px;
-}
-.add-deadline-btn:hover { border-color:var(--accent); }
-
 .modal-footer {
   padding:16px 20px;
   border-top:1px solid var(--border);
@@ -682,39 +643,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   min-height:2px;
   opacity:0.8;
 }
-
-.todo-list { display:flex; flex-direction:column; gap:6px; }
-.todo-row {
-  display:flex; align-items:center; gap:8px;
-  background:var(--bg3);
-  border-radius:3px;
-  padding:8px 10px;
-}
-.todo-row input[type="checkbox"] {
-  width:15px; height:15px; accent-color:var(--accent); flex-shrink:0;
-}
-.todo-row input[type="text"] {
-  flex:1; background:none; border:none; color:var(--text);
-  font-family:var(--font-body); font-size:0.88rem;
-}
-.todo-row input[type="text"]:focus { outline:none; }
-.todo-row.done input[type="text"] { color:var(--text3); text-decoration:line-through; }
-.todo-row .del-btn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:0.95rem; padding:4px; }
-.todo-row .del-btn:hover { color:var(--danger); }
-
-.deadline-display {
-  display:flex; flex-direction:column; gap:6px;
-}
-.deadline-display-row {
-  display:flex; justify-content:space-between; align-items:center;
-  background:var(--bg3); border-radius:3px; padding:9px 12px;
-}
-.deadline-display-row .dl-name { font-family:var(--font-body); font-size:0.88rem; }
-.deadline-display-row .dl-days {
-  font-family:var(--font-ui); font-size:0.68rem; color:var(--text2);
-}
-.deadline-display-row .dl-days.warn { color:var(--danger); font-weight:bold; }
-.deadline-display-row .dl-days.past { color:var(--text3); text-decoration:line-through; }
 
 .memo-display {
   font-family:var(--font-ui);
@@ -832,6 +760,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 .section-textarea:focus { outline:none; border-color:var(--accent); }
 
+/* 入力量に応じて自動で高さが伸びるtextarea（設定・プロットエディタ用） */
+.auto-resize-textarea {
+  resize:none;
+  overflow-y:hidden;
+  min-height:120px;
+}
+
 /* character cards inside 登場人物 section */
 .char-card {
   background:var(--bg3);
@@ -886,6 +821,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
   resize:vertical;
 }
 .char-field textarea:focus { outline:none; border-color:var(--accent); }
+.char-field textarea.auto-resize-textarea {
+  resize:none;
+  overflow-y:hidden;
+  min-height:80px;
+}
 .add-char-btn {
   width:100%;
   font-family:var(--font-ui);
@@ -1721,7 +1661,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="pin-label">Now Writing</div>
     <div class="pin-title" id="pinTitle">—</div>
   </div>
-  <div class="pin-deadline" id="pinDeadline"></div>
 </div>
 
 <div class="toolbar">
@@ -1729,7 +1668,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <button class="btn" id="newProjectAiBtn">＋ 新規作品（AIと作る）</button>
   <select class="sort-select" id="sortSelect">
     <option value="pinned">優先順（ピン留め優先）</option>
-    <option value="deadline">締切が近い順</option>
     <option value="updated">更新順</option>
     <option value="title">タイトル順</option>
   </select>
@@ -1855,6 +1793,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
         </div>
       </div>
 
+      <div class="detail-section" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" id="openSettingBtn" style="flex:1;">📝 設定・プロット</button>
+        <button class="btn primary" id="openManuscriptBtn" style="flex:1;">✏️ 本文編集</button>
+        <button class="btn" id="continueAiImportBtn" style="display:none; width:100%; color:var(--accent); border-color:var(--accent);">🤖 AI取り込みを続ける</button>
+      </div>
+
       <div class="detail-section">
         <div class="detail-section-title">進捗</div>
         <div id="detailStages"></div>
@@ -1866,27 +1810,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">締切・マイルストーン</div>
-        <div class="deadline-list" id="detailDeadlineList"></div>
-        <button type="button" class="add-deadline-btn" id="detailAddDeadlineBtn">＋ マイルストーンを追加</button>
-      </div>
-
-      <div class="detail-section">
-        <div class="detail-section-title">次にやること</div>
-        <div class="todo-list" id="todoList"></div>
-        <button type="button" class="add-deadline-btn" id="addTodoBtn">＋ タスクを追加</button>
-      </div>
-
-      <div class="detail-section">
         <div class="detail-section-title">メモ</div>
         <textarea class="section-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど" style="min-height:100px;"></textarea>
       </div>
 
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;">
-      <button class="btn" id="openSettingBtn">📝 設定・プロット</button>
-      <button class="btn primary" id="openManuscriptBtn">✏️ 本文を書く</button>
-      <button class="btn" id="continueAiImportBtn" style="display:none; color:var(--accent); border-color:var(--accent);">🤖 AI取り込みを続ける</button>
     </div>
   </div>
 </div>
@@ -2775,24 +2704,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 
   // ---------- Rendering: grid ----------
-  function daysUntil(dateStr){
-    if(!dateStr) return null;
-    const d = new Date(dateStr + 'T00:00:00');
-    const now = new Date();
-    now.setHours(0,0,0,0);
-    return Math.round((d - now) / 86400000);
-  }
-
-  function nearestDeadline(p){
-    if(!p.deadlines || p.deadlines.length===0) return null;
-    const future = p.deadlines
-      .map(d => ({...d, days: daysUntil(d.date)}))
-      .filter(d => d.date)
-      .sort((a,b) => a.days - b.days);
-    const upcoming = future.filter(d => d.days >= 0);
-    return upcoming.length ? upcoming[0] : (future.length ? future[future.length-1] : null);
-  }
-
   function renderDots(filled, total, color){
     total = Math.max(total, 1);
     let html = '<div class="dots">';
@@ -2874,20 +2785,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   function renderCard(p){
-    const nd = nearestDeadline(p);
-    let deadlineHTML = '';
-    if(nd){
-      const days = nd.days;
-      let txt, cls;
-      if(days < 0){ txt = `${nd.name} 期限超過`; cls='deadline-warn'; }
-      else if(days === 0){ txt = `${nd.name} 本日`; cls='deadline-warn'; }
-      else if(days <= 7){ txt = `${nd.name} あと${days}日`; cls='deadline-warn'; }
-      else { txt = `${nd.name} あと${days}日`; cls='deadline-ok'; }
-      deadlineHTML = `<span class="${cls}">${txt}</span>`;
-    } else {
-      deadlineHTML = `<span class="deadline-ok">締切未設定</span>`;
-    }
-
     const coverHTML = p.cover
       ? `<img src="${p.cover}" alt="">`
       : `<div class="no-cover"><span class="glyph">✒</span>NO COVER</div>`;
@@ -2903,15 +2800,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="card-cover">
         <input type="checkbox" class="card-select-check" ${isSelected?'checked':''} tabindex="-1">
         ${p.pinned ? '<div class="pin-badge">PIN</div>' : ''}
-        <div class="status-badge">${phaseLabel(p)}</div>
+        ${p.editor ? `<div class="editor-badge">${escapeHTML(p.editor)}</div>` : ''}
         ${coverHTML}
       </div>
       <div class="card-body">
         <div class="card-title">${escapeHTML(p.title || '無題')}</div>
-        <div class="card-meta">
-          <span>更新: ${new Date(p.updatedAt).toLocaleDateString('ja-JP')}</span>
-          ${deadlineHTML}
-        </div>
         ${statusLineHTML(p)}
         <div class="card-wordcount">
           <span>合計文字数</span>
@@ -2938,18 +2831,26 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // 設定・プロットエディタのtextareaを、入力量に応じて自動で高さが伸びる仕様にする。
+  // textareaはブロック要素と違い中身の高さに応じて自動で伸びないため、
+  // input時にheightを一旦resetしてscrollHeightを測り直し、その値を明示的に設定する。
+  function enableAutoResize(ta){
+    if(!ta || ta.dataset.autoResizeBound) return;
+    ta.dataset.autoResizeBound = '1';
+    const resize = () => {
+      ta.style.height = 'auto';
+      ta.style.height = (ta.scrollHeight + 2) + 'px';
+    };
+    ta.addEventListener('input', resize);
+    // 初期表示時（既存の値が入っている場合）にも高さを合わせる
+    requestAnimationFrame(resize);
+  }
+
   function getSorted(){
     const mode = document.getElementById('sortSelect').value;
     const arr = [...projects];
     if(mode === 'pinned'){
       arr.sort((a,b) => (b.pinned - a.pinned) || (b.updatedAt - a.updatedAt));
-    } else if(mode === 'deadline'){
-      arr.sort((a,b) => {
-        const da = nearestDeadline(a), db = nearestDeadline(b);
-        const va = da ? da.days : Infinity;
-        const vb = db ? db.days : Infinity;
-        return va - vb;
-      });
     } else if(mode === 'updated'){
       arr.sort((a,b) => b.updatedAt - a.updatedAt);
     } else if(mode === 'title'){
@@ -2978,10 +2879,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(pinned){
       banner.classList.add('active');
       document.getElementById('pinTitle').textContent = pinned.title || '無題';
-      const nd = nearestDeadline(pinned);
-      document.getElementById('pinDeadline').textContent = nd
-        ? (nd.days < 0 ? `${nd.name}：期限超過` : nd.days===0 ? `${nd.name}：本日` : `${nd.name}まであと${nd.days}日`)
-        : '';
       banner.onclick = () => openDetail(pinned.id);
     } else {
       banner.classList.remove('active');
@@ -3085,9 +2982,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     document.getElementById('detailWordcountDisplay').textContent = (p.wordcount||0).toLocaleString() + ' 字';
 
-    renderDetailDeadlines(p);
-    renderTodoList(p);
-
     const memoTa = document.getElementById('detailMemoTextarea');
     memoTa.value = p.memo || '';
     memoTa.oninput = () => {
@@ -3119,93 +3013,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
       hint.style.display = 'block';
       wrap.classList.remove('has-image');
     }
-  }
-
-  function renderDetailDeadlines(p){
-    const list = document.getElementById('detailDeadlineList');
-    list.innerHTML = '';
-    if(!p.deadlines) p.deadlines = [];
-    p.deadlines.forEach((d, i) => {
-      const row = document.createElement('div');
-      row.className = 'deadline-row';
-      row.innerHTML = `
-        <input type="text" placeholder="例：第3章まで" value="${escapeHTML(d.name||'')}" class="dl-name-input">
-        <input type="date" value="${d.date||''}" class="dl-date-input">
-        <button type="button" class="del-btn">×</button>
-      `;
-      const nameInput = row.querySelector('.dl-name-input');
-      const dateInput = row.querySelector('.dl-date-input');
-      nameInput.oninput = () => { d.name = nameInput.value; p.updatedAt = Date.now(); save(); };
-      dateInput.onchange = () => { d.date = dateInput.value; p.updatedAt = Date.now(); save(); renderGrid(); openDetailSilent(p); };
-      row.querySelector('.del-btn').onclick = () => {
-        p.deadlines = p.deadlines.filter(x => x !== d);
-        p.updatedAt = Date.now();
-        save();
-        renderDetailDeadlines(p);
-      };
-      list.appendChild(row);
-    });
-  }
-
-  function openDetailSilent(p){
-    // re-render just the stages/status parts that depend on deadlines without closing modal
-    document.getElementById('detailStages').innerHTML = statusLineHTML(p);
-  }
-
-  document.getElementById('detailAddDeadlineBtn').onclick = () => {
-    const p = projects.find(x=>x.id===currentDetailId);
-    if(!p) return;
-    p.deadlines.push({name:'', date:''});
-    p.updatedAt = Date.now();
-    save();
-    renderDetailDeadlines(p);
-  };
-
-
-  function renderTodoList(p){
-    const el = document.getElementById('todoList');
-    if(!p.todos || p.todos.length===0){
-      el.innerHTML = '<div class="wc-chart-empty">タスクなし</div>';
-      return;
-    }
-    el.innerHTML = '';
-    p.todos.forEach((t, i) => {
-      const row = document.createElement('div');
-      row.className = 'todo-row' + (t.done ? ' done' : '');
-      row.innerHTML = `
-        <input type="checkbox" ${t.done?'checked':''} data-idx="${i}" class="todo-check">
-        <input type="text" value="${escapeHTML(t.text)}" data-idx="${i}" class="todo-text">
-        <button class="del-btn" data-idx="${i}">×</button>
-      `;
-      el.appendChild(row);
-    });
-
-    el.querySelectorAll('.todo-check').forEach(cb => {
-      cb.onchange = () => {
-        const p = projects.find(x=>x.id===currentDetailId);
-        p.todos[parseInt(cb.dataset.idx,10)].done = cb.checked;
-        p.updatedAt = Date.now();
-        save();
-        renderTodoList(p);
-      };
-    });
-    el.querySelectorAll('.todo-text').forEach(inp => {
-      inp.onchange = () => {
-        const p = projects.find(x=>x.id===currentDetailId);
-        p.todos[parseInt(inp.dataset.idx,10)].text = inp.value;
-        p.updatedAt = Date.now();
-        save();
-      };
-    });
-    el.querySelectorAll('.del-btn').forEach(btn => {
-      btn.onclick = () => {
-        const p = projects.find(x=>x.id===currentDetailId);
-        p.todos.splice(parseInt(btn.dataset.idx,10),1);
-        p.updatedAt = Date.now();
-        save();
-        renderTodoList(p);
-      };
-    });
   }
 
   function closeDetail(){
@@ -3530,17 +3337,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     openDetail(p.id);
   };
 
-  document.getElementById('addTodoBtn').onclick = () => {
-    const p = projects.find(x=>x.id===currentDetailId);
-    p.todos = p.todos || [];
-    p.todos.push({text:'', done:false});
-    p.updatedAt = Date.now();
-    save();
-    renderTodoList(p);
-    const inputs = document.querySelectorAll('.todo-text');
-    if(inputs.length) inputs[inputs.length-1].focus();
-  };
-
   // ================= Setting/Plot Editor View =================
   let currentSettingId = null;
 
@@ -3580,6 +3376,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     window.scrollTo(0,0);
+    // 非表示中に高さ計算できなかったauto-resize-textareaを、表示直後に再計算する
+    if(viewId === 'settingView'){
+      requestAnimationFrame(() => {
+        document.querySelectorAll('#settingView .auto-resize-textarea').forEach(ta => {
+          ta.style.height = 'auto';
+          ta.style.height = (ta.scrollHeight + 2) + 'px';
+        });
+      });
+    }
   }
 
   document.getElementById('settingBackBtn').onclick = () => {
@@ -3612,10 +3417,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <input type="text" class="chapter-title-input" placeholder="章タイトル（任意）" value="${escapeHTML(ch.title)}">
         <button type="button" class="chapter-del-btn" title="この章を削除">🗑</button>
       </div>
-      <div class="char-field"><label>出来事</label><textarea placeholder="この章で起きる出来事" data-f="event">${escapeHTML(ch.event)}</textarea></div>
-      <div class="char-field"><label>登場人物の心情</label><textarea placeholder="主要人物の心の動き" data-f="feeling">${escapeHTML(ch.feeling)}</textarea></div>
-      <div class="char-field"><label>この章が見せたいもの</label><textarea placeholder="読者に伝えたいテーマ・見せ場" data-f="reveal">${escapeHTML(ch.reveal)}</textarea></div>
-      <div class="char-field"><label>その他</label><textarea placeholder="補足メモ" data-f="other">${escapeHTML(ch.other)}</textarea></div>
+      <div class="char-field"><label>出来事</label><textarea class="auto-resize-textarea" placeholder="この章で起きる出来事" data-f="event">${escapeHTML(ch.event)}</textarea></div>
+      <div class="char-field"><label>登場人物の心情</label><textarea class="auto-resize-textarea" placeholder="主要人物の心の動き" data-f="feeling">${escapeHTML(ch.feeling)}</textarea></div>
+      <div class="char-field"><label>この章が見せたいもの</label><textarea class="auto-resize-textarea" placeholder="読者に伝えたいテーマ・見せ場" data-f="reveal">${escapeHTML(ch.reveal)}</textarea></div>
+      <div class="char-field"><label>その他</label><textarea class="auto-resize-textarea" placeholder="補足メモ" data-f="other">${escapeHTML(ch.other)}</textarea></div>
     `;
     card.querySelector('.chapter-title-input').oninput = (e) => {
       ch.title = e.target.value;
@@ -3635,6 +3440,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         p.updatedAt = Date.now();
         save();
       };
+      enableAutoResize(ta);
     });
     return card;
   }
@@ -3680,7 +3486,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       bodyDiv.appendChild(renderCharactersEditor(sec, p));
     } else {
       const ta = document.createElement('textarea');
-      ta.className = 'section-textarea';
+      ta.className = 'section-textarea auto-resize-textarea';
       ta.placeholder = '自由に記述してください';
       ta.value = sec.text || '';
       ta.oninput = () => {
@@ -3689,6 +3495,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         save();
       };
       bodyDiv.appendChild(ta);
+      enableAutoResize(ta);
     }
 
     block.appendChild(head);
@@ -3708,10 +3515,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <input type="text" class="char-name-input" placeholder="名前" value="${escapeHTML(ch.name)}">
           <button type="button" class="char-del-btn" title="この登場人物を削除">🗑</button>
         </div>
-        <div class="char-field"><label>役割</label><textarea placeholder="主人公／ヒロイン／敵役 など" data-f="role">${escapeHTML(ch.role)}</textarea></div>
-        <div class="char-field"><label>性格</label><textarea placeholder="性格・口調など" data-f="personality">${escapeHTML(ch.personality)}</textarea></div>
-        <div class="char-field"><label>背景</label><textarea placeholder="経歴・過去など" data-f="background">${escapeHTML(ch.background)}</textarea></div>
-        <div class="char-field"><label>その他メモ</label><textarea placeholder="外見・関係性など" data-f="notes">${escapeHTML(ch.notes)}</textarea></div>
+        <div class="char-field"><label>役割</label><textarea class="auto-resize-textarea" placeholder="主人公／ヒロイン／敵役 など" data-f="role">${escapeHTML(ch.role)}</textarea></div>
+        <div class="char-field"><label>性格</label><textarea class="auto-resize-textarea" placeholder="性格・口調など" data-f="personality">${escapeHTML(ch.personality)}</textarea></div>
+        <div class="char-field"><label>背景</label><textarea class="auto-resize-textarea" placeholder="経歴・過去など" data-f="background">${escapeHTML(ch.background)}</textarea></div>
+        <div class="char-field"><label>その他メモ</label><textarea class="auto-resize-textarea" placeholder="外見・関係性など" data-f="notes">${escapeHTML(ch.notes)}</textarea></div>
       `;
       card.querySelector('.char-name-input').oninput = (e) => {
         ch.name = e.target.value;
@@ -3731,6 +3538,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
           p.updatedAt = Date.now();
           save();
         };
+        enableAutoResize(ta);
       });
       wrap.appendChild(card);
     });
@@ -3971,16 +3779,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     area.innerHTML = `
       <div class="manuscript-textarea-wrap">
         <div class="manuscript-toolbar">
-          <div class="mt-left">
-            <span class="manuscript-wordcount-live" id="mtWordcount">${composedText.length.toLocaleString()} 字</span>
-          </div>
+          <button type="button" class="btn primary" id="openSelectorBtn" style="flex:1;">✒ Sentence Selectorへ</button>
           <div class="chapter-status-select" id="mtStatusSelect">
             <button type="button" class="chapter-status-btn" data-cstatus="writing">執筆中</button>
             <button type="button" class="chapter-status-btn" data-cstatus="revising">推敲中</button>
             <button type="button" class="chapter-status-btn" data-cstatus="done">完了</button>
           </div>
         </div>
-        <button type="button" class="btn primary" id="openSelectorBtn" style="width:100%; margin-bottom:16px;">✒ Sentence Selectorへ</button>
+        <div class="manuscript-toolbar" style="margin-top:8px; margin-bottom:16px;">
+          <span class="manuscript-wordcount-live" id="mtWordcount">${composedText.length.toLocaleString()} 字</span>
+          <button type="button" class="btn" id="copyChapterPreviewBtn">📋 一括コピー</button>
+        </div>
         <div class="manuscript-preview" id="mtPreview">${
           composedText
             ? composeSelectorHtml(entry)
@@ -4005,6 +3814,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('openSelectorBtn').onclick = () => {
       openSentenceSelector(p.id, ch.id);
     };
+
+    document.getElementById('copyChapterPreviewBtn').onclick = async () => {
+      if(!composedText){ alert('コピーする本文がありません（カードが選択されていません）'); return; }
+      await copyTextWithToast(composedText);
+    };
   }
 
   function renderAllChaptersPreview(p){
@@ -4017,12 +3831,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
     let fullText = `${p.title || '無題'}\n\n`;
     let mdText = `# ${p.title || '無題'}\n\n`;
     let html = `<div class="all-preview-title">${escapeHTML(p.title || '無題')}</div>`;
+    let totalChars = 0;
 
     p.plotChapters.forEach((ch, idx) => {
       const entry = p.manuscript[ch.id];
       const selector = entry ? ensureSelector(entry) : { series:[], rows:[] };
       const composedText = composeSelectorText(selector);
       const heading = `第${idx+1}章${ch.title ? '　' + ch.title : ''}`;
+      totalChars += composedText.length;
 
       fullText += `${heading}\n\n${composedText || '（本文未執筆）'}\n\n\n`;
       mdText += `## ${heading}\n\n${composedText || '（本文未執筆）'}\n\n`;
@@ -4039,10 +3855,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     area.innerHTML = `
       <div class="manuscript-textarea-wrap">
         <button type="button" class="btn primary" id="copyAllPreviewBtn" style="width:100%; margin-bottom:10px;">📋 全章を一括コピー</button>
-        <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
           <button type="button" class="btn" id="downloadAllPreviewTxtBtn" style="flex:1;">⬇ txtでダウンロード</button>
           <button type="button" class="btn" id="downloadAllPreviewMdBtn" style="flex:1;">⬇ mdでダウンロード</button>
         </div>
+        <div class="manuscript-wordcount-live" style="text-align:right; margin-bottom:16px;">合計 ${totalChars.toLocaleString()} 字</div>
         <div class="all-preview-wrap">${html}</div>
       </div>
     `;
