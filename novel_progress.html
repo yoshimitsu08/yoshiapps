@@ -1627,6 +1627,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="dropdown-menu" id="dashDropdown" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
+      <button type="button" class="dropdown-item" id="menuTextEditorBtn">📝 テキスト編集</button>
       <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 長押し速度を調整</button>
       <button type="button" class="dropdown-item" id="menuBookmarkColorBtn">🔖 しおり色を調整</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
@@ -1889,6 +1890,32 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="modal-footer">
       <button class="btn" id="bookmarkColorResetBtn">デフォルトに戻す</button>
       <button class="btn primary" id="bookmarkColorSaveBtn" style="flex:1;">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Text Editor Modal ============ -->
+<div class="modal-overlay" id="textEditorModalOverlay">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <h2>テキスト編集</h2>
+      <button class="modal-close" id="textEditorModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:14px;">
+        .txt / .md ファイルを読み込んで編集し、書き出せる簡易エディタです。内容は保存されません（モーダルを閉じると消えます）。
+      </div>
+      <input type="file" id="textEditorFileInput" accept=".txt,.md,text/plain,text/markdown" style="display:none;">
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button type="button" class="btn" id="textEditorLoadBtn" style="flex:1;">📂 ファイルを開く</button>
+        <button type="button" class="btn" id="textEditorClearBtn" style="flex:1;">🗑 クリア</button>
+      </div>
+      <textarea id="textEditorTextarea" class="section-textarea" placeholder="ここに直接入力するか、上のボタンからファイルを読み込んでください" style="min-height:320px; resize:vertical; width:100%;"></textarea>
+      <div class="manuscript-wordcount-live" id="textEditorWordcount" style="text-align:right; margin-top:8px;">0 字</div>
+    </div>
+    <div class="modal-footer" style="flex-wrap:wrap;">
+      <button class="btn" id="textEditorSaveTxtBtn" style="flex:1;">⬇ .txtで保存</button>
+      <button class="btn" id="textEditorSaveMdBtn" style="flex:1;">⬇ .mdで保存</button>
     </div>
   </div>
 </div>
@@ -3097,6 +3124,73 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('bookmarkColorModalOverlay').addEventListener('click', (e) => {
     if(e.target.id === 'bookmarkColorModalOverlay') document.getElementById('bookmarkColorModalOverlay').classList.remove('active');
   });
+
+  // ---------- Text Editor Modal（使い捨てテキストエディタ：保存はしない） ----------
+  document.getElementById('menuTextEditorBtn').onclick = () => {
+    document.getElementById('dashDropdown').classList.remove('active');
+    document.getElementById('textEditorTextarea').value = '';
+    updateTextEditorWordcount();
+    document.getElementById('textEditorModalOverlay').classList.add('active');
+  };
+  document.getElementById('textEditorModalClose').onclick = () => {
+    document.getElementById('textEditorModalOverlay').classList.remove('active');
+  };
+  document.getElementById('textEditorModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'textEditorModalOverlay') document.getElementById('textEditorModalOverlay').classList.remove('active');
+  });
+
+  function updateTextEditorWordcount(){
+    const len = document.getElementById('textEditorTextarea').value.length;
+    document.getElementById('textEditorWordcount').textContent = len.toLocaleString() + ' 字';
+  }
+  document.getElementById('textEditorTextarea').addEventListener('input', updateTextEditorWordcount);
+
+  document.getElementById('textEditorLoadBtn').onclick = () => {
+    document.getElementById('textEditorFileInput').click();
+  };
+  document.getElementById('textEditorFileInput').onchange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('textEditorTextarea').value = reader.result;
+      updateTextEditorWordcount();
+    };
+    reader.onerror = () => {
+      alert('ファイルの読み込みに失敗しました。');
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = ''; // 同じファイルを連続で選び直せるようにリセット
+  };
+  document.getElementById('textEditorClearBtn').onclick = () => {
+    if(!document.getElementById('textEditorTextarea').value) return;
+    if(!confirm('編集中の内容をクリアします。よろしいですか？')) return;
+    document.getElementById('textEditorTextarea').value = '';
+    updateTextEditorWordcount();
+  };
+
+  function textEditorFileName(ext){
+    const text = document.getElementById('textEditorTextarea').value;
+    const firstLine = (text.split('\n')[0] || '').trim().slice(0, 30) || '無題';
+    const safe = firstLine.replace(/[\\/:*?"<>|]/g, '_');
+    return `txt_${nowYYMMDDHH()}_${safe}.${ext}`;
+  }
+  function downloadTextEditorContent(ext){
+    const text = document.getElementById('textEditorTextarea').value;
+    if(!text){ alert('本文が空です。'); return; }
+    const blob = new Blob([text], {type: ext === 'md' ? 'text/markdown' : 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = textEditorFileName(ext);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('textEditorSaveTxtBtn').onclick = () => downloadTextEditorContent('txt');
+  document.getElementById('textEditorSaveMdBtn').onclick = () => downloadTextEditorContent('md');
+
   function updateBookmarkColorPreview(){
     const border = document.getElementById('bookmarkBorderInput').value;
     const fill = document.getElementById('bookmarkFillInput').value;
