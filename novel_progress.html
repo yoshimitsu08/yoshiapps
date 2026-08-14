@@ -1831,7 +1831,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
+        <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">🖋 編集者を編集</button>
         <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆者を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditRevisorBtn">🖋 加筆/修正を編集</button>
         <button type="button" class="dropdown-item" id="menuHistoryBtn">🕒 更新履歴を表示</button>
         <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
         <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
@@ -1848,7 +1850,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
       <div class="detail-section">
         <div class="detail-section-title">
-          <span id="detailAuthorDisplay" style="font-family:var(--font-body); font-size:0.95rem; color:var(--text2);"></span>
+          <div id="detailAuthorDisplay" style="display:flex; flex-direction:column; gap:2px; font-family:var(--font-body); font-size:0.95rem; color:var(--text2);"></div>
           <button class="btn" id="pinToggleBtn" style="padding:6px 10px; font-size:0.6rem;">📌 優先に設定</button>
         </div>
       </div>
@@ -2485,6 +2487,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
       if(p.writingPrompt === undefined) p.writingPrompt = '';
       if(p.author === undefined) p.author = '';
+      if(p.editor === undefined) p.editor = '';
+      if(p.revisor === undefined) p.revisor = '';
       if(!p.updateHistory) p.updateHistory = [];
       p._lastSavedUpdatedAt = p.updatedAt; // 読み込み直後は「未変更」扱いにし、次のsave()で不要な履歴追加をしない
       delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
@@ -2510,6 +2514,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,8); }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
+  function nowYYMMDDHH(){
+    const d = new Date();
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    return `${yy}${mm}${dd}${hh}`;
+  }
 
   // ---------- Prompt templates (shared across all projects) ----------
   function defaultTemplates(){
@@ -2621,7 +2633,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const a = document.createElement('a');
     const safeTitle = (p.title || '無題').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
     a.href = url;
-    a.download = `manuscript_${safeTitle}_${todayISO()}.json`;
+    a.download = `MS_${nowYYMMDDHH()}_${safeTitle}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2723,6 +2735,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       id: uid(),
       title: '',
       author: '',
+      editor: '',
+      revisor: '',
       cover: null,
       wordcount: 0,
       wordLog: [],
@@ -3040,13 +3054,23 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   // ---------- Detail Modal ----------
+  function updateAuthorDisplay(p){
+    const rows = [
+      { label: '編集者', value: p.editor },
+      { label: '執筆者', value: p.author },
+      { label: '加筆/修正', value: p.revisor }
+    ].filter(r => r.value);
+    document.getElementById('detailAuthorDisplay').innerHTML =
+      rows.map(r => `<span>${escapeHTML(r.label)}：${escapeHTML(r.value)}</span>`).join('');
+  }
+
   function openDetail(id){
     currentDetailId = id;
     const p = projects.find(x=>x.id===id);
     if(!p) return;
 
     document.getElementById('detailTitle').textContent = p.title || '無題';
-    document.getElementById('detailAuthorDisplay').textContent = p.author ? `執筆者：${p.author}` : '';
+    updateAuthorDisplay(p);
     document.getElementById('pinToggleBtn').textContent = p.pinned ? '📌 優先を解除' : '📌 優先に設定';
     document.getElementById('pinToggleBtn').classList.toggle('active', p.pinned);
     if(p.pinned){
@@ -3385,6 +3409,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
     document.getElementById('detailTitle').textContent = p.title;
   };
+  document.getElementById('menuEditEditorNameBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newEditor = prompt('編集者名を入力してください（空欄で未設定にできます）', p.editor || '');
+    if(newEditor === null) return;
+    p.editor = newEditor.trim();
+    p.updatedAt = Date.now();
+    save();
+    updateAuthorDisplay(p);
+  };
   document.getElementById('menuEditAuthorBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
     const p = projects.find(x=>x.id===currentDetailId);
@@ -3394,7 +3429,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
     p.author = newAuthor.trim();
     p.updatedAt = Date.now();
     save();
-    document.getElementById('detailAuthorDisplay').textContent = p.author ? `執筆者：${p.author}` : '';
+    updateAuthorDisplay(p);
+  };
+  document.getElementById('menuEditRevisorBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newRevisor = prompt('加筆/修正者名を入力してください（空欄で未設定にできます）', p.revisor || '');
+    if(newRevisor === null) return;
+    p.revisor = newRevisor.trim();
+    p.updatedAt = Date.now();
+    save();
+    updateAuthorDisplay(p);
   };
   document.getElementById('menuHistoryBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
@@ -3866,11 +3912,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
       p.plotChapters.forEach((ch, idx) => {
         const tab = document.createElement('div');
         tab.dataset.chapterId = ch.id;
-        tab.onclick = () => {
-          currentChapterId = ch.id;
-          renderChapterTabs(p);
-          renderManuscriptEditArea(p);
-        };
+        bindLongPressWithFlag(
+          tab,
+          () => { promptRenameChapter(p, ch); },
+          () => {
+            currentChapterId = ch.id;
+            renderChapterTabs(p);
+            renderManuscriptEditArea(p);
+          }
+        );
         tabs.appendChild(tab);
       });
       const allTab = document.createElement('div');
@@ -4195,6 +4245,49 @@ h1 .mark { color:var(--accent); font-style:italic; }
     el.addEventListener('mouseleave', end);
     el.addEventListener('touchstart', start);
     el.addEventListener('touchend', end);
+  }
+
+  // 長押しとクリック（タップ）を排他制御する版。
+  // 長押しが発火した場合、直後に発生するclickイベントを1回だけ無効化する。
+  // フラグのリセットはonRelease（mouseup/touchend）ではなくclick側で行う。
+  // これはonReleaseがclickより先に発火するため、そこでリセットすると
+  // 「長押し発火→リセット→click発火」の順になりclickが誤って通ってしまうことへの対策。
+  function bindLongPressWithFlag(el, onLongPress, onClick, delay){
+    delay = delay || longPressMs;
+    let timer = null;
+    let longPressFired = false;
+    const start = () => {
+      longPressFired = false;
+      timer = setTimeout(() => {
+        longPressFired = true;
+        timer = null;
+        onLongPress();
+      }, delay);
+    };
+    const end = () => { if(timer){ clearTimeout(timer); timer = null; } };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchend', end);
+    el.addEventListener('click', (e) => {
+      if(longPressFired){
+        longPressFired = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      onClick(e);
+    });
+  }
+
+  function promptRenameChapter(p, ch){
+    const newTitle = prompt('章タイトルを入力してください（空欄で未設定にできます）', ch.title || '');
+    if(newTitle === null) return;
+    ch.title = newTitle.trim();
+    p.updatedAt = Date.now();
+    save();
+    renderChapterTabs(p);
   }
 
   function renderSelectorCardEl(rowIdx, s, card, selector){
