@@ -1899,7 +1899,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <div class="modal" style="max-width:720px;">
     <div class="modal-header">
       <h2>テキスト編集</h2>
-      <button class="modal-close" id="textEditorModalClose">×</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn" id="textEditorToolsBtn" style="flex-shrink:0; padding:8px 12px; font-size:0.65rem;">🛠 編集ツール</button>
+        <button class="modal-close" id="textEditorModalClose">×</button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="chapter-note" style="margin-bottom:14px;">
@@ -1916,6 +1919,38 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="modal-footer" style="flex-wrap:wrap;">
       <button class="btn" id="textEditorSaveTxtBtn" style="flex:1;">⬇ .txtで保存</button>
       <button class="btn" id="textEditorSaveMdBtn" style="flex:1;">⬇ .mdで保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Text Editor Tools Modal ============ -->
+<div class="modal-overlay" id="textEditorToolsModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>編集ツール</h2>
+      <button class="modal-close" id="textEditorToolsModalClose">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="detail-section">
+        <div class="detail-section-title">半角スペース除去</div>
+        <div class="chapter-note" style="margin-bottom:10px;">本文中の半角スペースをすべて削除します。</div>
+        <button class="btn primary" id="teTrimSpaceExecBtn" style="width:100%;">半角スペースを除去する</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">文字検索＋置換</div>
+        <div class="field">
+          <label>検索する文字列</label>
+          <input type="text" id="teFindTextInput" placeholder="検索したい文字列">
+        </div>
+        <div class="field">
+          <label>置換後の文字列（空欄で削除）</label>
+          <input type="text" id="teReplaceTextInput" placeholder="置換後の文字列">
+        </div>
+        <button class="btn primary" id="teFindReplaceExecBtn" style="width:100%;">検索して置換する</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -3190,6 +3225,42 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
   document.getElementById('textEditorSaveTxtBtn').onclick = () => downloadTextEditorContent('txt');
   document.getElementById('textEditorSaveMdBtn').onclick = () => downloadTextEditorContent('md');
+
+  // ---------- Text Editor Tools（半角スペース除去・検索置換：テキストエリア全体が対象） ----------
+  document.getElementById('textEditorToolsBtn').onclick = () => {
+    document.getElementById('textEditorToolsModalOverlay').classList.add('active');
+  };
+  document.getElementById('textEditorToolsModalClose').onclick = () => {
+    document.getElementById('textEditorToolsModalOverlay').classList.remove('active');
+  };
+  document.getElementById('textEditorToolsModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'textEditorToolsModalOverlay') document.getElementById('textEditorToolsModalOverlay').classList.remove('active');
+  });
+
+  document.getElementById('teTrimSpaceExecBtn').onclick = () => {
+    const ta = document.getElementById('textEditorTextarea');
+    const count = (ta.value.match(/ /g) || []).length;
+    if(count === 0){ alert('半角スペースは見つかりませんでした'); return; }
+    if(!confirm(`本文から半角スペースを${count}件除去します。よろしいですか？`)) return;
+    ta.value = ta.value.split(' ').join('');
+    updateTextEditorWordcount();
+    document.getElementById('textEditorToolsModalOverlay').classList.remove('active');
+    alert('半角スペースを除去しました。');
+  };
+
+  document.getElementById('teFindReplaceExecBtn').onclick = () => {
+    const ta = document.getElementById('textEditorTextarea');
+    const findText = document.getElementById('teFindTextInput').value;
+    const replaceText = document.getElementById('teReplaceTextInput').value;
+    if(!findText){ alert('検索する文字列を入力してください'); return; }
+    const count = countOccurrences(ta.value, findText);
+    if(count === 0){ alert('一致する文字列が見つかりませんでした'); return; }
+    if(!confirm(`「${findText}」が${count}件見つかりました。「${replaceText}」に置換します。よろしいですか？`)) return;
+    ta.value = ta.value.split(findText).join(replaceText);
+    updateTextEditorWordcount();
+    document.getElementById('textEditorToolsModalOverlay').classList.remove('active');
+    alert('置換しました。');
+  };
 
   function updateBookmarkColorPreview(){
     const border = document.getElementById('bookmarkBorderInput').value;
