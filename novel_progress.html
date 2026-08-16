@@ -1790,6 +1790,30 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
 </div>
 
+<!-- ============ Image Prompt Editor Modal ============ -->
+<div class="modal-overlay" id="imagePromptModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="imagePromptModalTitle">画像プロンプトエディタ</h2>
+      <button class="modal-close" id="imagePromptModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="chapter-note" style="margin-bottom:12px;">
+        メインタイトル用・章ごとのキービジュアル画像生成プロンプトを管理します。「AI連携」から一括生成すると、ここに自動で振り分けられます。手動での編集も可能です。
+      </div>
+
+      <div class="detail-section-title">メインタイトル用</div>
+      <div class="field">
+        <textarea id="imagePromptMainTextarea" class="section-textarea" style="min-height:100px;" placeholder="メインビジュアル用の画像生成プロンプト"></textarea>
+        <button class="btn" id="imagePromptMainCopyBtn" style="width:100%; margin-top:6px;">📋 コピー</button>
+      </div>
+
+      <div class="detail-section-title" style="margin-top:18px;">章ごと</div>
+      <div id="imagePromptChaptersWrap"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Detail Modal ============ -->
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal">
@@ -1829,6 +1853,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="detail-section" style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn" id="openSettingBtn" style="flex:1;">📝 設定・プロット</button>
         <button class="btn primary" id="openManuscriptBtn" style="flex:1;">✏️ 本文編集</button>
+        <button class="btn" id="openImagePromptBtn" style="width:100%;">🖼 画像プロンプト</button>
         <button class="btn" id="openAiHubBtn" style="width:100%; color:var(--accent); border-color:var(--accent);">🤖 AI連携（β）</button>
         <button class="btn" id="continueAiImportBtn" style="display:none; width:100%; color:var(--accent); border-color:var(--accent);">🤖 AI取り込みを続ける</button>
       </div>
@@ -2370,6 +2395,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="editor-body" style="padding-top:0;">
       <button type="button" class="add-chapter-btn" id="addChapterBtn">＋ 章を追加</button>
+      <div class="field" style="margin-top:14px;">
+        <label>本文を作る機能での1章あたりの目安文字数（空欄なら1500字）</label>
+        <input type="number" id="manuscriptTargetLengthInput" placeholder="例：3000" min="0" step="100">
+      </div>
     </div>
   </div>
 
@@ -2612,6 +2641,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       });
       if(p.roughMemo === undefined) p.roughMemo = '';
       if(p.aiTargetLength === undefined) p.aiTargetLength = null;
+      if(p.manuscriptTargetLength === undefined) p.manuscriptTargetLength = null;
       if(p.aiImportAvailable === undefined) p.aiImportAvailable = false; // 既存作品はAI取り込みフロー対象外
       if(p.writingPrompt === undefined) p.writingPrompt = '';
       if(p.author === undefined) p.author = '';
@@ -2880,7 +2910,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       plotChapters: [],
       manuscript: {}, // chapterId -> { status, selector: { series:[], rows:[] } }
       roughMemo: '',
-      aiTargetLength: null, // AIと作るフローで指定する1章あたりの目安文字数
+      aiTargetLength: null, // AIと作るフローで指定する1章あたりの目安文字数（設定・プロット構成用）
+      manuscriptTargetLength: null, // 本文を作る機能で使う1章あたりの目安文字数（空欄時は1500字扱い）
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
       updateHistory: [], // [{date, device}, ...] 最大MAX_UPDATE_HISTORY件
@@ -3657,6 +3688,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     openAiHubView(id);
   };
 
+  document.getElementById('openImagePromptBtn').onclick = () => {
+    openImagePromptModal(currentDetailId);
+  };
+
   document.getElementById('continueAiImportBtn').onclick = () => {
     const id = currentDetailId;
     document.getElementById('detailModalOverlay').classList.remove('active');
@@ -3686,6 +3721,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderSections(p);
     renderChapters(p);
     populateTemplateSelect();
+    document.getElementById('manuscriptTargetLengthInput').value = p.manuscriptTargetLength || '';
     const promptEl = document.getElementById('promptPreview');
     promptEl.value = p.writingPrompt && p.writingPrompt.trim()
       ? p.writingPrompt
@@ -3798,6 +3834,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
     renderChapters(p);
   };
+
+  document.getElementById('manuscriptTargetLengthInput').addEventListener('input', (e) => {
+    const p = getCurrentSettingProject();
+    if(!p) return;
+    const val = parseInt(e.target.value, 10);
+    p.manuscriptTargetLength = (e.target.value === '' || isNaN(val)) ? null : val;
+    p.updatedAt = Date.now();
+    save();
+  });
 
   function renderSectionBlock(sec, p){
     const block = document.createElement('div');
@@ -5459,6 +5504,18 @@ ${pasted}
       title: '精査・ブラッシュアップ',
       desc: '既存の設定・プロットの矛盾点や弱い部分を洗い出し、改善します。',
       sources: ['settingPlot']
+    },
+    {
+      id: 'writeManuscript',
+      title: '本文を作る',
+      desc: '設定・プロットをもとに、各章の本文をAIに執筆させます。生成結果は各章の新しいドラフト系列として追加され、既存の本文は変更されません。',
+      sources: ['settingPlot']
+    },
+    {
+      id: 'imagePrompts',
+      title: 'キービジュアル画像プロンプト作成',
+      desc: 'メインタイトル用と章ごとの画像生成プロンプトを一括で作成します。生成結果は画像プロンプトエディタに自動で振り分けられます。',
+      sources: ['settingPlot']
     }
   ];
 
@@ -5574,6 +5631,47 @@ ${buildFormatInstructions()}
 
 【現在の設定・プロット】
 ${base}`;
+    } else if(hubPurpose === 'writeManuscript'){
+      label = 'AIに渡す本文執筆プロンプト';
+      const base = buildPrompt(p, false);
+      const targetLen = p.manuscriptTargetLength || 1500;
+      prompt = `あなたはプロの小説家です。以下の設定とプロットを用いて、全章分の本文を執筆してください。
+
+【文字数の目安】
+各章およそ${targetLen.toLocaleString()}字を目安に執筆してください。
+
+【出力形式について（厳守してください）】
+以下のフォーマットに沿って、章ごとに出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。
+
+■第1章：（章タイトル）
+（この章の本文をここに）
+
+※プロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。
+
+【設定・プロット】
+${base}`;
+    } else if(hubPurpose === 'imagePrompts'){
+      label = 'AIに渡す画像プロンプト作成用の依頼文';
+      const base = buildPrompt(p, false);
+      prompt = `あなたはプロのアートディレクターです。以下の設定・プロットをもとに、画像生成AI（Midjourney・Stable Diffusion等）に渡すための画像生成プロンプトを、英語で作成してください。
+
+【作成対象】
+1. メインタイトル用のキービジュアル（作品全体を象徴する1枚）
+2. 各章のキービジュアル（各章の見せ場を象徴する1枚ずつ）
+
+【出力形式について（厳守してください）】
+以下のフォーマットに沿って、過不足なく出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。プロンプト本文は英語で構いませんが、見出し行は日本語のままにしてください。
+
+■メインタイトル
+（英語の画像生成プロンプトをここに）
+
+■第1章
+（英語の画像生成プロンプトをここに）
+
+※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。
+
+【設定・プロット】
+${base}`;
     }
 
     document.getElementById('hubPreviewLabel').textContent = label;
@@ -5583,6 +5681,10 @@ ${base}`;
     const note = document.getElementById('hubApplyNote');
     if(hubPurpose === 'buildSettingPlot'){
       note.textContent = '反映すると、以後この作品ではAI一括取り込みは使えなくなります（通常の編集画面で手動修正してください）';
+    } else if(hubPurpose === 'writeManuscript'){
+      note.textContent = '反映すると、各章に新しいドラフト系列として本文が追加されます（既存のカードは変更されません）';
+    } else if(hubPurpose === 'imagePrompts'){
+      note.textContent = '反映すると、画像プロンプトエディタのメインタイトル用・各章の内容が上書きされます';
     } else {
       note.textContent = '反映すると既存の設定・プロットは全て上書きされます（反映前に確認画面が出ます）';
     }
@@ -5615,6 +5717,302 @@ ${base}`;
 ※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。`;
   }
 
+  // ---- 画像プロンプト用パーサー（■メインタイトル／■第N章 の見出しで区切る）----
+  function parseImagePromptOutput(raw){
+    const text = (raw || '').replace(/\r\n/g, '\n');
+    const lines = text.split('\n');
+    const chapterRe = /^■\s*第\s*([0-9０-９]+)\s*章\s*$/;
+    const mainRe = /^■\s*メインタイトル\s*$/;
+
+    const blocks = [];
+    let current = { kind:'unclassified', body:[] };
+    blocks.push(current);
+
+    lines.forEach(line => {
+      const mMain = line.match(mainRe);
+      const mCh = line.match(chapterRe);
+      if(mMain){
+        current = { kind:'main', body:[] };
+        blocks.push(current);
+      } else if(mCh){
+        const numStr = mCh[1].replace(/[０-９]/g, ch => '０１２３４５６７８９'.indexOf(ch));
+        current = { kind:'chapter', chapterNum: parseInt(numStr,10), body:[] };
+        blocks.push(current);
+      } else {
+        current.body.push(line);
+      }
+    });
+
+    const cleaned = blocks.filter(b => !(b.kind==='unclassified' && b.body.join('').trim()===''));
+
+    let main = null;
+    const chapters = [];
+    const unclassified = [];
+    cleaned.forEach(b => {
+      const t = b.body.join('\n').trim();
+      if(b.kind === 'main'){
+        main = t;
+      } else if(b.kind === 'chapter'){
+        if(t) chapters.push({ num: b.chapterNum, text: t });
+      } else {
+        if(t) unclassified.push(t);
+      }
+    });
+    chapters.sort((a,b) => (a.num||0) - (b.num||0));
+
+    const warnings = [];
+    if(!main) warnings.push('メインタイトル用のプロンプトが検出されませんでした');
+    if(chapters.length === 0) warnings.push('章ごとのプロンプトが1件も検出されませんでした');
+
+    return { main, chapters, unclassified, warnings };
+  }
+
+  function renderImagePromptParsePreview(result, wrapId, warnId){
+    const wrap = document.getElementById(wrapId);
+    let html = '';
+    if(result.main){
+      const preview = result.main.length > 200 ? result.main.slice(0,200) + '…' : result.main;
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">メイン</span></div>
+        <div class="parse-item-body">${escapeHTML(preview)}</div>
+      </div>`;
+    }
+    result.chapters.forEach(c => {
+      const preview = c.text.length > 200 ? c.text.slice(0,200) + '…' : c.text;
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">章</span><span class="parse-item-title">第${c.num||'?'}章</span></div>
+        <div class="parse-item-body">${escapeHTML(preview)}</div>
+      </div>`;
+    });
+    result.unclassified.forEach(t => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag unclassified">未分類</span></div>
+        <div class="parse-item-body">${escapeHTML(t)}</div>
+      </div>`;
+    });
+    wrap.innerHTML = html || '<div class="chapter-tabs-empty">解析できる内容がありませんでした</div>';
+
+    const warnWrap = document.getElementById(warnId);
+    if(result.warnings.length > 0){
+      warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
+    } else {
+      warnWrap.innerHTML = '';
+    }
+  }
+
+  // パース結果を画像プロンプトエディタのデータへ振り分ける（メインタイトル用＋章IDと連動する章ごとのデータ）
+  function applyImagePromptResultToProject(p, result){
+    if(!p.imagePrompts) p.imagePrompts = { main: null, chapters: {} };
+    if(!p.imagePrompts.chapters) p.imagePrompts.chapters = {};
+    const now = Date.now();
+    if(result.main){
+      p.imagePrompts.main = { prompt: result.main, generatedAt: now };
+    }
+    let appliedCount = 0;
+    result.chapters.forEach(c => {
+      const chapter = p.plotChapters[c.num - 1];
+      if(!chapter) return;
+      p.imagePrompts.chapters[chapter.id] = { prompt: c.text, generatedAt: now };
+      appliedCount++;
+    });
+    p.updatedAt = Date.now();
+    save();
+    return appliedCount;
+  }
+
+
+  function parseManuscriptOutput(raw){
+    const text = (raw || '').replace(/\r\n/g, '\n');
+    const lines = text.split('\n');
+    const chapterRe = /^■\s*第\s*([0-9０-９]+)\s*章[：:]\s*(.*?)\s*$/;
+
+    const blocks = [];
+    let current = { kind:'unclassified', body:[] };
+    blocks.push(current);
+
+    lines.forEach(line => {
+      const m = line.match(chapterRe);
+      if(m){
+        const numStr = m[1].replace(/[０-９]/g, ch => '０１２３４５６７８９'.indexOf(ch));
+        current = { kind:'chapter', title: m[2].trim(), chapterNum: parseInt(numStr,10), body:[] };
+        blocks.push(current);
+      } else {
+        current.body.push(line);
+      }
+    });
+
+    const cleaned = blocks.filter(b => !(b.kind==='unclassified' && b.body.join('').trim()===''));
+
+    const chapters = [];
+    const unclassified = [];
+    cleaned.forEach(b => {
+      if(b.kind === 'chapter'){
+        chapters.push({ num: b.chapterNum, title: b.title, text: b.body.join('\n').trim() });
+      } else {
+        const t = b.body.join('\n').trim();
+        if(t) unclassified.push(t);
+      }
+    });
+    chapters.sort((a,b) => (a.num||0) - (b.num||0));
+
+    const warnings = [];
+    if(chapters.length > 0){
+      const nums = chapters.map(c=>c.num).filter(n => !isNaN(n));
+      const numSet = new Set();
+      const dupes = new Set();
+      nums.forEach(n => { if(numSet.has(n)) dupes.add(n); numSet.add(n); });
+      if(dupes.size > 0) warnings.push(`章番号が重複しています：第${[...dupes].join('章、第')}章`);
+      const maxNum = Math.max(...nums);
+      const missing = [];
+      for(let i=1;i<=maxNum;i++){ if(!numSet.has(i)) missing.push(i); }
+      if(missing.length > 0) warnings.push(`章番号が抜けています：第${missing.join('章、第')}章`);
+    }
+    if(chapters.length === 0) warnings.push('章が1件も検出されませんでした（フォーマットが見出し規約と合っていない可能性があります）');
+
+    return { chapters, unclassified, warnings };
+  }
+
+  function renderManuscriptParsePreview(result, wrapId, warnId){
+    const wrap = document.getElementById(wrapId);
+    let html = '';
+    result.chapters.forEach(c => {
+      const preview = c.text.length > 200 ? c.text.slice(0,200) + '…' : c.text;
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">章</span><span class="parse-item-title">第${c.num||'?'}章　${escapeHTML(c.title)}</span></div>
+        <div class="parse-item-body">${escapeHTML(preview)}（${c.text.length}字）</div>
+      </div>`;
+    });
+    result.unclassified.forEach(t => {
+      html += `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag unclassified">未分類</span></div>
+        <div class="parse-item-body">${escapeHTML(t)}</div>
+      </div>`;
+    });
+    wrap.innerHTML = html || '<div class="chapter-tabs-empty">解析できる内容がありませんでした</div>';
+
+    const warnWrap = document.getElementById(warnId);
+    if(result.warnings.length > 0){
+      warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
+    } else {
+      warnWrap.innerHTML = '';
+    }
+  }
+
+  // パース結果（章ごとの本文）を、各章のSentence Selectorに「新しい系列」として追加する。
+  // 既存カード・系列は一切変更しない（安全側の設計）。
+  function applyManuscriptResultToProject(p, result){
+    if(!p.manuscript) p.manuscript = {};
+    let appliedCount = 0;
+    result.chapters.forEach(c => {
+      const chapter = p.plotChapters[c.num - 1]; // 章番号(1始まり) -> plotChaptersのindex
+      if(!chapter) return;
+      if(!p.manuscript[chapter.id]) p.manuscript[chapter.id] = { status:'writing', selector:{series:[],rows:[]}, lastEditedCardId:null };
+      const entry = p.manuscript[chapter.id];
+      const selector = ensureSelector(entry);
+
+      const usedLabels = new Set(selector.series.map(s => s.label));
+      let labelChar = 'A';
+      while(usedLabels.has(labelChar)){ labelChar = String.fromCharCode(labelChar.charCodeAt(0) + 1); }
+      const sid = selectorUid('sr');
+      selector.series.push({ id: sid, label: labelChar, color: SELECTOR_COLORS[selector.series.length % SELECTOR_COLORS.length] });
+
+      const sentences = splitIntoSentences(c.text);
+      // 既存行に新系列の列を追加しつつ、文の数だけ行を確保する
+      const rowCount = Math.max(selector.rows.length, sentences.length);
+      for(let i=0;i<rowCount;i++){
+        if(!selector.rows[i]) selector.rows[i] = {};
+        selector.series.forEach(s => { if(!selector.rows[i][s.id]) selector.rows[i][s.id] = []; });
+        if(i < sentences.length){
+          selector.rows[i][sid].push({ id: selectorUid('sc'), text: sentences[i], selected: true });
+        }
+      }
+      appliedCount++;
+    });
+    p.updatedAt = Date.now();
+    save();
+    return appliedCount;
+  }
+
+  // ================= Image Prompt Editor =================
+  let currentImagePromptProjectId = null;
+
+  function openImagePromptModal(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    if(!p.imagePrompts) p.imagePrompts = { main: null, chapters: {} };
+    if(!p.imagePrompts.chapters) p.imagePrompts.chapters = {};
+    currentImagePromptProjectId = id;
+    document.getElementById('imagePromptModalTitle').textContent = (p.title || '無題') + '　画像プロンプト';
+    document.getElementById('imagePromptMainTextarea').value = (p.imagePrompts.main && p.imagePrompts.main.prompt) || '';
+    renderImagePromptChapters(p);
+    document.getElementById('imagePromptModalOverlay').classList.add('active');
+  }
+
+  document.getElementById('imagePromptModalClose').onclick = () => {
+    document.getElementById('imagePromptModalOverlay').classList.remove('active');
+  };
+  document.getElementById('imagePromptModalOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'imagePromptModalOverlay') document.getElementById('imagePromptModalOverlay').classList.remove('active');
+  });
+
+  document.getElementById('imagePromptMainTextarea').addEventListener('input', (e) => {
+    const p = projects.find(x=>x.id===currentImagePromptProjectId);
+    if(!p) return;
+    if(!p.imagePrompts) p.imagePrompts = { main: null, chapters: {} };
+    if(!p.imagePrompts.main) p.imagePrompts.main = { prompt:'', generatedAt: null };
+    p.imagePrompts.main.prompt = e.target.value;
+    p.updatedAt = Date.now();
+    save();
+  });
+
+  document.getElementById('imagePromptMainCopyBtn').onclick = async () => {
+    const text = document.getElementById('imagePromptMainTextarea').value;
+    if(!text.trim()){ alert('プロンプトが空です'); return; }
+    await copyTextWithToast(text);
+  };
+
+  function renderImagePromptChapters(p){
+    const wrap = document.getElementById('imagePromptChaptersWrap');
+    if(!p.plotChapters || p.plotChapters.length === 0){
+      wrap.innerHTML = '<div class="chapter-tabs-empty">章がまだありません（設定・プロットで章を追加してください）</div>';
+      return;
+    }
+    wrap.innerHTML = p.plotChapters.map((ch, idx) => {
+      const entry = p.imagePrompts.chapters[ch.id];
+      const val = (entry && entry.prompt) || '';
+      return `<div class="char-field" data-chid="${ch.id}" style="margin-bottom:14px;">
+        <label>第${idx+1}章${ch.title ? '　' + escapeHTML(ch.title) : ''}</label>
+        <textarea class="auto-resize-textarea image-prompt-chapter-textarea" data-chid="${ch.id}" placeholder="この章のキービジュアル画像生成プロンプト">${escapeHTML(val)}</textarea>
+        <button class="btn image-prompt-chapter-copy-btn" data-chid="${ch.id}" style="width:100%; margin-top:6px;">📋 コピー</button>
+      </div>`;
+    }).join('');
+
+    wrap.querySelectorAll('.image-prompt-chapter-textarea').forEach(ta => {
+      enableAutoResize(ta);
+      requestAnimationFrame(() => {
+        ta.style.height = 'auto';
+        ta.style.height = (ta.scrollHeight + 2) + 'px';
+      });
+      ta.addEventListener('input', (e) => {
+        const p2 = projects.find(x=>x.id===currentImagePromptProjectId);
+        if(!p2) return;
+        const chid = e.target.dataset.chid;
+        if(!p2.imagePrompts.chapters[chid]) p2.imagePrompts.chapters[chid] = { prompt:'', generatedAt: null };
+        p2.imagePrompts.chapters[chid].prompt = e.target.value;
+        p2.updatedAt = Date.now();
+        save();
+      });
+    });
+
+    wrap.querySelectorAll('.image-prompt-chapter-copy-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const ta = wrap.querySelector(`.image-prompt-chapter-textarea[data-chid="${btn.dataset.chid}"]`);
+        if(!ta || !ta.value.trim()){ alert('プロンプトが空です'); return; }
+        await copyTextWithToast(ta.value);
+      };
+    });
+  }
+
   document.getElementById('hubCopyBtn').onclick = async () => {
     const text = document.getElementById('hubPreview').dataset.raw || document.getElementById('hubPreview').textContent;
     await copyTextWithToast(text);
@@ -5629,31 +6027,63 @@ ${base}`;
   document.getElementById('hubParseBtn').onclick = () => {
     const raw = document.getElementById('hubPasteTextarea').value;
     if(!raw.trim()){ alert('AIの回答を貼り付けてください'); return; }
-    hubParsedResult = parseAiOutput(raw);
 
-    const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
-    if(unclassifiedChars > unclassifiedThreshold){
-      hubParsedResult.warnings = [
-        `未分類として扱われたテキストが${unclassifiedChars}字あります（しきい値：${unclassifiedThreshold}字）。貼り付け内容の受け皿間違いや、AIの出力にフォーマット外の文章（感想・前置きなど）が混ざっていないか確認してください。`,
-        ...hubParsedResult.warnings
-      ];
+    if(hubPurpose === 'writeManuscript'){
+      hubParsedResult = parseManuscriptOutput(raw);
+      const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
+      if(unclassifiedChars > unclassifiedThreshold){
+        hubParsedResult.warnings = [
+          `未分類として扱われたテキストが${unclassifiedChars}字あります（しきい値：${unclassifiedThreshold}字）。貼り付け内容の受け皿間違いや、AIの出力にフォーマット外の文章（感想・前置きなど）が混ざっていないか確認してください。`,
+          ...hubParsedResult.warnings
+        ];
+      }
+      renderManuscriptParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
+    } else if(hubPurpose === 'imagePrompts'){
+      hubParsedResult = parseImagePromptOutput(raw);
+      const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
+      if(unclassifiedChars > unclassifiedThreshold){
+        hubParsedResult.warnings = [
+          `未分類として扱われたテキストが${unclassifiedChars}字あります（しきい値：${unclassifiedThreshold}字）。貼り付け内容の受け皿間違いや、AIの出力にフォーマット外の文章（感想・前置きなど）が混ざっていないか確認してください。`,
+          ...hubParsedResult.warnings
+        ];
+      }
+      renderImagePromptParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
+    } else {
+      hubParsedResult = parseAiOutput(raw);
+      const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
+      if(unclassifiedChars > unclassifiedThreshold){
+        hubParsedResult.warnings = [
+          `未分類として扱われたテキストが${unclassifiedChars}字あります（しきい値：${unclassifiedThreshold}字）。貼り付け内容の受け皿間違いや、AIの出力にフォーマット外の文章（感想・前置きなど）が混ざっていないか確認してください。`,
+          ...hubParsedResult.warnings
+        ];
+      }
+      renderParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
     }
 
-    renderParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
     document.getElementById('hubParsePreviewWrap').style.display = 'block';
   };
 
   document.getElementById('hubApplyBtn').onclick = () => {
     if(!hubParsedResult) return;
-    if(!confirm('この内容を設定・プロットに反映します。既存の内容は上書きされ、この操作は元に戻せません。よろしいですか？')) return;
 
     const p = projects.find(x=>x.id===currentHubId);
     if(!p) return;
 
-    const unavailableAfterApply = (hubPurpose === 'buildSettingPlot');
-    applyParsedResultToProject(p, hubParsedResult, unavailableAfterApply);
+    if(hubPurpose === 'writeManuscript'){
+      if(!confirm('この内容を各章の本文（新しいドラフト系列）として追加します。よろしいですか？')) return;
+      const count = applyManuscriptResultToProject(p, hubParsedResult);
+      alert(`${count}章分の本文を新しいドラフト系列として追加しました。Sentence Selectorで内容を確認し、採用するカードを選んでください。`);
+    } else if(hubPurpose === 'imagePrompts'){
+      if(!confirm('この内容を画像プロンプトエディタに反映します。既存のプロンプトは上書きされます。よろしいですか？')) return;
+      const count = applyImagePromptResultToProject(p, hubParsedResult);
+      alert(`メインタイトル用＋${count}章分の画像プロンプトを反映しました。`);
+    } else {
+      if(!confirm('この内容を設定・プロットに反映します。既存の内容は上書きされ、この操作は元に戻せません。よろしいですか？')) return;
+      const unavailableAfterApply = (hubPurpose === 'buildSettingPlot');
+      applyParsedResultToProject(p, hubParsedResult, unavailableAfterApply);
+      alert('反映しました。');
+    }
 
-    alert('反映しました。');
     switchView('dashboardView');
     renderGrid();
     openDetail(p.id);
