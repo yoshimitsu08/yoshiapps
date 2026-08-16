@@ -1815,6 +1815,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <textarea class="section-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど" style="min-height:100px;"></textarea>
       </div>
 
+      <div class="detail-section">
+        <div class="detail-section-title">紹介文</div>
+        <textarea class="section-textarea auto-resize-textarea" id="detailIntroTextarea" placeholder="読者向けの紹介文・あらすじ紹介など" style="min-height:80px;"></textarea>
+      </div>
+
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;">
     </div>
@@ -2481,6 +2486,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.editor === undefined) p.editor = '';
       if(p.revisor === undefined) p.revisor = '';
       if(!p.updateHistory) p.updateHistory = [];
+      if(p.introText === undefined) p.introText = '';
+      if(!p.imagePrompts) p.imagePrompts = { main: null, chapters: {} };
+      if(!p.imagePrompts.chapters) p.imagePrompts.chapters = {};
+      if(p.imagePrompts.main === undefined) p.imagePrompts.main = null;
       p._lastSavedUpdatedAt = p.updatedAt; // 読み込み直後は「未変更」扱いにし、次のsave()で不要な履歴追加をしない
       delete p.phase; // 手動フェーズは廃止、以後は章ステータスから自動算出
     });
@@ -2743,6 +2752,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       aiImportAvailable: false, // trueの間だけAI取り込みフローに入れる（使用後false固定）
       writingPrompt: '', // 編集済みの執筆用プロンプト（保存される）
       updateHistory: [], // [{date, device}, ...] 最大MAX_UPDATE_HISTORY件
+      introText: '', // 紹介文（作品詳細モーダル・メモ欄下で編集）
+      imagePrompts: { main: null, chapters: {} }, // 画像プロンプト。main: {prompt, generatedAt} | null、chapters: { [chapterId]: {prompt, generatedAt} }
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -3051,6 +3062,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
       p.updatedAt = Date.now();
       save();
     };
+
+    const introTa = document.getElementById('detailIntroTextarea');
+    introTa.value = p.introText || '';
+    introTa.oninput = () => {
+      p.introText = introTa.value;
+      p.updatedAt = Date.now();
+      save();
+    };
+    enableAutoResize(introTa);
+    // モーダルを開き直すたびに、既存内容に合わせた高さへ再計算する
+    requestAnimationFrame(() => {
+      introTa.style.height = 'auto';
+      introTa.style.height = (introTa.scrollHeight + 2) + 'px';
+    });
 
     // cover editor (hidden by default, toggled via hamburger)
     document.getElementById('detailCoverUpload').style.display = 'none';
