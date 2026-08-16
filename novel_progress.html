@@ -3689,7 +3689,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   };
 
   document.getElementById('openImagePromptBtn').onclick = () => {
-    openImagePromptModal(currentDetailId);
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openImagePromptModal(id);
   };
 
   document.getElementById('continueAiImportBtn').onclick = () => {
