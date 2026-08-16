@@ -1751,9 +1751,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-body">
       <div class="chapter-note" style="margin-bottom:12px;">
-        文頭・文末の指示文を編集できます。中間には各作品の設定・プロットが自動で挿入されます。全作品共通で使えます。
+        文頭・文末の指示文を編集できます。中間には各作品の元データ（ラフメモ／設定・プロット／本文）が自動で挿入されます。全作品共通で使えます。
       </div>
-      <div id="templateListWrap"></div>
+      <div class="setting-nav" id="templatePurposeTabs" style="flex-wrap:wrap;">
+        <button type="button" class="setting-nav-btn active" data-purpose="buildSettingPlot">設定&amp;プロットを作る</button>
+        <button type="button" class="setting-nav-btn" data-purpose="reviewSettingPlot">精査・ブラッシュアップ</button>
+        <button type="button" class="setting-nav-btn" data-purpose="writeManuscript">本文を作る</button>
+        <button type="button" class="setting-nav-btn" data-purpose="imagePrompts">画像プロンプト作成</button>
+        <button type="button" class="setting-nav-btn" data-purpose="introText">紹介文作成</button>
+      </div>
+      <div id="templateListWrap" style="margin-top:14px;"></div>
       <button type="button" class="add-section-btn" id="templateAddBtn">＋ テンプレートを追加</button>
       <button type="button" class="add-section-btn" id="templateImportBtn" style="margin-top:8px;">📥 テンプレートをインポート</button>
     </div>
@@ -2213,6 +2220,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <!-- Step 3: プレビュー・コピー -->
   <div class="setting-page" id="hubStepPreview">
     <div class="editor-body">
+      <div class="field">
+        <label>使用するテンプレート</label>
+        <select class="sort-select" id="hubTemplateSelect" style="width:100%;"></select>
+      </div>
       <div class="prompt-panel">
         <div class="prompt-panel-head">
           <span class="pt-label" id="hubPreviewLabel">AIに渡すプロンプト</span>
@@ -2702,26 +2713,88 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   // ---------- Prompt templates (shared across all projects) ----------
-  function defaultTemplates(){
-    return [
-      {
+  // 2026-08-17: 用途別（HUB_PURPOSESのid）にテンプレート配列を持つ構造に変更。
+  // 旧形式（配列1本、writeManuscript専用）は読み込み時に自動マイグレーションする。
+  const TEMPLATE_PURPOSE_IDS = ['buildSettingPlot', 'reviewSettingPlot', 'writeManuscript', 'imagePrompts', 'introText'];
+
+  function defaultTemplatesFor(purposeId){
+    if(purposeId === 'writeManuscript'){
+      return [
+        {
+          id: uid(),
+          name: 'シンプル執筆',
+          head: 'あなたは、以下の作家性・執筆ルールに基づいて小説を執筆する専属ライターです。 プロンプト末尾に添付される「設定」と「プロット」に従い、本文を"一度の生成で一章"執筆してください。\n尚、文字数は章ごと（パートごと、シーンごと）に指定します。指定が無い場合は2500文字以上です。\n\n作家性（絶対に譲れない核）\nテーマ 抗えない業、必然的な罪、免れぬ罰、その向こう側にある人間賛歌（醜い美しさ）。\n構成の型 静謐な日常 → 滲む一滴の不穏の種 → 歪みだす倫理 → 溶ける輪郭と境界線 → 不可逆的な共犯 → それでも続く日常（バッドエンド、またはメリーバッドエンド）。\n描写方針\n主人公の追体験ができるように書くこと\n読者へは説明を控え、言動・仕草・沈黙で感じさせること（心情の直接的な明言を避ける）\n五感描写を多用すること\n季節・天候・光は舞台装置ではなく感情表現として機能させること\n倫理スタンス 禁忌や背徳はあくまでフックであり、本質ではない。 「"醜い""悍ましい"もまた人間であり、"美しい"」という視点を貫くこと。 罪そのものは肯定しない。肯定するのは「それでも人が生きること」である。 説教にも免罪符にもしないこと。\n執筆ルール\n視点・語り：主人公の一人称視点。\n地の文で心情を説明しすぎない。感情の名指しを避け、行動・生理反応・沈黙・視線の動きで表現すること。\n省略と余白：語りすぎないこと。読者が自分で「色付け」できる余白を残すこと。\n不可逆性：一度歪んだ倫理や関係性は、簡単に元に戻さないこと。取り返しのつかなさを丁寧に描くこと。\n結末：救済で閉じない。バッドエンドまたはメリーバッドエンドを基本とし、登場人物自身は気づいていない「盲点」が読者にだけ見えるような終わり方を意識すること。\n一貫性：添付の「設定」「プロット」から逸脱しないこと。矛盾が生じる場合は執筆を止め、確認を求めること。\nセンシティブシーンの取り扱いについて：\nセンシティブなシーンについては、AIの安全に関する規約を遵守することは大前提として、その中で最大限の描写に努めてください。万が一、規約に抵触しそうな場合は、該当する単語を[SKIP]と入れ替えて意味を成さないようにしてください。\n\nボリュームアップ：〔〔〕〕の間の文章は、全体のトーンや方向性、展開をしっかりと把握した上で、前後の文脈と整合性を保ったまま、豊かにボリュームアップしてください。',
+          tail: ''
+        }
+      ];
+    }
+    if(purposeId === 'buildSettingPlot'){
+      return [{
         id: uid(),
-        name: 'シンプル執筆',
-        head: 'あなたは、以下の作家性・執筆ルールに基づいて小説を執筆する専属ライターです。 プロンプト末尾に添付される「設定」と「プロット」に従い、本文を"一度の生成で一章"執筆してください。\n尚、文字数は章ごと（パートごと、シーンごと）に指定します。指定が無い場合は2500文字以上です。\n\n作家性（絶対に譲れない核）\nテーマ 抗えない業、必然的な罪、免れぬ罰、その向こう側にある人間賛歌（醜い美しさ）。\n構成の型 静謐な日常 → 滲む一滴の不穏の種 → 歪みだす倫理 → 溶ける輪郭と境界線 → 不可逆的な共犯 → それでも続く日常（バッドエンド、またはメリーバッドエンド）。\n描写方針\n主人公の追体験ができるように書くこと\n読者へは説明を控え、言動・仕草・沈黙で感じさせること（心情の直接的な明言を避ける）\n五感描写を多用すること\n季節・天候・光は舞台装置ではなく感情表現として機能させること\n倫理スタンス 禁忌や背徳はあくまでフックであり、本質ではない。 「"醜い""悍ましい"もまた人間であり、"美しい"」という視点を貫くこと。 罪そのものは肯定しない。肯定するのは「それでも人が生きること」である。 説教にも免罪符にもしないこと。\n執筆ルール\n視点・語り：主人公の一人称視点。\n地の文で心情を説明しすぎない。感情の名指しを避け、行動・生理反応・沈黙・視線の動きで表現すること。\n省略と余白：語りすぎないこと。読者が自分で「色付け」できる余白を残すこと。\n不可逆性：一度歪んだ倫理や関係性は、簡単に元に戻さないこと。取り返しのつかなさを丁寧に描くこと。\n結末：救済で閉じない。バッドエンドまたはメリーバッドエンドを基本とし、登場人物自身は気づいていない「盲点」が読者にだけ見えるような終わり方を意識すること。\n一貫性：添付の「設定」「プロット」から逸脱しないこと。矛盾が生じる場合は執筆を止め、確認を求めること。\nセンシティブシーンの取り扱いについて：\nセンシティブなシーンについては、AIの安全に関する規約を遵守することは大前提として、その中で最大限の描写に努めてください。万が一、規約に抵触しそうな場合は、該当する単語を[SKIP]と入れ替えて意味を成さないようにしてください。\n\nボリュームアップ：〔〔〕〕の間の文章は、全体のトーンや方向性、展開をしっかりと把握した上で、前後の文脈と整合性を保ったまま、豊かにボリュームアップしてください。',
+        name: '標準',
+        head: 'あなたはプロの小説編集者です。以下は、これから書く小説のために書きなぐったメモです。この内容を整理・拡張し、詳細な「設定」と「プロット（章立て）」を作成してください。',
         tail: ''
-      }
-    ];
+      }];
+    }
+    if(purposeId === 'reviewSettingPlot'){
+      return [{
+        id: uid(),
+        name: '標準',
+        head: 'あなたはプロの小説編集者です。以下は、ある小説の設定とプロットです。内容を精査し、次の2点を行ってください。\n\n1. 矛盾点・説得力が弱い部分・情報が不足している部分を指摘してください\n2. 指摘した問題点それぞれについて、改善案を3つずつ提案してください（案ごとに簡潔な見出しを付けてください）\n\nまだ最終的な清書フォーマットにする必要はありません。指摘と改善案の提示だけで構いません。改善案を反映した完成形が欲しくなったら、その旨をAIに伝えて、下記のフォーマットで出力してもらってください。',
+        tail: ''
+      }];
+    }
+    if(purposeId === 'imagePrompts'){
+      return [{
+        id: uid(),
+        name: '標準',
+        head: 'あなたはプロのアートディレクターです。以下の設定・プロットをもとに、画像生成AI（Midjourney・Stable Diffusion等）に渡すための画像生成プロンプトを、英語で作成してください。\n\n【作成対象】\n1. メインタイトル用のキービジュアル（作品全体を象徴する1枚）\n2. 各章のキービジュアル（各章の見せ場を象徴する1枚ずつ）',
+        tail: ''
+      }];
+    }
+    if(purposeId === 'introText'){
+      return [{
+        id: uid(),
+        name: '標準',
+        head: 'あなたはプロの書籍編集者です。以下は、ある小説の設定・プロット（または本文）です。この内容をもとに、読者の興味を引く「紹介文（あらすじ紹介）」を作成してください。\n\n【条件】\n・ネタバレは避け、読者が続きを読みたくなるような書き方にしてください\n・長さの目安は300〜600字程度としてください\n・見出しや記号は付けず、紹介文の本文のみを出力してください',
+        tail: ''
+      }];
+    }
+    return [];
+  }
+
+  function defaultTemplatesAll(){
+    const obj = {};
+    TEMPLATE_PURPOSE_IDS.forEach(pid => { obj[pid] = defaultTemplatesFor(pid); });
+    return obj;
   }
 
   function loadTemplates(){
     try {
       const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-      promptTemplates = raw ? JSON.parse(raw) : defaultTemplates();
-      if(!Array.isArray(promptTemplates) || promptTemplates.length === 0){
-        promptTemplates = defaultTemplates();
+      let parsed = raw ? JSON.parse(raw) : null;
+
+      if(!parsed){
+        promptTemplates = defaultTemplatesAll();
+        return;
+      }
+
+      if(Array.isArray(parsed)){
+        // 旧形式（writeManuscript専用の配列1本）からのマイグレーション
+        const migrated = defaultTemplatesAll();
+        if(parsed.length > 0) migrated.writeManuscript = parsed;
+        promptTemplates = migrated;
+      } else {
+        // 新形式。用途キーの欠落があれば規定値で補完
+        promptTemplates = parsed;
+        TEMPLATE_PURPOSE_IDS.forEach(pid => {
+          if(!Array.isArray(promptTemplates[pid]) || promptTemplates[pid].length === 0){
+            promptTemplates[pid] = defaultTemplatesFor(pid);
+          }
+        });
       }
     } catch(_e){
-      promptTemplates = defaultTemplates();
+      promptTemplates = defaultTemplatesAll();
     }
   }
 
@@ -2900,7 +2973,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         head: t.head || '',
         tail: t.tail || ''
       };
-      promptTemplates.push(imported);
+      currentTemplateList().push(imported);
       saveTemplates();
       renderTemplateList();
       alert(`「${imported.name}」としてインポートしました。`);
@@ -3752,7 +3825,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   function populateTemplateSelect(){
     const sel = document.getElementById('templateSelectForPrompt');
-    sel.innerHTML = promptTemplates.map(t => `<option value="${t.id}">${escapeHTML(t.name || '無題テンプレート')}</option>`).join('');
+    const list = promptTemplates.writeManuscript || [];
+    sel.innerHTML = list.map(t => `<option value="${t.id}">${escapeHTML(t.name || '無題テンプレート')}</option>`).join('');
   }
 
   document.querySelectorAll('.setting-nav-btn').forEach(btn => {
@@ -4039,7 +4113,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(!confirm('現在編集中のプロンプトは上書きされます。設定・プロットの内容から再生成しますか？')) return;
     }
     const templateId = document.getElementById('templateSelectForPrompt').value;
-    const template = promptTemplates.find(t => t.id === templateId) || promptTemplates[0];
+    const list = promptTemplates.writeManuscript || [];
+    const template = list.find(t => t.id === templateId) || list[0];
     const prompt = template ? buildPromptFromTemplate(p, template) : buildPrompt(p);
     el.value = prompt;
     p.writingPrompt = prompt;
@@ -5631,8 +5706,6 @@ ${pasted}
   function renderHubPreview(){
     const p = projects.find(x=>x.id===currentHubId);
     if(!p) return;
-    let prompt = '';
-    let label = 'AIに渡すプロンプト';
 
     // 元データの種別に応じて、実際に使う本文テキストとラベルを決める
     function getSourceText(){
@@ -5642,88 +5715,79 @@ ${pasted}
       return { text: buildPrompt(p, false), label: '設定・プロット' };
     }
 
+    // テンプレート選択欄を用途に応じて描画
+    const templateSelect = document.getElementById('hubTemplateSelect');
+    const list = promptTemplates[hubPurpose] || [];
+    templateSelect.innerHTML = list.map(t => `<option value="${t.id}">${escapeHTML(t.name || '無題テンプレート')}</option>`).join('');
+    templateSelect.onchange = () => renderHubPromptText();
+    renderHubPromptText();
+  }
+
+  function getCurrentHubTemplate(){
+    const list = promptTemplates[hubPurpose] || [];
+    const selectedId = document.getElementById('hubTemplateSelect').value;
+    return list.find(t => t.id === selectedId) || list[0] || { head:'', tail:'' };
+  }
+
+  // 用途ごとの「固有の指示ブロック＋元データ」部分（テンプレートのhead/tailで挟まれる中間部）を組み立てる
+  function buildHubPromptMiddle(p){
+    function getSourceText(){
+      if(hubSource === 'manuscript'){
+        return { text: composeFullManuscriptText(p) || '（本文がまだありません）', label: '本文' };
+      }
+      return { text: buildPrompt(p, false), label: '設定・プロット' };
+    }
+
     if(hubPurpose === 'buildSettingPlot'){
-      label = 'AIに渡す整理・詳細化プロンプト';
       const memo = (p.roughMemo || '').trim() || '（メモなし）';
       const lengthNote = p.aiTargetLength
         ? `\n\n【1章あたりの目安文字数】\n各章はおよそ${p.aiTargetLength.toLocaleString()}字を目安にプロットを組み立ててください（出来事の粒度・章数もこの文字数感に合わせて調整してください）。`
         : '';
-      prompt = `あなたはプロの小説編集者です。以下は、これから書く小説のために書きなぐったメモです。この内容を整理・拡張し、詳細な「設定」と「プロット（章立て）」を作成してください。
-
-【元メモ】
-${memo}${lengthNote}
-
-${buildFormatInstructions()}`;
-    } else if(hubPurpose === 'reviewSettingPlot'){
-      label = 'チェック依頼プロンプト';
-      const base = buildPrompt(p, false);
-      prompt = `あなたはプロの小説編集者です。以下は、ある小説の設定とプロットです。内容を精査し、次の2点を行ってください。
-
-1. 矛盾点・説得力が弱い部分・情報が不足している部分を指摘してください
-2. 指摘した問題点それぞれについて、改善案を3つずつ提案してください（案ごとに簡潔な見出しを付けてください）
-
-まだ最終的な清書フォーマットにする必要はありません。指摘と改善案の提示だけで構いません。改善案を反映した完成形が欲しくなったら、その旨をAIに伝えて、下記のフォーマットで出力してもらってください。
-
-${buildFormatInstructions()}
-
-【現在の設定・プロット】
-${base}`;
-    } else if(hubPurpose === 'writeManuscript'){
-      label = 'AIに渡す本文執筆プロンプト';
-      const base = buildPrompt(p, false);
-      const targetLen = p.manuscriptTargetLength || 1500;
-      prompt = `あなたはプロの小説家です。以下の設定とプロットを用いて、全章分の本文を執筆してください。
-
-【文字数の目安】
-各章およそ${targetLen.toLocaleString()}字を目安に執筆してください。
-
-【出力形式について（厳守してください）】
-以下のフォーマットに沿って、章ごとに出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。
-
-■第1章：（章タイトル）
-（この章の本文をここに）
-
-※プロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。
-
-【設定・プロット】
-${base}`;
-    } else if(hubPurpose === 'imagePrompts'){
-      label = 'AIに渡す画像プロンプト作成用の依頼文';
-      const base = buildPrompt(p, false);
-      prompt = `あなたはプロのアートディレクターです。以下の設定・プロットをもとに、画像生成AI（Midjourney・Stable Diffusion等）に渡すための画像生成プロンプトを、英語で作成してください。
-
-【作成対象】
-1. メインタイトル用のキービジュアル（作品全体を象徴する1枚）
-2. 各章のキービジュアル（各章の見せ場を象徴する1枚ずつ）
-
-【出力形式について（厳守してください）】
-以下のフォーマットに沿って、過不足なく出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。プロンプト本文は英語で構いませんが、見出し行は日本語のままにしてください。
-
-■メインタイトル
-（英語の画像生成プロンプトをここに）
-
-■第1章
-（英語の画像生成プロンプトをここに）
-
-※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。
-
-【設定・プロット】
-${base}`;
-    } else if(hubPurpose === 'introText'){
-      label = 'AIに渡す紹介文作成プロンプト';
-      const src = getSourceText();
-      prompt = `あなたはプロの書籍編集者です。以下は、ある小説の${src.label}です。この内容をもとに、読者の興味を引く「紹介文（あらすじ紹介）」を作成してください。
-
-【条件】
-・ネタバレは避け、読者が続きを読みたくなるような書き方にしてください
-・長さの目安は300〜600字程度としてください
-・見出しや記号は付けず、紹介文の本文のみを出力してください
-
-【${src.label}】
-${src.text}`;
+      return `【元メモ】\n${memo}${lengthNote}\n\n${buildFormatInstructions()}`;
     }
+    if(hubPurpose === 'reviewSettingPlot'){
+      const src = getSourceText();
+      return `${buildFormatInstructions()}\n\n【現在の${src.label}】\n${src.text}`;
+    }
+    if(hubPurpose === 'writeManuscript'){
+      const src = getSourceText();
+      const targetLen = p.manuscriptTargetLength || 1500;
+      return `【文字数の目安】\n各章およそ${targetLen.toLocaleString()}字を目安に執筆してください。\n\n【出力形式について（厳守してください）】\n以下のフォーマットに沿って、章ごとに出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。\n\n■第1章：（章タイトル）\n（この章の本文をここに）\n\n※プロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。\n\n【${src.label}】\n${src.text}`;
+    }
+    if(hubPurpose === 'imagePrompts'){
+      const src = getSourceText();
+      return `【出力形式について（厳守してください）】\n以下のフォーマットに沿って、過不足なく出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。プロンプト本文は英語で構いませんが、見出し行は日本語のままにしてください。\n\n■メインタイトル\n（英語の画像生成プロンプトをここに）\n\n■第1章\n（英語の画像生成プロンプトをここに）\n\n※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。\n\n【${src.label}】\n${src.text}`;
+    }
+    if(hubPurpose === 'introText'){
+      const src = getSourceText();
+      return `【${src.label}】\n${src.text}`;
+    }
+    return '';
+  }
 
-    document.getElementById('hubPreviewLabel').textContent = label;
+  const HUB_PREVIEW_LABELS = {
+    buildSettingPlot: 'AIに渡す整理・詳細化プロンプト',
+    reviewSettingPlot: 'チェック依頼プロンプト',
+    writeManuscript: 'AIに渡す本文執筆プロンプト',
+    imagePrompts: 'AIに渡す画像プロンプト作成用の依頼文',
+    introText: 'AIに渡す紹介文作成プロンプト'
+  };
+
+  function renderHubPromptText(){
+    const p = projects.find(x=>x.id===currentHubId);
+    if(!p) return;
+    const template = getCurrentHubTemplate();
+    const head = (template.head || '').trim();
+    const tail = (template.tail || '').trim();
+    const middle = buildHubPromptMiddle(p);
+
+    let prompt = '';
+    if(head) prompt += head + '\n\n';
+    prompt += middle;
+    if(tail) prompt += '\n\n' + tail;
+    prompt = prompt.trim();
+
+    document.getElementById('hubPreviewLabel').textContent = HUB_PREVIEW_LABELS[hubPurpose] || 'AIに渡すプロンプト';
     document.getElementById('hubPreview').textContent = prompt;
     document.getElementById('hubPreview').dataset.raw = prompt;
 
@@ -6173,10 +6237,19 @@ ${src.text}`;
 
   // ================= Prompt Template Management =================
   let currentEditingTemplateId = null;
+  let currentTemplatePurpose = 'buildSettingPlot';
+
+  const TEMPLATE_PURPOSE_LABELS = {
+    buildSettingPlot: '設定＆プロットを作る',
+    reviewSettingPlot: '精査・ブラッシュアップ',
+    writeManuscript: '本文を作る',
+    imagePrompts: '画像プロンプト作成',
+    introText: '紹介文作成'
+  };
 
   document.getElementById('menuTemplatesBtn').onclick = () => {
     document.getElementById('dashDropdown').classList.remove('active');
-    renderTemplateList();
+    setTemplatePurposeTab(currentTemplatePurpose);
     document.getElementById('templateListModalOverlay').classList.add('active');
   };
   document.getElementById('templateListModalClose').onclick = () => {
@@ -6186,9 +6259,27 @@ ${src.text}`;
     if(e.target.id === 'templateListModalOverlay') document.getElementById('templateListModalOverlay').classList.remove('active');
   });
 
+  document.querySelectorAll('#templatePurposeTabs .setting-nav-btn').forEach(btn => {
+    btn.onclick = () => setTemplatePurposeTab(btn.dataset.purpose);
+  });
+
+  function setTemplatePurposeTab(purposeId){
+    currentTemplatePurpose = purposeId;
+    document.querySelectorAll('#templatePurposeTabs .setting-nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.purpose === purposeId);
+    });
+    renderTemplateList();
+  }
+
+  function currentTemplateList(){
+    if(!promptTemplates[currentTemplatePurpose]) promptTemplates[currentTemplatePurpose] = defaultTemplatesFor(currentTemplatePurpose);
+    return promptTemplates[currentTemplatePurpose];
+  }
+
   function renderTemplateList(){
     const wrap = document.getElementById('templateListWrap');
-    wrap.innerHTML = promptTemplates.map(t => `
+    const list = currentTemplateList();
+    wrap.innerHTML = list.map(t => `
       <div class="template-row" data-tid="${t.id}">
         <span class="tr-name">${escapeHTML(t.name || '無題テンプレート')}</span>
         <span class="tr-arrow">→</span>
@@ -6201,7 +6292,7 @@ ${src.text}`;
 
   document.getElementById('templateAddBtn').onclick = () => {
     const t = { id: uid(), name: '新しいテンプレート', head: '', tail: '' };
-    promptTemplates.push(t);
+    currentTemplateList().push(t);
     saveTemplates();
     openTemplateEdit(t.id);
   };
@@ -6217,13 +6308,13 @@ ${src.text}`;
 
   function openTemplateEdit(id){
     currentEditingTemplateId = id;
-    const t = promptTemplates.find(x=>x.id===id);
+    const t = currentTemplateList().find(x=>x.id===id);
     if(!t) return;
-    document.getElementById('templateEditTitle').textContent = t.name || '無題テンプレート';
+    document.getElementById('templateEditTitle').textContent = (TEMPLATE_PURPOSE_LABELS[currentTemplatePurpose] || '') + '　' + (t.name || '無題テンプレート');
     document.getElementById('templateNameInput').value = t.name || '';
     document.getElementById('templateHeadInput').value = t.head || '';
     document.getElementById('templateTailInput').value = t.tail || '';
-    document.getElementById('templateDeleteBtn').style.display = promptTemplates.length > 1 ? 'inline-block' : 'none';
+    document.getElementById('templateDeleteBtn').style.display = currentTemplateList().length > 1 ? 'inline-block' : 'none';
     document.getElementById('templateListModalOverlay').classList.remove('active');
     document.getElementById('templateEditModalOverlay').classList.add('active');
   }
@@ -6235,7 +6326,7 @@ ${src.text}`;
   };
 
   document.getElementById('templateSaveBtn').onclick = () => {
-    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    const t = currentTemplateList().find(x=>x.id===currentEditingTemplateId);
     if(!t) return;
     const name = document.getElementById('templateNameInput').value.trim();
     if(!name){ alert('テンプレート名を入力してください'); return; }
@@ -6249,11 +6340,12 @@ ${src.text}`;
   };
 
   document.getElementById('templateDeleteBtn').onclick = () => {
-    if(promptTemplates.length <= 1){ alert('最後の1件は削除できません'); return; }
-    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    const list = currentTemplateList();
+    if(list.length <= 1){ alert('最後の1件は削除できません'); return; }
+    const t = list.find(x=>x.id===currentEditingTemplateId);
     if(!t) return;
     if(!confirm(`テンプレート「${t.name}」を削除します。よろしいですか？`)) return;
-    promptTemplates = promptTemplates.filter(x => x.id !== currentEditingTemplateId);
+    promptTemplates[currentTemplatePurpose] = list.filter(x => x.id !== currentEditingTemplateId);
     saveTemplates();
     document.getElementById('templateEditModalOverlay').classList.remove('active');
     document.getElementById('templateListModalOverlay').classList.add('active');
@@ -6261,7 +6353,7 @@ ${src.text}`;
   };
 
   document.getElementById('templateExportBtn').onclick = () => {
-    const t = promptTemplates.find(x=>x.id===currentEditingTemplateId);
+    const t = currentTemplateList().find(x=>x.id===currentEditingTemplateId);
     if(!t) return;
     exportTemplate(t);
   };
