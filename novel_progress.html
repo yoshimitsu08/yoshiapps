@@ -182,6 +182,38 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-ui);
 }
 
+/* ---------- AI Hub choice cards ---------- */
+.ai-hub-choice-list {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.ai-hub-choice-card {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:14px 16px;
+  cursor:pointer;
+  transition:border-color 0.15s;
+}
+.ai-hub-choice-card:hover { border-color:var(--accent); }
+.ai-hub-choice-card.disabled {
+  opacity:0.4;
+  cursor:not-allowed;
+}
+.ai-hub-choice-card .ahc-title {
+  font-family:var(--font-body);
+  font-size:0.98rem;
+  color:var(--text);
+  margin-bottom:4px;
+}
+.ai-hub-choice-card .ahc-desc {
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  color:var(--text2);
+  line-height:1.5;
+}
+
 /* ---------- Priority pin banner ---------- */
 .priority-banner {
   margin:18px 20px 0;
@@ -1797,6 +1829,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="detail-section" style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn" id="openSettingBtn" style="flex:1;">📝 設定・プロット</button>
         <button class="btn primary" id="openManuscriptBtn" style="flex:1;">✏️ 本文編集</button>
+        <button class="btn" id="openAiHubBtn" style="width:100%; color:var(--accent); border-color:var(--accent);">🤖 AI連携（β）</button>
         <button class="btn" id="continueAiImportBtn" style="display:none; width:100%; color:var(--accent); border-color:var(--accent);">🤖 AI取り込みを続ける</button>
       </div>
 
@@ -1848,7 +1881,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <div class="modal-overlay" id="longPressModalOverlay">
   <div class="modal">
     <div class="modal-header">
-      <h2>長押し速度の調整</h2>
+      <h2>長押し速度・AI取り込み設定</h2>
       <button class="modal-close" id="longPressModalClose">×</button>
     </div>
     <div class="modal-body">
@@ -1858,6 +1891,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="field">
         <label>長押し判定時間：<span id="longPressValueLabel">0.55</span>秒</label>
         <input type="range" id="longPressRangeInput" min="200" max="1500" step="50" style="width:100%;">
+      </div>
+      <div class="chapter-note" style="margin:18px 0 14px;">
+        AIの回答を取り込む際、フォーマットから外れた「未分類」テキストの文字数がこの値を超えると、反映前に警告を表示します。受け皿の貼り間違いや、AIが余計な文章を付け足した場合の検知に使います。
+      </div>
+      <div class="field">
+        <label>未分類テキストの異常検知しきい値：<span id="unclassifiedThresholdValueLabel">100</span>字</label>
+        <input type="range" id="unclassifiedThresholdRangeInput" min="0" max="1000" step="10" style="width:100%;">
       </div>
     </div>
     <div class="modal-footer">
@@ -2108,6 +2148,83 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </div>
 </div>
 
+<!-- ============ AI Hub View (統合AI連携) ============ -->
+<div class="view" id="aiHubView">
+  <div class="editor-header">
+    <button class="back-btn" id="aiHubBackBtn">← 戻る</button>
+    <div class="editor-header-title">
+      <div class="et-work" id="aiHubWorkTitle">—</div>
+      <div class="et-label">AI連携</div>
+    </div>
+  </div>
+
+  <div class="setting-nav">
+    <button type="button" class="setting-nav-btn active" data-hubstep="hubStepSource">① 元データ</button>
+    <button type="button" class="setting-nav-btn" data-hubstep="hubStepPurpose">② 用途</button>
+    <button type="button" class="setting-nav-btn" data-hubstep="hubStepPreview">③ プロンプト</button>
+    <button type="button" class="setting-nav-btn" data-hubstep="hubStepReceive">④ 取り込み</button>
+  </div>
+
+  <!-- Step 1: 元データ選択 -->
+  <div class="setting-page active" id="hubStepSource">
+    <div class="editor-body">
+      <div class="field">
+        <label>元になるデータを選んでください</label>
+      </div>
+      <div id="hubSourceList" class="ai-hub-choice-list"></div>
+    </div>
+  </div>
+
+  <!-- Step 2: 用途選択 -->
+  <div class="setting-page" id="hubStepPurpose">
+    <div class="editor-body">
+      <div class="field">
+        <label>用途を選んでください</label>
+      </div>
+      <div id="hubPurposeList" class="ai-hub-choice-list"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: プレビュー・コピー -->
+  <div class="setting-page" id="hubStepPreview">
+    <div class="editor-body">
+      <div class="prompt-panel">
+        <div class="prompt-panel-head">
+          <span class="pt-label" id="hubPreviewLabel">AIに渡すプロンプト</span>
+        </div>
+        <div class="prompt-preview" id="hubPreview" style="max-height:400px;"></div>
+        <button class="btn primary" id="hubCopyBtn" style="width:100%;">📋 一括コピー</button>
+      </div>
+      <div class="chapter-note" style="margin-top:10px; font-size:0.65rem;">
+        コピーしたプロンプトを外部のAI（Claude、ChatGPT等）に貼り付けて実行してください。<br>
+        AIが生成した回答をそのまま、次のステップの貼り付け欄にコピーしてください。
+      </div>
+      <button class="btn" id="hubStepPreviewNextBtn" style="width:100%; margin-top:14px;">次へ：AIの回答を取り込む →</button>
+    </div>
+  </div>
+
+  <!-- Step 4: 貼り付け・パース・反映 -->
+  <div class="setting-page" id="hubStepReceive">
+    <div class="editor-body">
+      <div class="field">
+        <label>AIの回答をここに貼り付けてください</label>
+        <textarea id="hubPasteTextarea" class="section-textarea" style="min-height:200px;" placeholder="AIが生成した内容をそのまま貼り付けてください"></textarea>
+      </div>
+      <button class="btn primary" id="hubParseBtn" style="width:100%;">解析してプレビュー表示</button>
+
+      <div id="hubParsePreviewWrap" style="display:none; margin-top:16px;">
+        <div class="detail-section-title" style="margin-top:10px;">解析結果プレビュー</div>
+        <div id="hubParsePreview"></div>
+
+        <div id="hubParseWarnings"></div>
+
+        <button class="btn primary" id="hubApplyBtn" style="width:100%; margin-top:14px;">この内容で反映する（既存内容は上書きされます）</button>
+        <div class="chapter-note" style="text-align:center; margin-top:8px;" id="hubApplyNote">反映すると既存の内容は上書きされます（反映前に確認画面が出ます）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Manuscript Editor View ============ -->
 <div class="view" id="manuscriptView">
   <div class="editor-header">
@@ -2297,6 +2414,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const SELECTOR_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const MAX_UPDATE_HISTORY = 20;
   const DEFAULT_LONGPRESS_MS = 550;
+  const DEFAULT_UNCLASSIFIED_THRESHOLD = 100;
+  const UNCLASSIFIED_THRESHOLD_STORAGE_KEY = 'manuscript_unclassified_threshold_v1';
 
   let projects = [];
   let currentDetailId = null;
@@ -2305,6 +2424,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let promptTemplates = [];
   let deviceName = null;
   let longPressMs = DEFAULT_LONGPRESS_MS;
+  let unclassifiedThreshold = DEFAULT_UNCLASSIFIED_THRESHOLD;
 
   function loadLongPressMs(){
     try {
@@ -2316,6 +2436,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function saveLongPressMs(ms){
     longPressMs = ms;
     try { localStorage.setItem(LONGPRESS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
+  }
+
+  function loadUnclassifiedThreshold(){
+    try {
+      const saved = localStorage.getItem(UNCLASSIFIED_THRESHOLD_STORAGE_KEY);
+      const n = parseInt(saved, 10);
+      if(!isNaN(n) && n >= 0 && n <= 2000) unclassifiedThreshold = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveUnclassifiedThreshold(n){
+    unclassifiedThreshold = n;
+    try { localStorage.setItem(UNCLASSIFIED_THRESHOLD_STORAGE_KEY, String(n)); } catch(_e){ /* ignore */ }
   }
 
   // ---------- Bookmark (last-edited card) color customization ----------
@@ -3155,6 +3287,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const range = document.getElementById('longPressRangeInput');
     range.value = longPressMs;
     document.getElementById('longPressValueLabel').textContent = (longPressMs/1000).toFixed(2);
+    const threshRange = document.getElementById('unclassifiedThresholdRangeInput');
+    threshRange.value = unclassifiedThreshold;
+    document.getElementById('unclassifiedThresholdValueLabel').textContent = unclassifiedThreshold;
     document.getElementById('longPressModalOverlay').classList.add('active');
   };
   document.getElementById('longPressModalClose').onclick = () => {
@@ -3166,9 +3301,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('longPressRangeInput').addEventListener('input', (e) => {
     document.getElementById('longPressValueLabel').textContent = (parseInt(e.target.value,10)/1000).toFixed(2);
   });
+  document.getElementById('unclassifiedThresholdRangeInput').addEventListener('input', (e) => {
+    document.getElementById('unclassifiedThresholdValueLabel').textContent = e.target.value;
+  });
   document.getElementById('longPressSaveBtn').onclick = () => {
     const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
     saveLongPressMs(val);
+    const threshVal = parseInt(document.getElementById('unclassifiedThresholdRangeInput').value, 10);
+    saveUnclassifiedThreshold(threshVal);
     document.getElementById('longPressModalOverlay').classList.remove('active');
   };
   document.getElementById('menuBookmarkColorBtn').onclick = () => {
@@ -3509,6 +3649,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const id = currentDetailId;
     document.getElementById('detailModalOverlay').classList.remove('active');
     openManuscriptView(id);
+  };
+
+  document.getElementById('openAiHubBtn').onclick = () => {
+    const id = currentDetailId;
+    document.getElementById('detailModalOverlay').classList.remove('active');
+    openAiHubView(id);
   };
 
   document.getElementById('continueAiImportBtn').onclick = () => {
@@ -5278,6 +5424,241 @@ ${pasted}
     }
   }
 
+  // ================= AI Hub (統合AI連携) =================
+  // フェーズ2時点の対応：
+  //   元データ：ラフメモ／設定&プロット
+  //   用途：設定&プロットを作る（ラフメモから）／精査・ブラッシュアップ（設定&プロットから）
+  // 本文からの精査・画像プロンプト・紹介文はフェーズ3以降で追加する。
+  let currentHubId = null;
+  let hubSource = null;   // 'roughMemo' | 'settingPlot'
+  let hubPurpose = null;  // 'buildSettingPlot' | 'reviewSettingPlot'
+  let hubParsedResult = null;
+
+  const HUB_SOURCES = [
+    {
+      id: 'roughMemo',
+      title: 'ラフメモ',
+      desc: '執筆前の書きなぐったメモから、設定・プロットの元ネタを作ります。'
+    },
+    {
+      id: 'settingPlot',
+      title: '設定＆プロット',
+      desc: '現在保存されている設定・プロットの内容を元にします。'
+    }
+  ];
+
+  const HUB_PURPOSES = [
+    {
+      id: 'buildSettingPlot',
+      title: '設定＆プロットを作る',
+      desc: 'ラフメモを整理・拡張し、詳細な設定とプロットを新規作成します。',
+      sources: ['roughMemo']
+    },
+    {
+      id: 'reviewSettingPlot',
+      title: '精査・ブラッシュアップ',
+      desc: '既存の設定・プロットの矛盾点や弱い部分を洗い出し、改善します。',
+      sources: ['settingPlot']
+    }
+  ];
+
+  function openAiHubView(id){
+    currentHubId = id;
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('aiHubWorkTitle').textContent = p.title || '無題';
+    hubSource = null;
+    hubPurpose = null;
+    hubParsedResult = null;
+    document.getElementById('hubPasteTextarea').value = '';
+    document.getElementById('hubParsePreviewWrap').style.display = 'none';
+    renderHubSourceList();
+    setHubStep('hubStepSource');
+    switchView('aiHubView');
+  }
+
+  function setHubStep(stepId){
+    document.querySelectorAll('#aiHubView .setting-nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.hubstep === stepId);
+    });
+    document.querySelectorAll('#aiHubView .setting-page').forEach(pg => {
+      pg.classList.toggle('active', pg.id === stepId);
+    });
+    window.scrollTo(0,0);
+  }
+
+  document.querySelectorAll('#aiHubView .setting-nav-btn').forEach(btn => {
+    btn.onclick = () => {
+      // 未選択のステップへは進めない（順序を保証）
+      const step = btn.dataset.hubstep;
+      if(step === 'hubStepPurpose' && !hubSource) return;
+      if(step === 'hubStepPreview' && !hubPurpose) return;
+      if(step === 'hubStepReceive' && !hubPurpose) return;
+      setHubStep(step);
+    };
+  });
+
+  document.getElementById('aiHubBackBtn').onclick = () => {
+    switchView('dashboardView');
+    renderGrid();
+  };
+
+  function renderHubSourceList(){
+    const wrap = document.getElementById('hubSourceList');
+    wrap.innerHTML = HUB_SOURCES.map(s => `
+      <div class="ai-hub-choice-card" data-sid="${s.id}">
+        <div class="ahc-title">${escapeHTML(s.title)}</div>
+        <div class="ahc-desc">${escapeHTML(s.desc)}</div>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.ai-hub-choice-card').forEach(card => {
+      card.onclick = () => {
+        hubSource = card.dataset.sid;
+        hubPurpose = null;
+        renderHubPurposeList();
+        setHubStep('hubStepPurpose');
+      };
+    });
+  }
+
+  function renderHubPurposeList(){
+    const wrap = document.getElementById('hubPurposeList');
+    const available = HUB_PURPOSES.filter(u => u.sources.includes(hubSource));
+    wrap.innerHTML = available.map(u => `
+      <div class="ai-hub-choice-card" data-uid="${u.id}">
+        <div class="ahc-title">${escapeHTML(u.title)}</div>
+        <div class="ahc-desc">${escapeHTML(u.desc)}</div>
+      </div>
+    `).join('');
+    if(available.length === 0){
+      wrap.innerHTML = '<div class="chapter-tabs-empty">この元データに対応する用途がまだありません</div>';
+    }
+    wrap.querySelectorAll('.ai-hub-choice-card').forEach(card => {
+      card.onclick = () => {
+        hubPurpose = card.dataset.uid;
+        renderHubPreview();
+        setHubStep('hubStepPreview');
+      };
+    });
+  }
+
+  function renderHubPreview(){
+    const p = projects.find(x=>x.id===currentHubId);
+    if(!p) return;
+    let prompt = '';
+    let label = 'AIに渡すプロンプト';
+
+    if(hubPurpose === 'buildSettingPlot'){
+      label = 'AIに渡す整理・詳細化プロンプト';
+      const memo = (p.roughMemo || '').trim() || '（メモなし）';
+      const lengthNote = p.aiTargetLength
+        ? `\n\n【1章あたりの目安文字数】\n各章はおよそ${p.aiTargetLength.toLocaleString()}字を目安にプロットを組み立ててください（出来事の粒度・章数もこの文字数感に合わせて調整してください）。`
+        : '';
+      prompt = `あなたはプロの小説編集者です。以下は、これから書く小説のために書きなぐったメモです。この内容を整理・拡張し、詳細な「設定」と「プロット（章立て）」を作成してください。
+
+【元メモ】
+${memo}${lengthNote}
+
+${buildFormatInstructions()}`;
+    } else if(hubPurpose === 'reviewSettingPlot'){
+      label = 'チェック依頼プロンプト';
+      const base = buildPrompt(p, false);
+      prompt = `あなたはプロの小説編集者です。以下は、ある小説の設定とプロットです。内容を精査し、次の2点を行ってください。
+
+1. 矛盾点・説得力が弱い部分・情報が不足している部分を指摘してください
+2. 指摘した問題点それぞれについて、改善案を3つずつ提案してください（案ごとに簡潔な見出しを付けてください）
+
+まだ最終的な清書フォーマットにする必要はありません。指摘と改善案の提示だけで構いません。改善案を反映した完成形が欲しくなったら、その旨をAIに伝えて、下記のフォーマットで出力してもらってください。
+
+${buildFormatInstructions()}
+
+【現在の設定・プロット】
+${base}`;
+    }
+
+    document.getElementById('hubPreviewLabel').textContent = label;
+    document.getElementById('hubPreview').textContent = prompt;
+    document.getElementById('hubPreview').dataset.raw = prompt;
+
+    const note = document.getElementById('hubApplyNote');
+    if(hubPurpose === 'buildSettingPlot'){
+      note.textContent = '反映すると、以後この作品ではAI一括取り込みは使えなくなります（通常の編集画面で手動修正してください）';
+    } else {
+      note.textContent = '反映すると既存の設定・プロットは全て上書きされます（反映前に確認画面が出ます）';
+    }
+  }
+
+  function buildFormatInstructions(){
+    return `【出力形式について（厳守してください）】
+以下のフォーマットに沿って、過不足なく出力してください。この見出し記号（【】と■）は省略せず、指定通りの位置に付けてください。
+
+【世界観】
+（世界観の説明をここに）
+
+【用語集】
+（固有名詞・用語の説明をここに）
+
+■キャラクター：（名前）
+役割：（役割）
+性格：（性格）
+背景：（背景）
+メモ：（その他メモ）
+
+※キャラクターは登場人物全員分、上記フォーマットを繰り返して出力してください。
+
+■第1章：（章タイトル）
+出来事：（この章で起きる出来事）
+心情：（主要人物の心情の動き）
+見せたいもの：（この章が読者に見せたいテーマ・見せ場）
+その他：（補足）
+
+※章はプロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。`;
+  }
+
+  document.getElementById('hubCopyBtn').onclick = async () => {
+    const text = document.getElementById('hubPreview').dataset.raw || document.getElementById('hubPreview').textContent;
+    await copyTextWithToast(text);
+  };
+  document.getElementById('hubStepPreviewNextBtn').onclick = () => setHubStep('hubStepReceive');
+
+  // 未分類テキストの合計文字数を数える（受け皿間違い・フォーマット逸脱の検知に使用）
+  function countUnclassifiedChars(result){
+    return (result.unclassified || []).reduce((sum, t) => sum + t.length, 0);
+  }
+
+  document.getElementById('hubParseBtn').onclick = () => {
+    const raw = document.getElementById('hubPasteTextarea').value;
+    if(!raw.trim()){ alert('AIの回答を貼り付けてください'); return; }
+    hubParsedResult = parseAiOutput(raw);
+
+    const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
+    if(unclassifiedChars > unclassifiedThreshold){
+      hubParsedResult.warnings = [
+        `未分類として扱われたテキストが${unclassifiedChars}字あります（しきい値：${unclassifiedThreshold}字）。貼り付け内容の受け皿間違いや、AIの出力にフォーマット外の文章（感想・前置きなど）が混ざっていないか確認してください。`,
+        ...hubParsedResult.warnings
+      ];
+    }
+
+    renderParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
+    document.getElementById('hubParsePreviewWrap').style.display = 'block';
+  };
+
+  document.getElementById('hubApplyBtn').onclick = () => {
+    if(!hubParsedResult) return;
+    if(!confirm('この内容を設定・プロットに反映します。既存の内容は上書きされ、この操作は元に戻せません。よろしいですか？')) return;
+
+    const p = projects.find(x=>x.id===currentHubId);
+    if(!p) return;
+
+    const unavailableAfterApply = (hubPurpose === 'buildSettingPlot');
+    applyParsedResultToProject(p, hubParsedResult, unavailableAfterApply);
+
+    alert('反映しました。');
+    switchView('dashboardView');
+    renderGrid();
+    openDetail(p.id);
+  };
+
   // ================= Prompt Template Management =================
   let currentEditingTemplateId = null;
 
@@ -5377,6 +5758,7 @@ ${pasted}
   load();
   loadTemplates();
   loadLongPressMs();
+  loadUnclassifiedThreshold();
   loadBookmarkColor();
   renderGrid();
   updateStorageUsageDisplay();
