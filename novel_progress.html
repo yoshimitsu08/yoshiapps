@@ -2582,6 +2582,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
     return parts.join('\n');
   }
 
+  // 全章の本文（選択中カードの合成結果）を章順に結合する（AI Hubの「本文」元データ用）
+  function composeFullManuscriptText(p){
+    if(!p.plotChapters || !p.manuscript) return '';
+    const parts = [];
+    p.plotChapters.forEach((ch, idx) => {
+      const entry = p.manuscript[ch.id];
+      if(!entry) return;
+      const selector = ensureSelector(entry);
+      const text = composeSelectorText(selector);
+      if(text.trim()){
+        parts.push(`■第${idx+1}章：${ch.title || '（無題）'}\n${text}`);
+      }
+    });
+    return parts.join('\n\n');
+  }
+
   // 合成テキストをHTML化し、しおり（lastEditedCardId）に対応する文だけ二重下線を付ける
   function composeSelectorHtml(entry){
     const selector = ensureSelector(entry);
@@ -5491,6 +5507,11 @@ ${pasted}
       id: 'settingPlot',
       title: '設定＆プロット',
       desc: '現在保存されている設定・プロットの内容を元にします。'
+    },
+    {
+      id: 'manuscript',
+      title: '本文（全文）',
+      desc: '各章の本文（現在選択中のカードの合成結果）を元にします。'
     }
   ];
 
@@ -5518,6 +5539,12 @@ ${pasted}
       title: 'キービジュアル画像プロンプト作成',
       desc: 'メインタイトル用と章ごとの画像生成プロンプトを一括で作成します。生成結果は画像プロンプトエディタに自動で振り分けられます。',
       sources: ['settingPlot']
+    },
+    {
+      id: 'introText',
+      title: '紹介文作成',
+      desc: '読者向けの紹介文・あらすじ紹介を作成します。生成結果は作品詳細モーダルの紹介文欄に反映されます。',
+      sources: ['settingPlot', 'manuscript']
     }
   ];
 
@@ -5607,6 +5634,14 @@ ${pasted}
     let prompt = '';
     let label = 'AIに渡すプロンプト';
 
+    // 元データの種別に応じて、実際に使う本文テキストとラベルを決める
+    function getSourceText(){
+      if(hubSource === 'manuscript'){
+        return { text: composeFullManuscriptText(p) || '（本文がまだありません）', label: '本文' };
+      }
+      return { text: buildPrompt(p, false), label: '設定・プロット' };
+    }
+
     if(hubPurpose === 'buildSettingPlot'){
       label = 'AIに渡す整理・詳細化プロンプト';
       const memo = (p.roughMemo || '').trim() || '（メモなし）';
@@ -5674,6 +5709,18 @@ ${base}`;
 
 【設定・プロット】
 ${base}`;
+    } else if(hubPurpose === 'introText'){
+      label = 'AIに渡す紹介文作成プロンプト';
+      const src = getSourceText();
+      prompt = `あなたはプロの書籍編集者です。以下は、ある小説の${src.label}です。この内容をもとに、読者の興味を引く「紹介文（あらすじ紹介）」を作成してください。
+
+【条件】
+・ネタバレは避け、読者が続きを読みたくなるような書き方にしてください
+・長さの目安は300〜600字程度としてください
+・見出しや記号は付けず、紹介文の本文のみを出力してください
+
+【${src.label}】
+${src.text}`;
     }
 
     document.getElementById('hubPreviewLabel').textContent = label;
@@ -5687,6 +5734,8 @@ ${base}`;
       note.textContent = '反映すると、各章に新しいドラフト系列として本文が追加されます（既存のカードは変更されません）';
     } else if(hubPurpose === 'imagePrompts'){
       note.textContent = '反映すると、画像プロンプトエディタのメインタイトル用・各章の内容が上書きされます';
+    } else if(hubPurpose === 'introText'){
+      note.textContent = '反映すると、作品詳細モーダルの紹介文欄の内容が上書きされます';
     } else {
       note.textContent = '反映すると既存の設定・プロットは全て上書きされます（反映前に確認画面が出ます）';
     }
@@ -5794,6 +5843,25 @@ ${base}`;
     });
     wrap.innerHTML = html || '<div class="chapter-tabs-empty">解析できる内容がありませんでした</div>';
 
+    const warnWrap = document.getElementById(warnId);
+    if(result.warnings.length > 0){
+      warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
+    } else {
+      warnWrap.innerHTML = '';
+    }
+  }
+
+  // ---- 紹介文用プレビュー（パース不要、貼り付け内容をそのまま1件として表示）----
+  function renderIntroTextParsePreview(result, wrapId, warnId){
+    const wrap = document.getElementById(wrapId);
+    if(result.introText){
+      wrap.innerHTML = `<div class="parse-item">
+        <div class="parse-item-head"><span class="parse-item-tag">紹介文</span></div>
+        <div class="parse-item-body">${escapeHTML(result.introText)}（${result.introText.length}字）</div>
+      </div>`;
+    } else {
+      wrap.innerHTML = '<div class="chapter-tabs-empty">内容がありません</div>';
+    }
     const warnWrap = document.getElementById(warnId);
     if(result.warnings.length > 0){
       warnWrap.innerHTML = `<div class="parse-warning-box">⚠ 確認してください：<br>${result.warnings.map(w=>'・'+escapeHTML(w)).join('<br>')}</div>`;
@@ -6050,6 +6118,12 @@ ${base}`;
         ];
       }
       renderImagePromptParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
+    } else if(hubPurpose === 'introText'){
+      const trimmed = raw.trim();
+      hubParsedResult = { introText: trimmed, warnings: [] };
+      if(trimmed.length === 0) hubParsedResult.warnings.push('貼り付け内容が空です');
+      if(trimmed.length > 2000) hubParsedResult.warnings.push(`貼り付け内容が${trimmed.length}字あります。紹介文として長すぎないか確認してください（見出しや前置きが混ざっている可能性があります）`);
+      renderIntroTextParsePreview(hubParsedResult, 'hubParsePreview', 'hubParseWarnings');
     } else {
       hubParsedResult = parseAiOutput(raw);
       const unclassifiedChars = countUnclassifiedChars(hubParsedResult);
@@ -6079,6 +6153,12 @@ ${base}`;
       if(!confirm('この内容を画像プロンプトエディタに反映します。既存のプロンプトは上書きされます。よろしいですか？')) return;
       const count = applyImagePromptResultToProject(p, hubParsedResult);
       alert(`メインタイトル用＋${count}章分の画像プロンプトを反映しました。`);
+    } else if(hubPurpose === 'introText'){
+      if(!confirm('この内容を紹介文欄に反映します。既存の紹介文は上書きされます。よろしいですか？')) return;
+      p.introText = hubParsedResult.introText;
+      p.updatedAt = Date.now();
+      save();
+      alert('紹介文を反映しました。');
     } else {
       if(!confirm('この内容を設定・プロットに反映します。既存の内容は上書きされ、この操作は元に戻せません。よろしいですか？')) return;
       const unavailableAfterApply = (hubPurpose === 'buildSettingPlot');
