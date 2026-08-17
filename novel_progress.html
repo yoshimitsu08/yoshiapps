@@ -1875,7 +1875,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
       <div class="detail-section">
         <div class="detail-section-title">メモ</div>
-        <textarea class="section-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど" style="min-height:100px;"></textarea>
+        <textarea class="section-textarea auto-resize-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど（プロット作成前はここにラフメモを書くと、AI連携の「ラフメモ」元データとして使われます）" style="min-height:100px;"></textarea>
       </div>
 
       <div class="detail-section">
@@ -3140,6 +3140,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
       p.updatedAt = Date.now();
       save();
     };
+    enableAutoResize(memoTa);
+    requestAnimationFrame(() => {
+      memoTa.style.height = 'auto';
+      memoTa.style.height = (memoTa.scrollHeight + 2) + 'px';
+    });
 
     const introTa = document.getElementById('detailIntroTextarea');
     introTa.value = p.introText || '';
@@ -4929,7 +4934,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     {
       id: 'roughMemo',
       title: 'ラフメモ',
-      desc: '執筆前の書きなぐったメモから、設定・プロットの元ネタを作ります。'
+      desc: '作品詳細画面の「メモ」欄に書いた内容から、設定・プロットの元ネタを作ります。'
     },
     {
       id: 'settingPlot',
@@ -5092,7 +5097,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
 
     if(hubPurpose === 'buildSettingPlot'){
-      const memo = (p.roughMemo || '').trim() || '（メモなし）';
+      // ラフメモは作品詳細モーダルの「メモ」欄（p.memo）を流用する。
+      // プロット作成前はここにラフメモを書き、プロットができた後は通常のメモとして使う運用。
+      const memo = (p.memo || '').trim() || '（メモなし。作品詳細画面の「メモ」欄にラフメモを書いてから実行してください）';
       const lengthNote = p.aiTargetLength
         ? `\n\n【1章あたりの目安文字数】\n各章はおよそ${p.aiTargetLength.toLocaleString()}字を目安にプロットを組み立ててください（出来事の粒度・章数もこの文字数感に合わせて調整してください）。`
         : '';
