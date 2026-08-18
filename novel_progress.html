@@ -1832,8 +1832,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
-        <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">🖋 編集者を編集</button>
-        <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆者を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">🖋 編集を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditProofreaderBtn">🖋 推敲を編集</button>
         <button type="button" class="dropdown-item" id="menuEditRevisorBtn">🖋 加筆/修正を編集</button>
         <button type="button" class="dropdown-item" id="menuHistoryBtn">🕒 更新履歴を表示</button>
         <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
@@ -2262,20 +2263,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
     </div>
   </div>
-
-  <div class="editor-body" style="padding-top:0;">
-    <div class="prompt-panel">
-      <div class="prompt-panel-head">
-        <span class="pt-label">AI執筆プロンプト</span>
-      </div>
-      <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <select class="sort-select" id="templateSelectForPrompt" style="flex:1;"></select>
-        <button class="btn" id="genPromptBtn" style="padding:7px 12px; font-size:0.62rem; flex-shrink:0;">プロンプトを作成</button>
-      </div>
-      <textarea class="prompt-preview-editable" id="promptPreview">「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。</textarea>
-      <button class="btn primary" id="copyPromptBtn" style="width:100%;">📋 設定・プロットをコピー</button>
-    </div>
-  </div>
 </div>
 
 <div class="copy-toast" id="copyToast">コピーしました</div>
@@ -2513,6 +2500,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.writingPrompt === undefined) p.writingPrompt = '';
       if(p.author === undefined) p.author = '';
       if(p.editor === undefined) p.editor = '';
+      if(p.proofreader === undefined) p.proofreader = '';
       if(p.revisor === undefined) p.revisor = '';
       if(!p.updateHistory) p.updateHistory = [];
       if(p.introText === undefined) p.introText = '';
@@ -2760,6 +2748,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(!imported.todos) imported.todos = [];
       if(!imported.wordLog) imported.wordLog = [];
       if(imported.roughMemo === undefined) imported.roughMemo = '';
+      if(imported.proofreader === undefined) imported.proofreader = '';
       if(imported.aiImportAvailable === undefined) imported.aiImportAvailable = false;
 
       projects.push(imported);
@@ -2827,6 +2816,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       title: '',
       author: '',
       editor: '',
+      proofreader: '',
       revisor: '',
       cover: null,
       wordcount: 0,
@@ -3104,8 +3094,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // ---------- Detail Modal ----------
   function updateAuthorDisplay(p){
     const rows = [
-      { label: '編集者', value: p.editor },
-      { label: '執筆者', value: p.author },
+      { label: '編集', value: p.editor },
+      { label: '執筆', value: p.author },
+      { label: '推敲', value: p.proofreader },
       { label: '加筆/修正', value: p.revisor }
     ].filter(r => r.value);
     document.getElementById('detailAuthorDisplay').innerHTML =
@@ -3516,6 +3507,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
     updateAuthorDisplay(p);
   };
+  document.getElementById('menuEditProofreaderBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newProofreader = prompt('推敲者名を入力してください（空欄で未設定にできます）', p.proofreader || '');
+    if(newProofreader === null) return;
+    p.proofreader = newProofreader.trim();
+    p.updatedAt = Date.now();
+    save();
+    updateAuthorDisplay(p);
+  };
   document.getElementById('menuEditRevisorBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
     const p = projects.find(x=>x.id===currentDetailId);
@@ -3633,22 +3635,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('settingWorkTitle').textContent = p.title || '無題';
     renderSections(p);
     renderChapters(p);
-    populateTemplateSelect();
     document.getElementById('manuscriptTargetLengthInput').value = p.manuscriptTargetLength || '';
-    const promptEl = document.getElementById('promptPreview');
-    promptEl.value = p.writingPrompt && p.writingPrompt.trim()
-      ? p.writingPrompt
-      : '「プロンプトを作成」を押すと、設定・プロット両方から執筆用プロンプトを組み立てます。';
     // reset to setting tab
     document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page==='settingPage'));
     document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id==='settingPage'));
     switchView('settingView');
-  }
-
-  function populateTemplateSelect(){
-    const sel = document.getElementById('templateSelectForPrompt');
-    const list = promptTemplates.writeManuscript || [];
-    sel.innerHTML = list.map(t => `<option value="${t.id}">${escapeHTML(t.name || '無題テンプレート')}</option>`).join('');
   }
 
   document.querySelectorAll('.setting-nav-btn').forEach(btn => {
@@ -3915,59 +3906,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     out += buildPromptBody(p);
     return out.trim();
   }
-
-  function buildPromptFromTemplate(p, template){
-    const head = (template.head || '').trim();
-    const tail = (template.tail || '').trim();
-    const body = buildPromptBody(p);
-    let out = '';
-    if(head) out += head + '\n\n';
-    out += body;
-    if(tail) out += '\n\n' + tail;
-    return out.trim();
-  }
-
-  document.getElementById('genPromptBtn').onclick = () => {
-    const p = getCurrentSettingProject();
-    if(!p) return;
-    const el = document.getElementById('promptPreview');
-    if(p.writingPrompt && p.writingPrompt.trim()){
-      if(!confirm('現在編集中のプロンプトは上書きされます。設定・プロットの内容から再生成しますか？')) return;
-    }
-    const templateId = document.getElementById('templateSelectForPrompt').value;
-    const list = promptTemplates.writeManuscript || [];
-    const template = list.find(t => t.id === templateId) || list[0];
-    const prompt = template ? buildPromptFromTemplate(p, template) : buildPrompt(p);
-    el.value = prompt;
-    p.writingPrompt = prompt;
-    p.updatedAt = Date.now();
-    save();
-  };
-
-  document.getElementById('promptPreview').addEventListener('input', (e) => {
-    const p = getCurrentSettingProject();
-    if(!p) return;
-    p.writingPrompt = e.target.value;
-    p.updatedAt = Date.now();
-    save();
-  });
-
-  document.getElementById('copyPromptBtn').onclick = async () => {
-    const el = document.getElementById('promptPreview');
-    const text = el.value;
-    try {
-      await navigator.clipboard.writeText(text);
-      showCopyToast();
-    } catch(_e){
-      // fallback
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy'); showCopyToast(); } catch(_e2){ alert('コピーに失敗しました。手動で選択してコピーしてください。'); }
-      document.body.removeChild(ta);
-    }
-  };
 
   function showCopyToast(){
     const toast = document.getElementById('copyToast');
@@ -4626,7 +4564,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const selector = ensureSelector(entry);
     const row = selector.rows[rowIdx];
     if(row && row[seriesId]){
-      row[seriesId] = row[seriesId].map(c => c.id === cardId ? { ...c, text: selectorEditingDraft } : c);
+      // 編集確定したカードは自動で採用状態にする
+      row[seriesId] = row[seriesId].map(c => c.id === cardId ? { ...c, text: selectorEditingDraft, selected: true } : c);
     }
     markCardAsLastEdited(entry, cardId);
     selectorEditingCardId = null;
@@ -4962,6 +4901,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       sources: ['settingPlot']
     },
     {
+      id: 'extractPlotFromManuscript',
+      title: '本文からプロットを作る',
+      desc: '既に書いた本文を読み取り、矛盾のない設定・プロットを逆算して再構築します。',
+      sources: ['manuscript']
+    },
+    {
       id: 'writeManuscript',
       title: '本文を作る',
       desc: '設定・プロットをもとに、各章の本文をAIに執筆させます。生成結果は各章の新しいドラフト系列として追加され、既存の本文は変更されません。',
@@ -5109,6 +5054,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
       const src = getSourceText();
       return `${buildFormatInstructions()}\n\n【現在の${src.label}】\n${src.text}`;
     }
+    if(hubPurpose === 'extractPlotFromManuscript'){
+      const src = getSourceText();
+      return `以下は、既に書き上げられた小説の本文です。この本文の内容を読み取り、矛盾のない「設定」と「プロット（章立て）」を逆算して再構築してください。本文に書かれていない設定は、本文の内容から合理的に推測して補ってください。\n\n${buildFormatInstructions()}\n\n【${src.label}】\n${src.text}`;
+    }
     if(hubPurpose === 'writeManuscript'){
       const src = getSourceText();
       const targetLen = p.manuscriptTargetLength || 1500;
@@ -5128,6 +5077,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const HUB_PREVIEW_LABELS = {
     buildSettingPlot: 'AIに渡す整理・詳細化プロンプト',
     reviewSettingPlot: 'チェック依頼プロンプト',
+    extractPlotFromManuscript: 'AIに渡す逆算プロンプト',
     writeManuscript: 'AIに渡す本文執筆プロンプト',
     imagePrompts: 'AIに渡す画像プロンプト作成用の依頼文',
     introText: 'AIに渡す紹介文作成プロンプト'
