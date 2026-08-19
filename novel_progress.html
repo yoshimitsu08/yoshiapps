@@ -1942,7 +1942,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <input type="range" id="unclassifiedThresholdRangeInput" min="0" max="1000" step="10" style="width:100%;">
       </div>
       <div class="chapter-note" style="margin:18px 0 14px;">
-        Sentence Selectorでカードの編集を開始したとき、画面上端から何pxの位置にカードを合わせるかを調整できます。値を大きくするほど下寄りに表示されます（ヘッダー等に隠れる場合は大きめに）。
+        Sentence Selectorでカードの編集を開始したとき、画面上端から何pxの位置にカードを合わせるかを調整できます。値を大きくするほど下寄りに表示されます（ヘッダー等に隠れる場合は大きめに）。※スマホ等タッチ操作端末のみに適用され、PC（キーボード出現なし）では動作しません。
       </div>
       <div class="field">
         <label>編集位置の上端オフセット：<span id="selectorScrollOffsetValueLabel">90</span>px</label>
@@ -4454,33 +4454,38 @@ h1 .mark { color:var(--accent); font-style:italic; }
           enableAutoResize(ta);
 
           // 編集対象を画面上端付近の絶対位置へスクロール（オフセット値はユーザー設定可能、既定90px）。
-          // ソフトウェアキーボードが開くとビューポート高さ・スクロール可能範囲が変わるため、
-          // focus()でキーボードが開き終わったタイミング（visualViewportのresize、無ければ遅延）で計算する。
-          // resize発火はキーボードのアニメーション途中で起きることがあり、その瞬間に計算すると
-          // 毎回微妙に違う位置になる（狙いどころがブレる）ため、発火後さらに少し待ってレイアウトが
-          // 落ち着いてから計算する。
-          const SETTLE_DELAY_MS = 150;
-          const scrollToOffset = () => {
-            const rect = ta.closest('[data-card-id]').getBoundingClientRect();
-            const currentScrollY = window.scrollY || window.pageYOffset;
-            const elTop = rect.top + currentScrollY;
-            window.scrollTo({ top: elTop - selectorScrollOffset, behavior: 'smooth' });
-          };
-
-          if(window.visualViewport){
-            let done = false;
-            const onViewportResize = () => {
-              if(done) return;
-              done = true;
-              window.visualViewport.removeEventListener('resize', onViewportResize);
-              setTimeout(scrollToOffset, SETTLE_DELAY_MS);
+          // スマホのソフトウェアキーボード出現に伴うレイアウト変化を吸収するための処理のため、
+          // PC（非タッチ環境）ではキーボードが出ないので不要かつ余計な動きになるためスキップする。
+          const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+          if(isTouchDevice){
+            // ソフトウェアキーボードが開くとビューポート高さ・スクロール可能範囲が変わるため、
+            // focus()でキーボードが開き終わったタイミング（visualViewportのresize、無ければ遅延）で計算する。
+            // resize発火はキーボードのアニメーション途中で起きることがあり、その瞬間に計算すると
+            // 毎回微妙に違う位置になる（狙いどころがブレる）ため、発火後さらに少し待ってレイアウトが
+            // 落ち着いてから計算する。
+            const SETTLE_DELAY_MS = 150;
+            const scrollToOffset = () => {
+              const rect = ta.closest('[data-card-id]').getBoundingClientRect();
+              const currentScrollY = window.scrollY || window.pageYOffset;
+              const elTop = rect.top + currentScrollY;
+              window.scrollTo({ top: elTop - selectorScrollOffset, behavior: 'smooth' });
             };
-            window.visualViewport.addEventListener('resize', onViewportResize);
-            // キーボードが既に開いている等、resizeが発火しないケースへのフォールバック
-            setTimeout(onViewportResize, 400);
-          } else {
-            // visualViewport非対応ブラウザ向けフォールバック
-            setTimeout(scrollToOffset, 300 + SETTLE_DELAY_MS);
+
+            if(window.visualViewport){
+              let done = false;
+              const onViewportResize = () => {
+                if(done) return;
+                done = true;
+                window.visualViewport.removeEventListener('resize', onViewportResize);
+                setTimeout(scrollToOffset, SETTLE_DELAY_MS);
+              };
+              window.visualViewport.addEventListener('resize', onViewportResize);
+              // キーボードが既に開いている等、resizeが発火しないケースへのフォールバック
+              setTimeout(onViewportResize, 400);
+            } else {
+              // visualViewport非対応ブラウザ向けフォールバック
+              setTimeout(scrollToOffset, 300 + SETTLE_DELAY_MS);
+            }
           }
 
           ta.focus();
