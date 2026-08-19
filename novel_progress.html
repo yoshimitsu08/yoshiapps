@@ -2275,10 +2275,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="editor-body" style="padding-top:0;">
       <button type="button" class="add-chapter-btn" id="addChapterBtn">＋ 章を追加</button>
-      <div class="field" style="margin-top:14px;">
-        <label>本文を作る機能での1章あたりの目安文字数（空欄なら1500字）</label>
-        <input type="number" id="manuscriptTargetLengthInput" placeholder="例：3000" min="0" step="100">
-      </div>
     </div>
   </div>
 </div>
@@ -2502,6 +2498,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
         if(s.type === 'characters' && !s.characters) s.characters = [];
       });
       if(!p.plotChapters) p.plotChapters = [];
+      p.plotChapters.forEach(ch => {
+        if(ch.targetLength === undefined) ch.targetLength = null;
+      });
       if(!p.manuscript) p.manuscript = {};
       // 各章の本文エントリに status を補完（旧 done:true -> 'done'、それ以外 -> 'writing'）
       Object.values(p.manuscript).forEach(entry => {
@@ -2889,7 +2888,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   function newChapter(n){
-    return { id: uid(), title:`第${n}章`, event:'', feeling:'', reveal:'', other:'' };
+    return { id: uid(), title:`第${n}章`, event:'', feeling:'', reveal:'', other:'', targetLength: null };
   }
 
 
@@ -3704,7 +3703,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('settingWorkTitle').textContent = p.title || '無題';
     renderSections(p);
     renderChapters(p);
-    document.getElementById('manuscriptTargetLengthInput').value = p.manuscriptTargetLength || '';
     // reset to setting tab
     document.querySelectorAll('.setting-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page==='settingPage'));
     document.querySelectorAll('.setting-page').forEach(pg => pg.classList.toggle('active', pg.id==='settingPage'));
@@ -3776,6 +3774,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="char-field"><label>登場人物の心情</label><textarea class="auto-resize-textarea" placeholder="主要人物の心の動き" data-f="feeling">${escapeHTML(ch.feeling)}</textarea></div>
       <div class="char-field"><label>この章が見せたいもの</label><textarea class="auto-resize-textarea" placeholder="読者に伝えたいテーマ・見せ場" data-f="reveal">${escapeHTML(ch.reveal)}</textarea></div>
       <div class="char-field"><label>その他</label><textarea class="auto-resize-textarea" placeholder="補足メモ" data-f="other">${escapeHTML(ch.other)}</textarea></div>
+      <div class="field" style="margin-top:10px;">
+        <label>この章の目安文字数（空欄なら1500字）</label>
+        <input type="number" class="chapter-target-length-input" placeholder="例：2000" min="0" step="100" value="${ch.targetLength !== null && ch.targetLength !== undefined ? ch.targetLength : ''}">
+      </div>
     `;
     card.querySelector('.chapter-title-input').oninput = (e) => {
       ch.title = e.target.value;
@@ -3789,6 +3791,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       save();
       renderChapters(p);
     };
+    card.querySelector('.chapter-target-length-input').addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      ch.targetLength = (e.target.value === '' || isNaN(val)) ? null : val;
+      p.updatedAt = Date.now();
+      save();
+    });
     card.querySelectorAll('textarea[data-f]').forEach(ta => {
       ta.oninput = () => {
         ch[ta.dataset.f] = ta.value;
@@ -3808,15 +3816,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     save();
     renderChapters(p);
   };
-
-  document.getElementById('manuscriptTargetLengthInput').addEventListener('input', (e) => {
-    const p = getCurrentSettingProject();
-    if(!p) return;
-    const val = parseInt(e.target.value, 10);
-    p.manuscriptTargetLength = (e.target.value === '' || isNaN(val)) ? null : val;
-    p.updatedAt = Date.now();
-    save();
-  });
 
   function renderSectionBlock(sec, p){
     const block = document.createElement('div');
@@ -5191,8 +5190,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     if(hubPurpose === 'writeManuscript'){
       const src = getSourceText();
-      const targetLen = p.manuscriptTargetLength || 1500;
-      return `【文字数の目安】\n各章およそ${targetLen.toLocaleString()}字を目安に執筆してください。\n\n【出力形式について（厳守してください）】\n以下のフォーマットに沿って、章ごとに出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。\n\n■第1章：（章タイトル）\n（この章の本文をここに）\n\n※プロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。\n\n【${src.label}】\n${src.text}`;
+      const chapterLengthList = (p.plotChapters || []).map((ch, idx) =>
+        `第${idx+1}章：${ch.title || '(無題)'}（目安${(ch.targetLength || 1500).toLocaleString()}字）`
+      ).join('\n');
+      return `【各章の目安文字数】\n以下の各章の見出し行に記載した目安文字数に従って執筆してください（記載がない章は1500字を目安とします）。\n${chapterLengthList}\n\n【出力形式について（厳守してください）】\n以下のフォーマットに沿って、章ごとに出力してください。見出し記号（■）は省略せず、指定通りの位置に付けてください。目安文字数も見出し行にそのまま含めてください。\n\n■第1章：（章タイトル）（目安2000字）\n（この章の本文をここに）\n\n※プロット全体（第1章から最終章まで）を、番号の抜け・重複がないように、上記フォーマットを繰り返して出力してください。\n\n【${src.label}】\n${src.text}`;
     }
     if(hubPurpose === 'imagePrompts'){
       const src = getSourceText();
@@ -5599,7 +5600,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
       const m = line.match(chapterRe);
       if(m){
         const numStr = m[1].replace(/[０-９]/g, ch => '０１２３４５６７８９'.indexOf(ch));
-        current = { kind:'chapter', title: m[2].trim(), chapterNum: parseInt(numStr,10), body:[] };
+        const rawTitle = m[2].trim();
+        const cleanTitle = rawTitle.replace(/[（(]\s*目安\s*[0-9０-９,，]+\s*字\s*[）)]\s*$/, '').trim();
+        current = { kind:'chapter', title: cleanTitle, chapterNum: parseInt(numStr,10), body:[] };
         blocks.push(current);
       } else {
         current.body.push(line);
