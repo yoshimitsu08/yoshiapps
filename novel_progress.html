@@ -463,6 +463,19 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-weight:400;
   color:var(--text);
 }
+#detailTitle { cursor:pointer; }
+#detailTitleInput {
+  font-family:var(--font-body);
+  font-size:1.15rem;
+  font-weight:400;
+  color:var(--text);
+  background:var(--bg3);
+  border:1px solid var(--accent);
+  border-radius:3px;
+  padding:2px 6px;
+  width:100%;
+  max-width:70%;
+}
 .modal-close {
   background:none; border:none;
   color:var(--text3);
@@ -529,19 +542,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   letter-spacing:0.05em;
 }
 .cover-upload input[type="file"] { display:none; }
-.cover-remove {
-  position:absolute; top:6px; right:6px;
-  background:rgba(10,9,7,0.8);
-  color:var(--text);
-  border:none;
-  border-radius:2px;
-  font-family:var(--font-ui);
-  font-size:0.6rem;
-  padding:4px 8px;
-  cursor:pointer;
-  display:none;
-}
-.cover-upload.has-image .cover-remove { display:block; }
 
 /* stage editors */
 .stage-editor {
@@ -1835,14 +1835,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal">
     <div class="modal-header" style="position:relative;">
-      <h2 id="detailTitle">—</h2>
+      <h2 id="detailTitle" title="タップしてタイトルを編集">—</h2>
+      <input type="text" id="detailTitleInput" style="display:none;">
       <div style="display:flex; align-items:center; gap:6px;">
         <button class="hamburger-btn" id="detailHamburgerBtn">☰</button>
         <button class="modal-close" id="detailModalClose">×</button>
       </div>
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
-        <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
-        <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
         <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">✂️ 編集を編集</button>
         <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋️ 執筆を編集</button>
         <button type="button" class="dropdown-item" id="menuEditProofreaderBtn">🕶️ 推敲を編集</button>
@@ -1855,11 +1854,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-body">
 
-      <div class="cover-upload" id="detailCoverUpload" style="display:none;">
+      <div class="cover-upload" id="detailCoverUpload">
         <img id="detailCoverPreview" style="display:none;">
         <div class="upload-hint" id="detailCoverHint">📷<br>タップしてカバー画像を設定</div>
-        <button class="cover-remove" id="detailCoverRemoveBtn">削除</button>
         <input type="file" id="detailCoverFileInput" accept="image/*">
+
       </div>
 
       <div class="detail-section">
@@ -3188,8 +3187,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       introTa.style.height = (introTa.scrollHeight + 2) + 'px';
     });
 
-    // cover editor (hidden by default, toggled via hamburger)
-    document.getElementById('detailCoverUpload').style.display = 'none';
+    // cover editor（常時表示。詳細画面を開くたびにプレビューを最新化）
     updateDetailCoverPreview(p);
 
     document.getElementById('detailModalOverlay').classList.add('active');
@@ -3513,23 +3511,48 @@ h1 .mark { color:var(--accent); font-style:italic; }
     e.stopPropagation();
     document.getElementById('detailDropdown').classList.toggle('active');
   };
-  document.getElementById('menuEditCoverBtn').onclick = () => {
-    document.getElementById('detailDropdown').classList.remove('active');
-    document.getElementById('detailCoverUpload').style.display = 'flex';
-  };
-  document.getElementById('menuEditTitleBtn').onclick = () => {
-    document.getElementById('detailDropdown').classList.remove('active');
-    const p = projects.find(x=>x.id===currentDetailId);
-    if(!p) return;
-    const newTitle = prompt('新しいタイトルを入力してください', p.title || '');
-    if(newTitle === null) return;
-    const trimmed = newTitle.trim();
-    if(!trimmed){ alert('タイトルを入力してください'); return; }
-    p.title = trimmed;
-    p.updatedAt = Date.now();
-    save();
-    document.getElementById('detailTitle').textContent = p.title;
-  };
+  // ---- タイトルのインライン編集（タップ→テキストボックス化、Enterで確定、フォーカス外れはキャンセル） ----
+  (function setupDetailTitleInlineEdit(){
+    const titleEl = document.getElementById('detailTitle');
+    const inputEl = document.getElementById('detailTitleInput');
+    let editing = false;
+
+    function startEdit(){
+      const p = projects.find(x=>x.id===currentDetailId);
+      if(!p || editing) return;
+      editing = true;
+      inputEl.value = p.title || '';
+      titleEl.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+      inputEl.select();
+    }
+    function cancelEdit(){
+      editing = false;
+      inputEl.style.display = 'none';
+      titleEl.style.display = '';
+    }
+    function commitEdit(){
+      const p = projects.find(x=>x.id===currentDetailId);
+      if(!p){ cancelEdit(); return; }
+      const trimmed = inputEl.value.trim();
+      if(!trimmed){ cancelEdit(); return; } // 空欄なら変更を破棄
+      p.title = trimmed;
+      p.updatedAt = Date.now();
+      save();
+      titleEl.textContent = p.title;
+      editing = false;
+      inputEl.style.display = 'none';
+      titleEl.style.display = '';
+    }
+
+    titleEl.addEventListener('click', startEdit);
+    inputEl.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); commitEdit(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); cancelEdit(); }
+    });
+    inputEl.addEventListener('blur', cancelEdit); // フォーカスが外れたらキャンセル（Enter確定時は既にeditingがfalseなので何もしない）
+  })();
   document.getElementById('menuEditEditorNameBtn').onclick = () => {
     document.getElementById('detailDropdown').classList.remove('active');
     const p = projects.find(x=>x.id===currentDetailId);
@@ -3621,8 +3644,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(currentDetailId) deleteProjectById(currentDetailId);
   };
 
-  document.getElementById('detailCoverUpload').addEventListener('click', (e) => {
-    if(e.target.classList.contains('cover-remove')) return;
+  document.getElementById('detailCoverUpload').addEventListener('click', () => {
     document.getElementById('detailCoverFileInput').click();
   });
   document.getElementById('detailCoverFileInput').addEventListener('change', (e) => {
@@ -3634,15 +3656,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
       save();
       updateDetailCoverPreview(p);
     });
-  });
-  document.getElementById('detailCoverRemoveBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const p = projects.find(x=>x.id===currentDetailId);
-    if(!p) return;
-    p.cover = null;
-    p.updatedAt = Date.now();
-    save();
-    updateDetailCoverPreview(p);
   });
 
   document.getElementById('openSettingBtn').onclick = () => {
