@@ -1843,10 +1843,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="dropdown-menu" id="detailDropdown" style="top:52px;">
         <button type="button" class="dropdown-item" id="menuEditCoverBtn">📷 カバー画像を変更</button>
         <button type="button" class="dropdown-item" id="menuEditTitleBtn">✎ タイトルを変更</button>
-        <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">🖋 編集を編集</button>
-        <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋 執筆を編集</button>
-        <button type="button" class="dropdown-item" id="menuEditProofreaderBtn">🖋 推敲を編集</button>
-        <button type="button" class="dropdown-item" id="menuEditRevisorBtn">🖋 加筆/修正を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditEditorNameBtn">✂️ 編集を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditAuthorBtn">🖋️ 執筆を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditProofreaderBtn">🕶️ 推敲を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditRevisorBtn">💋 加筆を編集</button>
+        <button type="button" class="dropdown-item" id="menuEditImageCreditBtn">🖼️ 画像を編集</button>
         <button type="button" class="dropdown-item" id="menuHistoryBtn">🕒 更新履歴を表示</button>
         <button type="button" class="dropdown-item" id="menuExportBtn">📤 この作品をエクスポート</button>
         <button type="button" class="dropdown-item danger" id="menuDeleteProjectBtn">🗑 この作品を削除</button>
@@ -2535,6 +2536,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(p.editor === undefined) p.editor = '';
       if(p.proofreader === undefined) p.proofreader = '';
       if(p.revisor === undefined) p.revisor = '';
+      if(p.imageCredit === undefined) p.imageCredit = '';
       if(!p.updateHistory) p.updateHistory = [];
       if(p.introText === undefined) p.introText = '';
       if(!p.imagePrompts) p.imagePrompts = { main: null, chapters: {} };
@@ -2851,6 +2853,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       editor: '',
       proofreader: '',
       revisor: '',
+      imageCredit: '',
       cover: null,
       wordcount: 0,
       wordLog: [],
@@ -3127,10 +3130,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // ---------- Detail Modal ----------
   function updateAuthorDisplay(p){
     const rows = [
-      { label: '編集', value: p.editor },
-      { label: '執筆', value: p.author },
-      { label: '推敲', value: p.proofreader },
-      { label: '加筆/修正', value: p.revisor }
+      { label: '✂️編集', value: p.editor },
+      { label: '🖋️執筆', value: p.author },
+      { label: '🕶️推敲', value: p.proofreader },
+      { label: '💋加筆', value: p.revisor },
+      { label: '🖼️画像', value: p.imageCredit }
     ].filter(r => r.value);
     document.getElementById('detailAuthorDisplay').innerHTML =
       rows.map(r => `<span>${escapeHTML(r.label)}：${escapeHTML(r.value)}</span>`).join('');
@@ -3566,6 +3570,17 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const newRevisor = prompt('加筆/修正者名を入力してください（空欄で未設定にできます）', p.revisor || '');
     if(newRevisor === null) return;
     p.revisor = newRevisor.trim();
+    p.updatedAt = Date.now();
+    save();
+    updateAuthorDisplay(p);
+  };
+  document.getElementById('menuEditImageCreditBtn').onclick = () => {
+    document.getElementById('detailDropdown').classList.remove('active');
+    const p = projects.find(x=>x.id===currentDetailId);
+    if(!p) return;
+    const newImageCredit = prompt('画像担当者名を入力してください（空欄で未設定にできます）', p.imageCredit || '');
+    if(newImageCredit === null) return;
+    p.imageCredit = newImageCredit.trim();
     p.updatedAt = Date.now();
     save();
     updateAuthorDisplay(p);
