@@ -1382,6 +1382,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   flex:1;
   min-width:0;
   position:relative;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
 }
 .selector-card-text-wrap {
   padding:10px 12px 10px 0;
@@ -1478,13 +1481,21 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-family:var(--font-body);
   font-size:0.86rem;
   line-height:1.7;
-  resize:vertical;
+  resize:none;
+  overflow-y:hidden;
   margin-top:2px;
+  user-select:text;
+  -webkit-user-select:text;
 }
 .selector-edit-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
 .selector-edit-cancel {
   font-family:var(--font-ui); font-size:0.63rem; padding:6px 12px;
   border-radius:4px; border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer;
+}
+.selector-edit-copy {
+  font-family:var(--font-ui); font-size:0.63rem; padding:6px 12px;
+  border-radius:4px; border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer;
+  margin-right:auto;
 }
 .selector-edit-confirm {
   font-family:var(--font-ui); font-weight:700; font-size:0.63rem; padding:6px 14px;
@@ -1912,7 +1923,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <div class="modal-overlay" id="longPressModalOverlay">
   <div class="modal">
     <div class="modal-header">
-      <h2>長押し速度・AI取り込み設定</h2>
+      <h2>長押し・編集位置の設定</h2>
       <button class="modal-close" id="longPressModalClose">×</button>
     </div>
     <div class="modal-body">
@@ -1929,6 +1940,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="field">
         <label>未分類テキストの異常検知しきい値：<span id="unclassifiedThresholdValueLabel">100</span>字</label>
         <input type="range" id="unclassifiedThresholdRangeInput" min="0" max="1000" step="10" style="width:100%;">
+      </div>
+      <div class="chapter-note" style="margin:18px 0 14px;">
+        Sentence Selectorでカードの編集を開始したとき、画面上端から何pxの位置にカードを合わせるかを調整できます。値を大きくするほど下寄りに表示されます（ヘッダー等に隠れる場合は大きめに）。
+      </div>
+      <div class="field">
+        <label>編集位置の上端オフセット：<span id="selectorScrollOffsetValueLabel">90</span>px</label>
+        <input type="range" id="selectorScrollOffsetRangeInput" min="0" max="300" step="10" style="width:100%;">
       </div>
     </div>
     <div class="modal-footer">
@@ -2283,6 +2301,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const DEFAULT_LONGPRESS_MS = 550;
   const DEFAULT_UNCLASSIFIED_THRESHOLD = 100;
   const UNCLASSIFIED_THRESHOLD_STORAGE_KEY = 'manuscript_unclassified_threshold_v1';
+  const DEFAULT_SELECTOR_SCROLL_OFFSET = 90;
+  const SELECTOR_SCROLL_OFFSET_STORAGE_KEY = 'manuscript_selector_scroll_offset_v1';
 
   let projects = [];
   let currentDetailId = null;
@@ -2292,6 +2312,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let deviceName = null;
   let longPressMs = DEFAULT_LONGPRESS_MS;
   let unclassifiedThreshold = DEFAULT_UNCLASSIFIED_THRESHOLD;
+  let selectorScrollOffset = DEFAULT_SELECTOR_SCROLL_OFFSET;
 
   function loadLongPressMs(){
     try {
@@ -2315,6 +2336,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function saveUnclassifiedThreshold(n){
     unclassifiedThreshold = n;
     try { localStorage.setItem(UNCLASSIFIED_THRESHOLD_STORAGE_KEY, String(n)); } catch(_e){ /* ignore */ }
+  }
+
+  function loadSelectorScrollOffset(){
+    try {
+      const saved = localStorage.getItem(SELECTOR_SCROLL_OFFSET_STORAGE_KEY);
+      const n = parseInt(saved, 10);
+      if(!isNaN(n) && n >= -500 && n <= 500) selectorScrollOffset = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveSelectorScrollOffset(n){
+    selectorScrollOffset = n;
+    try { localStorage.setItem(SELECTOR_SCROLL_OFFSET_STORAGE_KEY, String(n)); } catch(_e){ /* ignore */ }
   }
 
   // ---------- Bookmark (last-edited card) color customization ----------
@@ -3229,6 +3262,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const threshRange = document.getElementById('unclassifiedThresholdRangeInput');
     threshRange.value = unclassifiedThreshold;
     document.getElementById('unclassifiedThresholdValueLabel').textContent = unclassifiedThreshold;
+    const offsetRange = document.getElementById('selectorScrollOffsetRangeInput');
+    offsetRange.value = selectorScrollOffset;
+    document.getElementById('selectorScrollOffsetValueLabel').textContent = selectorScrollOffset;
     document.getElementById('longPressModalOverlay').classList.add('active');
   };
   document.getElementById('longPressModalClose').onclick = () => {
@@ -3243,11 +3279,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('unclassifiedThresholdRangeInput').addEventListener('input', (e) => {
     document.getElementById('unclassifiedThresholdValueLabel').textContent = e.target.value;
   });
+  document.getElementById('selectorScrollOffsetRangeInput').addEventListener('input', (e) => {
+    document.getElementById('selectorScrollOffsetValueLabel').textContent = e.target.value;
+  });
   document.getElementById('longPressSaveBtn').onclick = () => {
     const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
     saveLongPressMs(val);
     const threshVal = parseInt(document.getElementById('unclassifiedThresholdRangeInput').value, 10);
     saveUnclassifiedThreshold(threshVal);
+    const offsetVal = parseInt(document.getElementById('selectorScrollOffsetRangeInput').value, 10);
+    saveSelectorScrollOffset(offsetVal);
     document.getElementById('longPressModalOverlay').classList.remove('active');
   };
   document.getElementById('menuBookmarkColorBtn').onclick = () => {
@@ -4316,19 +4357,45 @@ h1 .mark { color:var(--accent); font-style:italic; }
     delay = delay || longPressMs;
     let timer = null;
     let longPressFired = false;
-    const start = () => {
+    let pressStartX = null;
+    let pressStartY = null;
+    const MOVE_CANCEL_THRESHOLD = 10; // これ以上動いたら長押し判定をキャンセル（横スクロール操作と区別するため）
+    const getXY = (e) => {
+      if(e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      return { x: e.clientX, y: e.clientY };
+    };
+    const start = (e) => {
       longPressFired = false;
+      const pos = getXY(e);
+      pressStartX = pos.x;
+      pressStartY = pos.y;
       timer = setTimeout(() => {
         longPressFired = true;
         timer = null;
         onLongPress();
       }, delay);
     };
-    const end = () => { if(timer){ clearTimeout(timer); timer = null; } };
+    const move = (e) => {
+      if(!timer || pressStartX === null) return;
+      const pos = getXY(e);
+      const dx = Math.abs(pos.x - pressStartX);
+      const dy = Math.abs(pos.y - pressStartY);
+      if(dx > MOVE_CANCEL_THRESHOLD || dy > MOVE_CANCEL_THRESHOLD){
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const end = () => {
+      if(timer){ clearTimeout(timer); timer = null; }
+      pressStartX = null;
+      pressStartY = null;
+    };
     el.addEventListener('mousedown', start);
+    el.addEventListener('mousemove', move);
     el.addEventListener('mouseup', end);
     el.addEventListener('mouseleave', end);
     el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: true });
     el.addEventListener('touchend', end);
     el.addEventListener('click', (e) => {
       if(longPressFired){
@@ -4372,6 +4439,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
             <div class="selector-card-text-wrap">
               <textarea class="selector-edit-textarea" id="selectorEditTextarea">${escapeHTML(selectorEditingDraft)}</textarea>
               <div class="selector-edit-actions">
+                <button type="button" class="selector-edit-copy" id="selectorEditCopyBtn">📋 コピー</button>
                 <button type="button" class="selector-edit-cancel" id="selectorEditCancelBtn">キャンセル</button>
                 <button type="button" class="selector-edit-confirm" id="selectorEditConfirmBtn" style="background:${s.color}">確定</button>
               </div>
@@ -4384,13 +4452,22 @@ h1 .mark { color:var(--accent); font-style:italic; }
         if(ta){
           ta.focus();
           ta.oninput = () => { selectorEditingDraft = ta.value; };
-          // 編集対象を画面上端付近の絶対位置へスクロール（PC/スマホでヘッダー等に隠れないよう適度な余白を確保）
+          enableAutoResize(ta);
+          // 編集対象を画面上端付近の絶対位置へスクロール（オフセット値はユーザー設定可能、既定90px）
           const rect = ta.closest('[data-card-id]').getBoundingClientRect();
           const currentScrollY = window.scrollY || window.pageYOffset;
           const elTop = rect.top + currentScrollY;
-          window.scrollTo({ top: elTop - 90, behavior: 'smooth' });
+          window.scrollTo({ top: elTop - selectorScrollOffset, behavior: 'smooth' });
         }
       }, 0);
+      wrapper.querySelector('#selectorEditCopyBtn').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(selectorEditingDraft);
+        } catch(_e){
+          const ta = document.getElementById('selectorEditTextarea');
+          if(ta){ ta.select(); document.execCommand('copy'); }
+        }
+      };
       wrapper.querySelector('#selectorEditCancelBtn').onclick = () => {
         selectorEditingCardId = null;
         renderSelectorRows();
@@ -5863,6 +5940,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   loadTemplates();
   loadLongPressMs();
   loadUnclassifiedThreshold();
+  loadSelectorScrollOffset();
   loadBookmarkColor();
   renderGrid();
   updateStorageUsageDisplay();
