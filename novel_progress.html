@@ -4456,6 +4456,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
           // 編集対象を画面上端付近の絶対位置へスクロール（オフセット値はユーザー設定可能、既定90px）。
           // ソフトウェアキーボードが開くとビューポート高さ・スクロール可能範囲が変わるため、
           // focus()でキーボードが開き終わったタイミング（visualViewportのresize、無ければ遅延）で計算する。
+          // resize発火はキーボードのアニメーション途中で起きることがあり、その瞬間に計算すると
+          // 毎回微妙に違う位置になる（狙いどころがブレる）ため、発火後さらに少し待ってレイアウトが
+          // 落ち着いてから計算する。
+          const SETTLE_DELAY_MS = 150;
           const scrollToOffset = () => {
             const rect = ta.closest('[data-card-id]').getBoundingClientRect();
             const currentScrollY = window.scrollY || window.pageYOffset;
@@ -4469,14 +4473,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
               if(done) return;
               done = true;
               window.visualViewport.removeEventListener('resize', onViewportResize);
-              scrollToOffset();
+              setTimeout(scrollToOffset, SETTLE_DELAY_MS);
             };
             window.visualViewport.addEventListener('resize', onViewportResize);
             // キーボードが既に開いている等、resizeが発火しないケースへのフォールバック
             setTimeout(onViewportResize, 400);
           } else {
             // visualViewport非対応ブラウザ向けフォールバック
-            setTimeout(scrollToOffset, 300);
+            setTimeout(scrollToOffset, 300 + SETTLE_DELAY_MS);
           }
 
           ta.focus();
