@@ -4461,12 +4461,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
         }
       }, 0);
       wrapper.querySelector('#selectorEditCopyBtn').onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(selectorEditingDraft);
-        } catch(_e){
-          const ta = document.getElementById('selectorEditTextarea');
-          if(ta){ ta.select(); document.execCommand('copy'); }
-        }
+        await copyTextWithToast(selectorEditingDraft);
       };
       wrapper.querySelector('#selectorEditCancelBtn').onclick = () => {
         selectorEditingCardId = null;
