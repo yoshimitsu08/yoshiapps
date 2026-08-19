@@ -4450,14 +4450,36 @@ h1 .mark { color:var(--accent); font-style:italic; }
       setTimeout(() => {
         const ta = document.getElementById('selectorEditTextarea');
         if(ta){
-          ta.focus();
           ta.oninput = () => { selectorEditingDraft = ta.value; };
           enableAutoResize(ta);
-          // 編集対象を画面上端付近の絶対位置へスクロール（オフセット値はユーザー設定可能、既定90px）
-          const rect = ta.closest('[data-card-id]').getBoundingClientRect();
-          const currentScrollY = window.scrollY || window.pageYOffset;
-          const elTop = rect.top + currentScrollY;
-          window.scrollTo({ top: elTop - selectorScrollOffset, behavior: 'smooth' });
+
+          // 編集対象を画面上端付近の絶対位置へスクロール（オフセット値はユーザー設定可能、既定90px）。
+          // ソフトウェアキーボードが開くとビューポート高さ・スクロール可能範囲が変わるため、
+          // focus()でキーボードが開き終わったタイミング（visualViewportのresize、無ければ遅延）で計算する。
+          const scrollToOffset = () => {
+            const rect = ta.closest('[data-card-id]').getBoundingClientRect();
+            const currentScrollY = window.scrollY || window.pageYOffset;
+            const elTop = rect.top + currentScrollY;
+            window.scrollTo({ top: elTop - selectorScrollOffset, behavior: 'smooth' });
+          };
+
+          if(window.visualViewport){
+            let done = false;
+            const onViewportResize = () => {
+              if(done) return;
+              done = true;
+              window.visualViewport.removeEventListener('resize', onViewportResize);
+              scrollToOffset();
+            };
+            window.visualViewport.addEventListener('resize', onViewportResize);
+            // キーボードが既に開いている等、resizeが発火しないケースへのフォールバック
+            setTimeout(onViewportResize, 400);
+          } else {
+            // visualViewport非対応ブラウザ向けフォールバック
+            setTimeout(scrollToOffset, 300);
+          }
+
+          ta.focus();
         }
       }, 0);
       wrapper.querySelector('#selectorEditCopyBtn').onclick = async () => {
