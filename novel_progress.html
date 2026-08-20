@@ -1502,20 +1502,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .selector-card.dragging { opacity:0.4; }
 .selector-card.drag-over { border-color:var(--accent) !important; box-shadow:0 0 0 2px var(--accent) !important; }
 
-/* 2026-08-20新設：章比較パネル（閲覧のみ） */
-.selector-compare-panel {
-  margin-top:6px;
-  border-top:3px solid var(--border);
-  background:var(--bg);
-  padding-bottom:20px;
+/* 2026-08-20新設（修正版）：章比較を全画面固定モーダル・上下分割で表示 */
+.selector-compare-overlay {
+  padding:0 !important;
+  align-items:stretch !important;
 }
+.selector-compare-overlay .selector-compare-modal {
+  width:100%; height:100%;
+  max-width:none; max-height:none;
+  border-radius:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+}
+.selector-compare-half {
+  flex:1 1 50%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.selector-compare-half-top { border-bottom:3px solid var(--accent); }
+.selector-compare-half-bottom { background:var(--bg2); }
 .selector-compare-head {
   display:flex; align-items:center; justify-content:space-between;
-  padding:14px 20px 0;
+  padding:12px 16px 0;
+  flex-shrink:0;
 }
 .selector-compare-controls {
   display:flex; gap:8px;
-  padding:10px 20px 0;
+  padding:8px 16px 0;
+  flex-shrink:0;
+}
+.selector-compare-scroll {
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  padding:10px 16px 16px;
 }
 .selector-card-readonly { opacity:0.92; }
 .selector-card-readonly .selector-card-badge { cursor:default; }
@@ -2267,21 +2291,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <button type="button" class="btn primary" id="selectorCopyComposedBtn" style="width:100%; margin-top:12px;">📋 一括コピー</button>
     </div>
   </div>
-
-  <!-- 2026-08-20新設：章比較パネル（閲覧のみ）。上：編集中の章（既存部分）、下：比較対象の章 -->
-  <div class="selector-compare-panel" id="selectorComparePanel" style="display:none;">
-    <div class="selector-compare-head">
-      <span class="pt-label">⇕ 章を比較（閲覧のみ）</span>
-      <button type="button" class="selector-gear-menu-close" id="selectorCompareCloseBtn">×</button>
-    </div>
-    <div class="selector-compare-controls">
-      <select class="selector-series-select" id="selectorCompareChapterSelect" style="flex:1;"></select>
-      <select class="selector-series-select" id="selectorCompareSeriesSelect" style="flex:1;"></select>
-    </div>
-    <div class="editor-body" style="padding:12px 0 0;" id="selectorCompareRows">
-      <!-- 比較対象カード（閲覧のみ）をここに表示 -->
-    </div>
-  </div>
 </div>
 
 <!-- ============ Add Draft Modal ============ -->
@@ -2306,6 +2315,32 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="addDraftConfirmBtn" style="width:100%;">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Chapter Compare Modal（2026-08-20新設。上：編集中章、下：比較対象章／閲覧のみ） ============ -->
+<div class="modal-overlay selector-compare-overlay" id="selectorCompareModalOverlay">
+  <div class="selector-compare-modal">
+    <div class="selector-compare-half selector-compare-half-top">
+      <div class="selector-compare-head">
+        <span class="pt-label" id="selectorCompareTopLabel">編集中の章</span>
+        <button type="button" class="modal-close" id="selectorCompareCloseBtn">×</button>
+      </div>
+      <div class="selector-compare-controls">
+        <select class="selector-series-select" id="selectorCompareTopSeriesSelect" style="flex:1;"></select>
+      </div>
+      <div class="selector-compare-scroll" id="selectorCompareTopRows"></div>
+    </div>
+    <div class="selector-compare-half selector-compare-half-bottom">
+      <div class="selector-compare-head">
+        <span class="pt-label">⇕ 比較対象（閲覧のみ）</span>
+      </div>
+      <div class="selector-compare-controls">
+        <select class="selector-series-select" id="selectorCompareChapterSelect" style="flex:1;"></select>
+        <select class="selector-series-select" id="selectorCompareSeriesSelect" style="flex:1;"></select>
+      </div>
+      <div class="selector-compare-scroll" id="selectorCompareRows"></div>
     </div>
   </div>
 </div>
@@ -4401,7 +4436,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     renderSelectorRows();
     renderSelectorComposed();
-    renderSelectorCompare();
   }
 
   function deleteSelectorDraft(seriesId, label){
@@ -4777,9 +4811,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
       selectorDragCardId = card.id;
       touchDragging = true;
       cardEl.classList.add('dragging');
-    }, { passive: true });
+      e.preventDefault();
+    }, { passive: false });
     handle.addEventListener('touchmove', (e) => {
       if(!touchDragging) return;
+      e.preventDefault(); // ページスクロールを止め、指の動きにカードを追従させる
       const touch = e.touches[0];
       const target = document.elementFromPoint(touch.clientX, touch.clientY);
       const overCard = target && target.closest('.selector-card');
@@ -4787,7 +4823,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(overCard && overCard !== cardEl){
         overCard.classList.add('drag-over');
       }
-    }, { passive: true });
+    }, { passive: false });
     handle.addEventListener('touchend', (e) => {
       if(!touchDragging) return;
       touchDragging = false;
@@ -4902,35 +4938,61 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // ================= 章比較パネル（2026-08-20新設、閲覧のみ） =================
   // 現在編集中の章（既存のselectorRows部分）はそのまま、下に別の章×系列を並べて閲覧できるようにする。
   // 編集は不可（採用トグル・並べ替え・削除いずれも操作させない）。
+  // 2026-08-20修正：ページ内埋め込みから、全画面固定モーダル（selectorCompareModalOverlay）に変更。
+  // 上：編集中の章×選択中系列（閲覧のみ）、下：比較対象の章×任意系列（閲覧のみ）
   function openSelectorCompare(){
     const p = projects.find(x=>x.id===currentSelectorProjectId);
     if(!p || !p.plotChapters || p.plotChapters.length === 0){
       alert('比較できる章がありません。');
       return;
     }
+    const entry = getSelectorEntry();
+    const selector = ensureSelector(entry);
+    if(selector.series.length === 0){
+      alert('この章にはまだドラフトがありません。比較する前にドラフトを追加してください。');
+      return;
+    }
     // 初期値：現在編集中の章以外の先頭の章を選ぶ（無ければ同じ章でも可）
     const otherChapter = p.plotChapters.find(c => c.id !== currentSelectorChapterId) || p.plotChapters[0];
     selectorCompareState = { chapterId: otherChapter.id, seriesId: null };
-    document.getElementById('selectorComparePanel').style.display = '';
+
+    const ch = p.plotChapters.find(c => c.id === currentSelectorChapterId);
+    document.getElementById('selectorCompareTopLabel').textContent =
+      ch ? `編集中：第${p.plotChapters.indexOf(ch)+1}章 ${ch.title||''}` : '編集中の章';
+
+    document.getElementById('selectorCompareModalOverlay').classList.add('active');
+    renderSelectorCompareTop();
     renderSelectorCompare();
   }
 
   function closeSelectorCompare(){
     selectorCompareState = null;
-    document.getElementById('selectorComparePanel').style.display = 'none';
+    document.getElementById('selectorCompareModalOverlay').classList.remove('active');
   }
 
   document.getElementById('selectorCompareCloseBtn').onclick = () => {
     closeSelectorCompare();
   };
 
+  // 上半分：編集中の章の、選択中系列のカードを閲覧表示（編集は元画面で行う設計のため、ここは閲覧のみ）
+  function renderSelectorCompareTop(){
+    const entry = getSelectorEntry();
+    if(!entry) return;
+    const selector = ensureSelector(entry);
+
+    const topSeriesSelect = document.getElementById('selectorCompareTopSeriesSelect');
+    topSeriesSelect.innerHTML = selector.series.map(s =>
+      `<option value="${s.id}"${s.id===selectorActiveSeriesId?' selected':''}>Draft ${s.label}${s.name ? '　' + escapeHTML(s.name) : ''}</option>`
+    ).join('');
+    topSeriesSelect.onchange = (e) => {
+      renderSelectorCompareCardsInto('selectorCompareTopRows', selector, e.target.value);
+    };
+
+    renderSelectorCompareCardsInto('selectorCompareTopRows', selector, selectorActiveSeriesId);
+  }
+
   function renderSelectorCompare(){
-    const panel = document.getElementById('selectorComparePanel');
-    if(!selectorCompareState){
-      panel.style.display = 'none';
-      return;
-    }
-    panel.style.display = '';
+    if(!selectorCompareState) return;
 
     const p = projects.find(x=>x.id===currentSelectorProjectId);
     if(!p){ closeSelectorCompare(); return; }
@@ -4965,23 +5027,23 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     seriesSelect.onchange = (e) => {
       selectorCompareState.seriesId = e.target.value;
-      renderSelectorCompareRows(compareSelector);
+      renderSelectorCompareCardsInto('selectorCompareRows', compareSelector, selectorCompareState.seriesId);
     };
 
-    renderSelectorCompareRows(compareSelector);
+    renderSelectorCompareCardsInto('selectorCompareRows', compareSelector, selectorCompareState.seriesId);
   }
 
-  // 比較対象カードを閲覧専用（採用トグル・並べ替え・削除いずれも不可）で表示する
-  function renderSelectorCompareRows(compareSelector){
-    const wrap = document.getElementById('selectorCompareRows');
-    if(!selectorCompareState || !selectorCompareState.seriesId){
-      wrap.innerHTML = `<div class="selector-empty-text" style="padding:10px 20px;">この章にはまだドラフトがありません。</div>`;
+  // 指定した系列のカードを、指定した要素IDのコンテナへ閲覧専用（採用トグル・並べ替え・削除いずれも不可）で表示する
+  function renderSelectorCompareCardsInto(containerId, selectorObj, seriesId){
+    const wrap = document.getElementById(containerId);
+    if(!seriesId){
+      wrap.innerHTML = `<div class="selector-empty-text" style="padding:10px 0;">この章にはまだドラフトがありません。</div>`;
       return;
     }
-    const s = compareSelector.series.find(x => x.id === selectorCompareState.seriesId);
-    const cards = (compareSelector.seriesCards[selectorCompareState.seriesId] || []);
+    const s = selectorObj.series.find(x => x.id === seriesId);
+    const cards = (selectorObj.seriesCards[seriesId] || []);
     if(!s || cards.length === 0){
-      wrap.innerHTML = `<div class="selector-empty-text" style="padding:10px 20px;">この章にはまだドラフトがありません。</div>`;
+      wrap.innerHTML = `<div class="selector-empty-text" style="padding:10px 0;">この系列にはまだカードがありません。</div>`;
       return;
     }
     wrap.innerHTML = '';
