@@ -421,6 +421,141 @@ h1 .mark { color:var(--accent); font-style:italic; }
   color:var(--text3);
 }
 
+/* ---------- Reel view (2026-08-21新設：カード一覧をリール型表示に刷新) ---------- */
+.reel-viewport {
+  position:relative;
+  height:calc(100dvh - 300px);
+  min-height:340px;
+  perspective:900px;
+  perspective-origin:50% 50%;
+  overflow:hidden;
+  touch-action:none;
+  margin-top:6px;
+}
+.reel-track {
+  position:absolute;
+  top:50%; left:0; right:0;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+.reel-card {
+  position:absolute;
+  left:16px; right:16px;
+  height:112px;
+  margin-top:-56px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  display:flex;
+  align-items:stretch;
+  overflow:hidden;
+  cursor:pointer;
+  transform-origin:center center;
+  transition:border-color 0.15s;
+}
+.reel-card.snapping {
+  transition:transform var(--reel-snap-ms, 0.32s) cubic-bezier(0.22, 1, 0.36, 1), opacity var(--reel-snap-ms, 0.32s) ease;
+}
+.reel-card.selected {
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent), 0 8px 24px rgba(0,0,0,0.5);
+}
+.reel-card.pinned { border-color:var(--accent); }
+.reel-card .rc-cover {
+  width:112px; flex-shrink:0;
+  height:100%;
+  background:var(--bg3);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  overflow:hidden;
+}
+.reel-card .rc-cover img { width:100%; height:100%; object-fit:cover; }
+.reel-card .rc-cover .no-cover-glyph { font-size:1.5rem; color:var(--border); }
+.reel-card .rc-pin-badge {
+  position:absolute; top:6px; left:6px;
+  font-family:var(--font-ui); font-size:0.55rem;
+  background:var(--accent); color:var(--bg);
+  padding:1px 5px; border-radius:3px; letter-spacing:0.05em;
+}
+.reel-card .rc-editor-badge {
+  position:absolute; bottom:6px; left:6px;
+  font-family:var(--font-ui); font-size:0.55rem;
+  background:rgba(10,9,7,0.72); color:var(--text2);
+  padding:2px 6px; border-radius:3px;
+  max-width:calc(100% - 12px);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.reel-card .rc-body {
+  flex:1; min-width:0;
+  padding:10px 14px;
+  display:flex; flex-direction:column; justify-content:center;
+  gap:6px;
+}
+.reel-card .rc-title {
+  font-family:var(--font-body);
+  font-size:0.95rem;
+  color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.reel-card .rc-status-line {
+  display:flex; align-items:center; gap:6px;
+}
+.reel-card .rc-status-heading {
+  font-family:var(--font-ui); font-size:0.55rem;
+  letter-spacing:0.03em; flex-shrink:0;
+}
+.reel-card .rc-progress-track {
+  flex:1; height:3px; border-radius:2px; overflow:hidden;
+  background:var(--bg3);
+}
+.reel-card .rc-progress-fill { height:100%; background:var(--accent); }
+.reel-card .rc-meta {
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  display:flex; align-items:center; gap:10px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.reel-card .rc-meta .num { color:var(--accent); }
+.reel-card .rc-open-btn {
+  display:none;
+  align-self:flex-start;
+  margin-top:2px;
+  font-family:var(--font-ui);
+  font-size:0.62rem;
+  color:var(--bg);
+  background:var(--accent);
+  border:none; border-radius:4px;
+  padding:5px 10px;
+  cursor:pointer;
+}
+.reel-card.selected .rc-open-btn { display:inline-block; }
+
+/* 複数選択モード */
+.reel-card .rc-check {
+  display:none;
+  position:absolute; top:6px; right:6px;
+  width:20px; height:20px;
+  border-radius:50%;
+  border:2px solid var(--text3);
+  background:rgba(20,18,15,0.6);
+}
+.reel-card.select-mode .rc-check { display:block; }
+.reel-card.select-mode.rc-checked .rc-check { background:var(--accent); border-color:var(--accent); }
+.reel-card.select-mode.rc-checked .rc-check::after {
+  content:'✓'; color:var(--bg); font-size:0.7rem; font-weight:bold;
+  display:flex; align-items:center; justify-content:center; height:100%;
+}
+
+.reel-empty-hint {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  text-align:center;
+  color:var(--text3);
+  font-family:var(--font-ui); font-size:0.7rem;
+  padding:0 30px;
+}
+
 /* ---------- Empty state ---------- */
 .empty-state {
   text-align:center;
@@ -1789,7 +1924,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
   </select>
 </div>
 
-<div class="grid" id="grid"></div>
+<div class="grid" id="grid" style="display:none;"></div>
+
+<div class="reel-viewport" id="reelViewport">
+  <div class="reel-track" id="reelTrack"></div>
+</div>
 
 <div class="empty-state" id="emptyState" style="display:none;">
   <div class="glyph">✒</div>
@@ -2026,6 +2165,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <div class="field">
         <label>編集位置の上端オフセット：<span id="selectorScrollOffsetValueLabel">90</span>px</label>
         <input type="range" id="selectorScrollOffsetRangeInput" min="0" max="300" step="10" style="width:100%;">
+      </div>
+      <div class="chapter-note" style="margin:18px 0 14px;">
+        カード一覧（リール）で、指を離してから目的のカードにピタッと収まるまでのアニメーション速度を調整できます。値を大きくするほどゆっくり収まります。
+      </div>
+      <div class="field">
+        <label>リールのスナップ速度：<span id="reelSnapMsValueLabel">320</span>ms</label>
+        <input type="range" id="reelSnapMsRangeInput" min="120" max="800" step="20" style="width:100%;">
       </div>
     </div>
     <div class="modal-footer">
@@ -2404,6 +2550,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const UNCLASSIFIED_THRESHOLD_STORAGE_KEY = 'manuscript_unclassified_threshold_v1';
   const DEFAULT_SELECTOR_SCROLL_OFFSET = 90;
   const SELECTOR_SCROLL_OFFSET_STORAGE_KEY = 'manuscript_selector_scroll_offset_v1';
+  const DEFAULT_REEL_SNAP_MS = 320;
+  const REEL_SNAP_MS_STORAGE_KEY = 'manuscript_reel_snap_ms_v1';
 
   let projects = [];
   let currentDetailId = null;
@@ -2414,6 +2562,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let longPressMs = DEFAULT_LONGPRESS_MS;
   let unclassifiedThreshold = DEFAULT_UNCLASSIFIED_THRESHOLD;
   let selectorScrollOffset = DEFAULT_SELECTOR_SCROLL_OFFSET;
+  let reelSnapMs = DEFAULT_REEL_SNAP_MS;
 
   function loadLongPressMs(){
     try {
@@ -2449,6 +2598,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function saveSelectorScrollOffset(n){
     selectorScrollOffset = n;
     try { localStorage.setItem(SELECTOR_SCROLL_OFFSET_STORAGE_KEY, String(n)); } catch(_e){ /* ignore */ }
+  }
+
+  function loadReelSnapMs(){
+    try {
+      const saved = localStorage.getItem(REEL_SNAP_MS_STORAGE_KEY);
+      const n = parseInt(saved, 10);
+      if(!isNaN(n) && n >= 60 && n <= 2000) reelSnapMs = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveReelSnapMs(ms){
+    reelSnapMs = ms;
+    try { localStorage.setItem(REEL_SNAP_MS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
   }
 
   // ---------- Bookmark (last-edited card) color customization ----------
@@ -3137,6 +3298,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
     </div>`;
   }
 
+  // 2026-08-21新設：リール型カード一覧用の横型カードHTML（16:9カバー・1行ステータス・開くボタン）
+  function renderReelCard(p, isChecked){
+    const coverHTML = p.cover
+      ? `<img src="${p.cover}" alt="">`
+      : `<span class="no-cover-glyph">✒</span>`;
+    const total = chapterTotal(p);
+    const done = chapterDoneCount(p);
+    const pct = Math.round((done/total)*100);
+    const phase = computePhase(p);
+
+    const cardClasses = ['reel-card'];
+    if(p.pinned) cardClasses.push('pinned');
+    if(selectMode) cardClasses.push('select-mode');
+    if(selectMode && isChecked) cardClasses.push('rc-checked');
+
+    return `
+    <div class="${cardClasses.join(' ')}" data-id="${p.id}">
+      <div class="rc-cover">
+        ${p.pinned ? '<div class="rc-pin-badge">PIN</div>' : ''}
+        ${p.editor ? `<div class="rc-editor-badge">${escapeHTML(p.editor)}</div>` : ''}
+        ${coverHTML}
+      </div>
+      <div class="rc-body">
+        <div class="rc-title">${escapeHTML(p.title || '無題')}</div>
+        <div class="rc-status-line">
+          <span class="rc-status-heading status-heading ${statusClass(phase)}">${phaseLabel(p)}</span>
+          <div class="rc-progress-track"><div class="rc-progress-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="rc-meta">
+          <span class="num">${(p.wordcount||0).toLocaleString()}字</span>
+          <span>${done}/${total}章</span>
+        </div>
+        <button type="button" class="rc-open-btn">開く →</button>
+      </div>
+      <div class="rc-check"></div>
+    </div>`;
+  }
+
   function lastUpdateInfoLabel(p){
     const info = lastUpdateInfo(p);
     if(!info) return '最終更新: —';
@@ -3225,6 +3424,212 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
     renderPriorityBanner();
     if(selectMode) updateSelectCount();
+    renderReel(); // 2026-08-21：カード一覧本体はリール表示に統一。旧gridは温存のみ（非表示）
+  }
+
+  // ================= Reel view（2026-08-21新設） =================
+  const REEL_CARD_HEIGHT = 112;
+  const REEL_CARD_GAP = 14;
+  const REEL_STEP = REEL_CARD_HEIGHT + REEL_CARD_GAP;
+  let reelCenterIndex = 0;
+  let reelSortedIds = []; // 直前に描画した並び順（IDの配列）。並び替え発生検知に使う
+  let reelDragStartY = null;
+  let reelDragCurrentOffset = 0;
+  let reelDragging = false;
+  let reelMouseDragging = false;
+  let reelMouseStartY = null;
+  let reelWheelLock = false;
+  let reelCleanupTimer = null;
+
+  function renderReel(){
+    const viewport = document.getElementById('reelViewport');
+    const track = document.getElementById('reelTrack');
+    if(!viewport || !track) return;
+
+    document.documentElement.style.setProperty('--reel-snap-ms', (reelSnapMs/1000) + 's');
+
+    const sorted = getSorted();
+
+    if(sorted.length === 0){
+      track.innerHTML = '';
+      if(!viewport.querySelector('.reel-empty-hint')){
+        const hint = document.createElement('div');
+        hint.className = 'reel-empty-hint';
+        hint.textContent = 'まだ作品がありません。「＋ 新規作品」から最初の1本を登録しましょう。';
+        viewport.appendChild(hint);
+      }
+      return;
+    }
+    const existingHint = viewport.querySelector('.reel-empty-hint');
+    if(existingHint) existingHint.remove();
+
+    const newIds = sorted.map(p => p.id);
+    const orderChanged = newIds.length !== reelSortedIds.length || newIds.some((id,i) => id !== reelSortedIds[i]);
+
+    if(orderChanged){
+      // 並び順が変わった場合のみDOMを作り直す（アニメーションなし・カクつき回避のため中心維持を試みる）
+      const prevCenterId = reelSortedIds[reelCenterIndex];
+      track.innerHTML = sorted.map(p => renderReelCard(p, selectedIds.has(p.id))).join('');
+      reelSortedIds = newIds;
+      const keepIdx = prevCenterId ? newIds.indexOf(prevCenterId) : -1;
+      reelCenterIndex = keepIdx >= 0 ? keepIdx : Math.min(reelCenterIndex, newIds.length - 1);
+      bindReelCardEvents();
+      reelApplyLayout(false);
+    } else {
+      // 並び順は同じ：選択状態・ステータス等の中身だけを最新化（DOM再構築なし、レイアウトも動かさない）
+      // .selectedクラスはこの後のreelApplyLayout→reelUpdateSelectedClassで再計算されるため、ここでは付与しない
+      const cards = track.querySelectorAll('.reel-card');
+      cards.forEach((card, i) => {
+        const p = sorted[i];
+        if(!p) return;
+        const fresh = document.createElement('div');
+        fresh.innerHTML = renderReelCard(p, selectedIds.has(p.id));
+        const newCardEl = fresh.firstElementChild;
+        card.className = newCardEl.className;
+        card.innerHTML = newCardEl.innerHTML;
+      });
+      bindReelCardEvents();
+      reelApplyLayout(false);
+    }
+  }
+
+  function bindReelCardEvents(){
+    const track = document.getElementById('reelTrack');
+    track.querySelectorAll('.reel-card').forEach((card, i) => {
+      card.onclick = (e) => {
+        const sorted = getSorted();
+        const p = sorted[i];
+        if(!p) return;
+        if(e.target.classList.contains('rc-open-btn')){
+          openDetail(p.id);
+          return;
+        }
+        if(selectMode){
+          if(selectedIds.has(p.id)) selectedIds.delete(p.id);
+          else selectedIds.add(p.id);
+          renderGrid();
+          return;
+        }
+        if(i === reelCenterIndex) return; // 既に中央（開くボタンから開く運用のため、中央タップ自体は何もしない）
+        reelGoTo(i);
+      };
+    });
+  }
+
+  // 中央カードのインデックスを切り替える（animate=trueならスナップアニメーション付き）
+  function reelGoTo(index, animate){
+    if(animate === undefined) animate = true;
+    const sorted = getSorted();
+    reelCenterIndex = Math.max(0, Math.min(sorted.length - 1, index));
+    reelApplyLayout(animate);
+  }
+
+  // 現在のreelCenterIndexに基づき、各カードのtransformを設定する（Coverflow風の遠近感）
+  function reelApplyLayout(animate){
+    const track = document.getElementById('reelTrack');
+    const cards = track.querySelectorAll('.reel-card');
+    if(animate){
+      cards.forEach(card => card.classList.add('snapping'));
+      window.clearTimeout(reelCleanupTimer);
+      reelCleanupTimer = window.setTimeout(() => {
+        cards.forEach(card => card.classList.remove('snapping'));
+      }, reelSnapMs + 30);
+      requestAnimationFrame(() => { reelPositionCards(0); reelUpdateSelectedClass(); });
+    } else {
+      reelPositionCards(0);
+      reelUpdateSelectedClass();
+    }
+  }
+
+  function reelUpdateSelectedClass(){
+    const track = document.getElementById('reelTrack');
+    track.querySelectorAll('.reel-card').forEach((card, i) => {
+      card.classList.toggle('selected', i === reelCenterIndex && !selectMode);
+    });
+  }
+
+  // dragOffsetPx: ドラッグ中の追加オフセット（px）。0なら通常のスナップ位置
+  function reelPositionCards(dragOffsetPx){
+    const track = document.getElementById('reelTrack');
+    const cards = track.querySelectorAll('.reel-card');
+    cards.forEach((card, i) => {
+      const offset = i - reelCenterIndex;
+      const y = offset * REEL_STEP + dragOffsetPx;
+      const virtualOffset = y / REEL_STEP;
+      const absOffset = Math.abs(virtualOffset);
+      const scale = Math.max(0.72, 1 - absOffset * 0.14);
+      const rotateX = Math.max(-46, Math.min(46, virtualOffset * 26));
+      const translateZ = -absOffset * 90;
+      const opacity = absOffset > 2.4 ? 0 : Math.max(0.28, 1 - absOffset * 0.32);
+
+      card.style.transform = `translateY(${y}px) translateZ(${translateZ}px) rotateX(${-rotateX}deg) scale(${scale})`;
+      card.style.opacity = opacity;
+      card.style.zIndex = 100 - Math.round(absOffset * 10);
+      card.style.pointerEvents = absOffset > 2.4 ? 'none' : 'auto';
+    });
+  }
+
+  function initReelInteraction(){
+    const viewport = document.getElementById('reelViewport');
+    if(!viewport || viewport.dataset.reelBound) return;
+    viewport.dataset.reelBound = '1';
+
+    viewport.addEventListener('touchstart', (e) => {
+      if(e.touches.length !== 1) return;
+      reelDragStartY = e.touches[0].clientY;
+      reelDragging = true;
+      reelDragCurrentOffset = 0;
+    }, { passive:true });
+
+    viewport.addEventListener('touchmove', (e) => {
+      if(!reelDragging || reelDragStartY === null) return;
+      e.preventDefault();
+      const dy = e.touches[0].clientY - reelDragStartY;
+      reelDragCurrentOffset = dy;
+      reelPositionCards(dy);
+    }, { passive:false });
+
+    viewport.addEventListener('touchend', () => {
+      if(!reelDragging) return;
+      reelDragging = false;
+      const threshold = REEL_STEP * 0.28;
+      if(reelDragCurrentOffset > threshold) reelGoTo(reelCenterIndex - 1);
+      else if(reelDragCurrentOffset < -threshold) reelGoTo(reelCenterIndex + 1);
+      else reelGoTo(reelCenterIndex);
+      reelDragStartY = null;
+      reelDragCurrentOffset = 0;
+    });
+
+    viewport.addEventListener('mousedown', (e) => {
+      reelMouseDragging = true;
+      reelMouseStartY = e.clientY;
+      reelDragCurrentOffset = 0;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if(!reelMouseDragging || reelMouseStartY === null) return;
+      const dy = e.clientY - reelMouseStartY;
+      reelDragCurrentOffset = dy;
+      reelPositionCards(dy);
+    });
+    window.addEventListener('mouseup', () => {
+      if(!reelMouseDragging) return;
+      reelMouseDragging = false;
+      const threshold = REEL_STEP * 0.28;
+      if(reelDragCurrentOffset > threshold) reelGoTo(reelCenterIndex - 1);
+      else if(reelDragCurrentOffset < -threshold) reelGoTo(reelCenterIndex + 1);
+      else reelGoTo(reelCenterIndex);
+      reelMouseStartY = null;
+      reelDragCurrentOffset = 0;
+    });
+
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if(reelWheelLock) return;
+      reelWheelLock = true;
+      if(e.deltaY > 10) reelGoTo(reelCenterIndex + 1);
+      else if(e.deltaY < -10) reelGoTo(reelCenterIndex - 1);
+      setTimeout(() => { reelWheelLock = false; }, 220);
+    }, { passive:false });
   }
 
   function renderPriorityBanner(){
@@ -3430,6 +3835,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const offsetRange = document.getElementById('selectorScrollOffsetRangeInput');
     offsetRange.value = selectorScrollOffset;
     document.getElementById('selectorScrollOffsetValueLabel').textContent = selectorScrollOffset;
+    const snapRange = document.getElementById('reelSnapMsRangeInput');
+    snapRange.value = reelSnapMs;
+    document.getElementById('reelSnapMsValueLabel').textContent = reelSnapMs;
     document.getElementById('longPressModalOverlay').classList.add('active');
   };
   document.getElementById('longPressModalClose').onclick = () => {
@@ -3447,6 +3855,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('selectorScrollOffsetRangeInput').addEventListener('input', (e) => {
     document.getElementById('selectorScrollOffsetValueLabel').textContent = e.target.value;
   });
+  document.getElementById('reelSnapMsRangeInput').addEventListener('input', (e) => {
+    document.getElementById('reelSnapMsValueLabel').textContent = e.target.value;
+  });
   document.getElementById('longPressSaveBtn').onclick = () => {
     const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
     saveLongPressMs(val);
@@ -3454,6 +3865,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     saveUnclassifiedThreshold(threshVal);
     const offsetVal = parseInt(document.getElementById('selectorScrollOffsetRangeInput').value, 10);
     saveSelectorScrollOffset(offsetVal);
+    const snapVal = parseInt(document.getElementById('reelSnapMsRangeInput').value, 10);
+    saveReelSnapMs(snapVal);
     document.getElementById('longPressModalOverlay').classList.remove('active');
   };
   document.getElementById('menuBookmarkColorBtn').onclick = () => {
@@ -6282,7 +6695,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   loadLongPressMs();
   loadUnclassifiedThreshold();
   loadSelectorScrollOffset();
+  loadReelSnapMs();
   loadBookmarkColor();
+  initReelInteraction();
   renderGrid();
   updateStorageUsageDisplay();
 
