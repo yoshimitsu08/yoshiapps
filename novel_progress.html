@@ -304,7 +304,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 .card-cover {
   width:100%;
-  height:130px;
+  aspect-ratio: 16 / 9;
   background:var(--bg3);
   position:relative;
   overflow:hidden;
@@ -521,7 +521,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 /* cover upload */
 .cover-upload {
   width:100%;
-  height:120px;
+  aspect-ratio: 16 / 9;
   background:var(--bg3);
   border:1px dashed var(--border);
   border-radius:4px;
@@ -694,7 +694,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   .toolbar { padding:14px 12px; flex-wrap:wrap; }
   .toolbar .sort-select { margin-left:0; order:3; width:100%; }
   .priority-banner { margin:14px 12px 0; }
-  .card-cover { height:100px; }
   .stage-label { width:32px; font-size:0.55rem; }
   .dot { width:7px; height:7px; }
 }
@@ -1960,12 +1959,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">メモ</div>
+        <div class="detail-section-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span>メモ</span>
+          <button type="button" class="btn" id="detailMemoCopyBtn" style="font-size:0.6rem; padding:4px 8px;">📋 コピー</button>
+        </div>
         <textarea class="section-textarea auto-resize-textarea" id="detailMemoTextarea" placeholder="伏線・設定・次に書くことなど（プロット作成前はここにラフメモを書くと、AI連携の「ラフメモ」元データとして使われます）" style="min-height:100px;"></textarea>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">紹介文</div>
+        <div class="detail-section-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span>紹介文</span>
+          <button type="button" class="btn" id="detailIntroCopyBtn" style="font-size:0.6rem; padding:4px 8px;">📋 コピー</button>
+        </div>
         <textarea class="section-textarea auto-resize-textarea" id="detailIntroTextarea" placeholder="読者向けの紹介文・あらすじ紹介など" style="min-height:80px;"></textarea>
       </div>
 
@@ -3151,12 +3156,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // 設定・プロットエディタのtextareaを、入力量に応じて自動で高さが伸びる仕様にする。
   // textareaはブロック要素と違い中身の高さに応じて自動で伸びないため、
   // input時にheightを一旦resetしてscrollHeightを測り直し、その値を明示的に設定する。
+  // 高さ測定専用の隠しdiv（オフスクリーンに配置し、textareaと同じフォント・幅で計測する）
+  let autoResizeMeasureEl = null;
+  function getAutoResizeMeasureEl(){
+    if(!autoResizeMeasureEl){
+      autoResizeMeasureEl = document.createElement('div');
+      autoResizeMeasureEl.style.position = 'fixed';
+      autoResizeMeasureEl.style.top = '-9999px';
+      autoResizeMeasureEl.style.left = '-9999px';
+      autoResizeMeasureEl.style.visibility = 'hidden';
+      autoResizeMeasureEl.style.whiteSpace = 'pre-wrap';
+      autoResizeMeasureEl.style.wordBreak = 'break-word';
+      document.body.appendChild(autoResizeMeasureEl);
+    }
+    return autoResizeMeasureEl;
+  }
+
   function enableAutoResize(ta){
     if(!ta || ta.dataset.autoResizeBound) return;
     ta.dataset.autoResizeBound = '1';
     const resize = () => {
-      ta.style.height = 'auto';
-      ta.style.height = (ta.scrollHeight + 2) + 'px';
+      // textarea自体の height:auto リセットは行わず、隠しdivに同条件でテキストを流し込んで高さを測る。
+      // これによりtextarea自体のレイアウトは「高さが実際に変わる瞬間」以外一切揺れず、
+      // 入力中（特にIME変換中）のガタつきを防ぐ。
+      const measureEl = getAutoResizeMeasureEl();
+      const cs = getComputedStyle(ta);
+      measureEl.style.width = ta.clientWidth + 'px';
+      measureEl.style.font = cs.font;
+      measureEl.style.letterSpacing = cs.letterSpacing;
+      measureEl.style.padding = cs.padding;
+      measureEl.style.boxSizing = cs.boxSizing;
+      measureEl.style.lineHeight = cs.lineHeight;
+      // 末尾に改行があった場合の高さ計算漏れを防ぐため、ゼロ幅スペースを1つ足しておく
+      measureEl.textContent = (ta.value || '') + '\u200b';
+
+      const next = (measureEl.scrollHeight + 2) + 'px';
+      if(next !== ta.style.height){
+        ta.style.height = next;
+      }
     };
     ta.addEventListener('input', resize);
     // 初期表示時（既存の値が入っている場合）にも高さを合わせる
@@ -3295,10 +3332,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       save();
     };
     enableAutoResize(memoTa);
-    requestAnimationFrame(() => {
-      memoTa.style.height = 'auto';
-      memoTa.style.height = (memoTa.scrollHeight + 2) + 'px';
-    });
+    // モーダルを開き直すたびに、既存内容に合わせた高さへ再計算する（enableAutoResize内のresizeロジックと統一）
+    memoTa.dispatchEvent(new Event('input'));
+    document.getElementById('detailMemoCopyBtn').onclick = async () => {
+      if(!memoTa.value){ alert('コピーするメモがありません'); return; }
+      await copyTextWithToast(memoTa.value);
+    };
 
     const introTa = document.getElementById('detailIntroTextarea');
     introTa.value = p.introText || '';
@@ -3308,11 +3347,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
       save();
     };
     enableAutoResize(introTa);
-    // モーダルを開き直すたびに、既存内容に合わせた高さへ再計算する
-    requestAnimationFrame(() => {
-      introTa.style.height = 'auto';
-      introTa.style.height = (introTa.scrollHeight + 2) + 'px';
-    });
+    // モーダルを開き直すたびに、既存内容に合わせた高さへ再計算する（enableAutoResize内のresizeロジックと統一）
+    introTa.dispatchEvent(new Event('input'));
+    document.getElementById('detailIntroCopyBtn').onclick = async () => {
+      if(!introTa.value){ alert('コピーする紹介文がありません'); return; }
+      await copyTextWithToast(introTa.value);
+    };
 
     // cover editor（常時表示。詳細画面を開くたびにプレビューを最新化）
     updateDetailCoverPreview(p);
@@ -3841,8 +3881,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(btn.dataset.page){
         requestAnimationFrame(() => {
           document.querySelectorAll(`#${btn.dataset.page} .auto-resize-textarea`).forEach(ta => {
-            ta.style.height = 'auto';
-            ta.style.height = (ta.scrollHeight + 2) + 'px';
+            ta.dispatchEvent(new Event('input'));
           });
         });
       }
@@ -3857,8 +3896,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(viewId === 'settingView'){
       requestAnimationFrame(() => {
         document.querySelectorAll('#settingView .auto-resize-textarea').forEach(ta => {
-          ta.style.height = 'auto';
-          ta.style.height = (ta.scrollHeight + 2) + 'px';
+          ta.dispatchEvent(new Event('input'));
         });
       });
     }
@@ -6006,10 +6044,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     wrap.querySelectorAll('.image-prompt-chapter-textarea').forEach(ta => {
       enableAutoResize(ta);
-      requestAnimationFrame(() => {
-        ta.style.height = 'auto';
-        ta.style.height = (ta.scrollHeight + 2) + 'px';
-      });
+      ta.dispatchEvent(new Event('input'));
       ta.addEventListener('input', (e) => {
         const p2 = projects.find(x=>x.id===currentImagePromptProjectId);
         if(!p2) return;
