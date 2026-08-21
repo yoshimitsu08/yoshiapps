@@ -2173,6 +2173,13 @@ h1 .mark { color:var(--accent); font-style:italic; }
         <label>リールのスナップ速度：<span id="reelSnapMsValueLabel">320</span>ms</label>
         <input type="range" id="reelSnapMsRangeInput" min="120" max="800" step="20" style="width:100%;">
       </div>
+      <div class="chapter-note" style="margin:18px 0 14px;">
+        カード一覧（リール）を勢いよくスワイプした時、その勢いに応じて複数枚まとめて送る「慣性」の強さです。0にすると慣性なし（常に1枚ずつ）になります。
+      </div>
+      <div class="field">
+        <label>リールの慣性の強さ：<span id="reelInertiaValueLabel">1.0</span></label>
+        <input type="range" id="reelInertiaRangeInput" min="0" max="3" step="0.1" style="width:100%;">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="longPressSaveBtn" style="width:100%;">保存</button>
@@ -2552,6 +2559,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
   const SELECTOR_SCROLL_OFFSET_STORAGE_KEY = 'manuscript_selector_scroll_offset_v1';
   const DEFAULT_REEL_SNAP_MS = 320;
   const REEL_SNAP_MS_STORAGE_KEY = 'manuscript_reel_snap_ms_v1';
+  const DEFAULT_REEL_INERTIA = 1.0;
+  const REEL_INERTIA_STORAGE_KEY = 'manuscript_reel_inertia_v1';
 
   let projects = [];
   let currentDetailId = null;
@@ -2563,6 +2572,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let unclassifiedThreshold = DEFAULT_UNCLASSIFIED_THRESHOLD;
   let selectorScrollOffset = DEFAULT_SELECTOR_SCROLL_OFFSET;
   let reelSnapMs = DEFAULT_REEL_SNAP_MS;
+  let reelInertia = DEFAULT_REEL_INERTIA;
 
   function loadLongPressMs(){
     try {
@@ -2610,6 +2620,18 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function saveReelSnapMs(ms){
     reelSnapMs = ms;
     try { localStorage.setItem(REEL_SNAP_MS_STORAGE_KEY, String(ms)); } catch(_e){ /* ignore */ }
+  }
+
+  function loadReelInertia(){
+    try {
+      const saved = localStorage.getItem(REEL_INERTIA_STORAGE_KEY);
+      const n = parseFloat(saved);
+      if(!isNaN(n) && n >= 0 && n <= 3) reelInertia = n;
+    } catch(_e){ /* keep default */ }
+  }
+  function saveReelInertia(val){
+    reelInertia = val;
+    try { localStorage.setItem(REEL_INERTIA_STORAGE_KEY, String(val)); } catch(_e){ /* ignore */ }
   }
 
   // ---------- Bookmark (last-edited card) color customization ----------
@@ -3569,6 +3591,61 @@ h1 .mark { color:var(--accent); font-style:italic; }
     });
   }
 
+  // 慣性計算：直近の移動速度(px/ms)から、勢いに応じて何枚先まで送るかを決める共通ロジック
+  let reelVelocityTracker = []; // { y, t } のサンプル列（直近のみ保持）
+  function reelTrackVelocity(y){
+    const now = performance.now();
+    reelVelocityTracker.push({ y, t: now });
+    // 直近120ms分のサンプルだけを残す（古いサンプルは速度計算に使わない）
+    reelVelocityTracker = reelVelocityTracker.filter(s => now - s.t <= 120);
+  }
+  function reelResetVelocity(){
+    reelVelocityTracker = [];
+  }
+  // px/ms の瞬間速度を返す（サンプル不足時は0）
+  function reelComputeVelocity(){
+    if(reelVelocityTracker.length < 2) return 0;
+    const first = reelVelocityTracker[0];
+    const last = reelVelocityTracker[reelVelocityTracker.length - 1];
+    const dt = last.t - first.t;
+    if(dt <= 0) return 0;
+    return (last.y - first.y) / dt; // 符号：下向きドラッグが正
+  }
+
+  // ドラッグ終了時の最終処理：距離ベースのスナップ判定に加え、慣性（速度ベース）で複数枚送りを決める
+  function reelFinishDrag(){
+    const threshold = REEL_STEP * 0.28;
+    const velocity = reelComputeVelocity(); // px/ms、正=下向き（前のカードへ）
+    let cardsToMove = 0;
+
+    if(reelInertia > 0){
+      // 速度を「1msあたり何カード分進む速さか」に変換し、慣性係数をかけて送り枚数を決める。
+      // 0.35px/ms程度の弾き（軽くスワイプする速さ）を基準として、そこから先はreelInertiaに比例して伸びる。
+      const speedFactor = Math.abs(velocity) / REEL_STEP; // カード/ms
+      const flingBonus = Math.max(0, speedFactor - 0.0012) * 1000 * reelInertia; // 係数は実測感覚による調整値
+      cardsToMove = Math.round(flingBonus);
+    }
+
+    if(cardsToMove < 1){
+      // 慣性による追加送りが無い場合は、従来通り距離ベースで1枚だけ判定する
+      if(reelDragCurrentOffset > threshold) cardsToMove = 1;
+      else if(reelDragCurrentOffset < -threshold) cardsToMove = 1;
+      else cardsToMove = 0;
+    }
+    cardsToMove = Math.max(1, Math.min(cardsToMove, 6)); // 暴走防止の上限（一度に6枚まで）
+
+    if(reelDragCurrentOffset === 0 && velocity === 0){
+      reelGoTo(reelCenterIndex);
+    } else if(reelDragCurrentOffset > threshold || velocity > 0.05){
+      reelGoTo(reelCenterIndex - cardsToMove);
+    } else if(reelDragCurrentOffset < -threshold || velocity < -0.05){
+      reelGoTo(reelCenterIndex + cardsToMove);
+    } else {
+      reelGoTo(reelCenterIndex);
+    }
+    reelResetVelocity();
+  }
+
   function initReelInteraction(){
     const viewport = document.getElementById('reelViewport');
     if(!viewport || viewport.dataset.reelBound) return;
@@ -3579,6 +3656,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
       reelDragStartY = e.touches[0].clientY;
       reelDragging = true;
       reelDragCurrentOffset = 0;
+      reelResetVelocity();
+      reelTrackVelocity(e.touches[0].clientY);
     }, { passive:true });
 
     viewport.addEventListener('touchmove', (e) => {
@@ -3586,16 +3665,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
       e.preventDefault();
       const dy = e.touches[0].clientY - reelDragStartY;
       reelDragCurrentOffset = dy;
+      reelTrackVelocity(e.touches[0].clientY);
       reelPositionCards(dy);
     }, { passive:false });
 
     viewport.addEventListener('touchend', () => {
       if(!reelDragging) return;
       reelDragging = false;
-      const threshold = REEL_STEP * 0.28;
-      if(reelDragCurrentOffset > threshold) reelGoTo(reelCenterIndex - 1);
-      else if(reelDragCurrentOffset < -threshold) reelGoTo(reelCenterIndex + 1);
-      else reelGoTo(reelCenterIndex);
+      reelFinishDrag();
       reelDragStartY = null;
       reelDragCurrentOffset = 0;
     });
@@ -3604,20 +3681,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
       reelMouseDragging = true;
       reelMouseStartY = e.clientY;
       reelDragCurrentOffset = 0;
+      reelResetVelocity();
+      reelTrackVelocity(e.clientY);
     });
     window.addEventListener('mousemove', (e) => {
       if(!reelMouseDragging || reelMouseStartY === null) return;
       const dy = e.clientY - reelMouseStartY;
       reelDragCurrentOffset = dy;
+      reelTrackVelocity(e.clientY);
       reelPositionCards(dy);
     });
     window.addEventListener('mouseup', () => {
       if(!reelMouseDragging) return;
       reelMouseDragging = false;
-      const threshold = REEL_STEP * 0.28;
-      if(reelDragCurrentOffset > threshold) reelGoTo(reelCenterIndex - 1);
-      else if(reelDragCurrentOffset < -threshold) reelGoTo(reelCenterIndex + 1);
-      else reelGoTo(reelCenterIndex);
+      reelFinishDrag();
       reelMouseStartY = null;
       reelDragCurrentOffset = 0;
     });
@@ -3838,6 +3915,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const snapRange = document.getElementById('reelSnapMsRangeInput');
     snapRange.value = reelSnapMs;
     document.getElementById('reelSnapMsValueLabel').textContent = reelSnapMs;
+    const inertiaRange = document.getElementById('reelInertiaRangeInput');
+    inertiaRange.value = reelInertia;
+    document.getElementById('reelInertiaValueLabel').textContent = reelInertia.toFixed(1);
     document.getElementById('longPressModalOverlay').classList.add('active');
   };
   document.getElementById('longPressModalClose').onclick = () => {
@@ -3858,6 +3938,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   document.getElementById('reelSnapMsRangeInput').addEventListener('input', (e) => {
     document.getElementById('reelSnapMsValueLabel').textContent = e.target.value;
   });
+  document.getElementById('reelInertiaRangeInput').addEventListener('input', (e) => {
+    document.getElementById('reelInertiaValueLabel').textContent = parseFloat(e.target.value).toFixed(1);
+  });
   document.getElementById('longPressSaveBtn').onclick = () => {
     const val = parseInt(document.getElementById('longPressRangeInput').value, 10);
     saveLongPressMs(val);
@@ -3867,6 +3950,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
     saveSelectorScrollOffset(offsetVal);
     const snapVal = parseInt(document.getElementById('reelSnapMsRangeInput').value, 10);
     saveReelSnapMs(snapVal);
+    const inertiaVal = parseFloat(document.getElementById('reelInertiaRangeInput').value);
+    saveReelInertia(inertiaVal);
     document.getElementById('longPressModalOverlay').classList.remove('active');
   };
   document.getElementById('menuBookmarkColorBtn').onclick = () => {
@@ -6696,6 +6781,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   loadUnclassifiedThreshold();
   loadSelectorScrollOffset();
   loadReelSnapMs();
+  loadReelInertia();
   loadBookmarkColor();
   initReelInteraction();
   renderGrid();
