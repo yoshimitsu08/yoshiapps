@@ -606,7 +606,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
    左＝リール（今まで通りの表示）、右＝常時表示の「台紙」パネル（#pcSplitRight）。
    モーダルは開いた時だけJSでこの台紙の中に移動され、台紙の中で中央表示される。
    閉じたら元のDOM位置（#detailModalOverlayの直接の子）に戻す。
-   スマホ・タブレット幅（1024px未満）では従来通り縦積み・中央モーダル表示のまま。 */
+   スマホ・タブレット幅（1024px未満）では従来通り縦積み・中央モーダル表示のまま。
+   2026-08-22修正：①.activeが無い状態でも常時display:flexを強制していたため、
+   閉じているはずのモーダルの中身が台紙に常時露出していた不具合を修正（.activeの状態を尊重）。
+   ②台紙内モーダルの中身が長い時、ページ全体がスクロールしリールごと動いてしまう不具合を修正
+   （台紙自体を独立スクロール領域にし、リール側は画面に固定されたまま動かないようにした）。 */
 .pc-split-container { display:block; }
 .pc-split-right { display:none; }
 @media (min-width: 1024px) {
@@ -619,6 +623,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
   .pc-split-left {
     flex:1;
     min-width:0;
+    position:sticky;
+    top:20px;
   }
   .pc-split-right {
     flex:1;
@@ -628,20 +634,26 @@ h1 .mark { color:var(--accent); font-style:italic; }
     background:var(--bg2);
     border:1px solid var(--border);
     border-radius:10px;
-    min-height:calc(100dvh - 300px);
+    height:calc(100dvh - 300px);
     padding:20px;
     box-sizing:border-box;
+    overflow-y:auto;
   }
   /* 台紙の中に移動してきたモーダルオーバーレイは、画面全体を覆う必要がなくなるため
-     position:staticにして台紙の中の通常配置に戻す */
+     position:staticにして台紙の中の通常配置に戻す。台紙側（.pc-split-right）が
+     独立スクロール領域を担うため、このオーバーレイ自身はoverflow:visibleでよい。
+     display:noneはbase(.modal-overlay)の値を継続させ、.activeが付いた時だけ表示する。 */
   .pc-split-right #detailModalOverlay {
     position:static;
-    display:flex;
     background:none;
     inset:auto;
     padding:0;
     justify-content:center;
     width:100%;
+    overflow-y:visible;
+  }
+  .pc-split-right #detailModalOverlay.active {
+    display:flex;
   }
   .pc-split-right #detailModalOverlay .modal {
     margin:0;
