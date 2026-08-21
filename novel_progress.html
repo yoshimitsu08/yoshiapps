@@ -450,6 +450,8 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .reel-card {
   position:absolute;
   left:16px; right:16px;
+  max-width:440px; /* 2026-08-21追加：PCワイド画面での横長化防止（画像約5枚分を上限）。左右中央寄せのためmargin:autoも付与 */
+  margin-left:auto; margin-right:auto;
   height:112px;
   margin-top:-56px;
   background:var(--bg2);
