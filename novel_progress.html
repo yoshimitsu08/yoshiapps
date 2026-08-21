@@ -613,6 +613,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
    （台紙自体を独立スクロール領域にし、リール側は画面に固定されたまま動かないようにした）。 */
 .pc-split-container { display:block; }
 .pc-split-right { display:none; }
+.dash-header-row { display:block; }
 @media (min-width: 1024px) {
   .pc-split-container {
     display:flex;
@@ -658,6 +659,33 @@ h1 .mark { color:var(--accent); font-style:italic; }
   .pc-split-right #detailModalOverlay .modal {
     margin:0;
     width:100%;
+  }
+
+  /* 2026-08-22新設：凡例・ピン留めバナー・新規作品/ソートを1行に集約し、縦のスペースを圧縮する。
+     ピン留めが無い時は.priority-bannerが元々display:noneのままなので、その分自然に詰まる。 */
+  .dash-header-row {
+    display:flex;
+    align-items:center;
+    gap:20px;
+    padding:16px 20px 0;
+  }
+  .dash-header-row .legend {
+    margin-top:0;
+    flex-shrink:0;
+  }
+  .dash-header-row .priority-banner {
+    margin:0;
+    flex:1;
+    min-width:0;
+  }
+  .dash-header-row .priority-banner .pin-title {
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .dash-header-row .toolbar {
+    padding:0;
+    flex-shrink:0;
   }
 }
 .modal-header {
@@ -1967,12 +1995,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
     <span class="storage-usage-text" id="storageUsageText">0 KB / 5 MB</span>
   </div>
-  <div class="legend">
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文執筆中</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>推敲中</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
-  </div>
 </header>
 
 <div class="select-bar" id="selectBar">
@@ -1980,6 +2002,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <button class="btn" id="selectAllBtn">全選択</button>
   <button class="btn" id="selectExportBtn">選択をエクスポート</button>
   <button class="btn" id="selectDeleteBtn" style="color:var(--danger); border-color:var(--danger);">選択を削除</button>
+</div>
+
+<div class="dash-header-row" id="dashHeaderRow">
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文執筆中</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>推敲中</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
 </div>
 
 <div class="priority-banner" id="priorityBanner">
@@ -1997,6 +2027,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     <option value="updated">更新順</option>
     <option value="title">タイトル順</option>
   </select>
+</div>
 </div>
 
 <div class="grid" id="grid" style="display:none;"></div>
