@@ -298,6 +298,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
   cursor:pointer;
   transition:border-color .15s, transform .15s;
   position:relative;
+  max-width:440px; /* 2026-08-21追加：PCワイド画面でのカード横長化防止（画像約5枚分を上限） */
 }
 .card:hover { border-color:var(--accent); transform:translateY(-1px); }
 .card.pinned { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
@@ -598,6 +599,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
 /* 2026-08-21新設：作品詳細モーダルの拡大/縮小アニメーション中、中身を隠すためのクラス */
 #detailModalOverlay .modal > * { transition:opacity 0.12s ease; }
 #detailModalOverlay .modal.modal-anim-collapsed > * { opacity:0; }
+
+/* 2026-08-21新設：PCワイド画面（1024px以上）では作品詳細モーダルを右寄せ表示。
+   カード側にmax-widthを設けたことで右側に余白が生まれるため、モーダルもそこに寄せてバランスを取る。
+   スマホ・タブレット幅では従来通り中央表示のまま。 */
+@media (min-width: 1024px) {
+  #detailModalOverlay {
+    justify-content:flex-end;
+    padding-right:40px;
+  }
+}
 .modal-header {
   padding:18px 20px;
   border-bottom:1px solid var(--border);
