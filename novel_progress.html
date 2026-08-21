@@ -422,6 +422,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
 }
 
 /* ---------- Reel view (2026-08-21新設：カード一覧をリール型表示に刷新) ---------- */
+.reel-hint {
+  text-align:center;
+  font-family:var(--font-ui);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.05em;
+  padding:2px 0 6px;
+}
 .reel-viewport {
   position:relative;
   height:calc(100dvh - 300px);
@@ -517,19 +525,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .reel-card .rc-meta .num { color:var(--accent); }
-.reel-card .rc-open-btn {
-  display:none;
-  align-self:flex-start;
-  margin-top:2px;
-  font-family:var(--font-ui);
-  font-size:0.62rem;
-  color:var(--bg);
-  background:var(--accent);
-  border:none; border-radius:4px;
-  padding:5px 10px;
+
+/* 2026-08-21変更：中央（選択中）カードは「開く」ボタンではなく、カバー画像タップで詳細を開く方式に変更 */
+.reel-card.selected .rc-cover {
   cursor:pointer;
 }
-.reel-card.selected .rc-open-btn { display:inline-block; }
+.reel-card.selected .rc-cover::after {
+  content:'開く';
+  position:absolute; right:6px; bottom:6px;
+  font-family:var(--font-ui); font-size:0.55rem;
+  color:var(--bg); background:var(--accent);
+  padding:2px 6px; border-radius:3px;
+  letter-spacing:0.05em;
+  opacity:0.92;
+}
 
 /* 複数選択モード */
 .reel-card .rc-check {
@@ -585,6 +594,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   max-width:520px;
   margin-top:20px;
 }
+
+/* 2026-08-21新設：作品詳細モーダルの拡大/縮小アニメーション中、中身を隠すためのクラス */
+#detailModalOverlay .modal > * { transition:opacity 0.12s ease; }
+#detailModalOverlay .modal.modal-anim-collapsed > * { opacity:0; }
 .modal-header {
   padding:18px 20px;
   border-bottom:1px solid var(--border);
@@ -1879,7 +1892,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
       <button type="button" class="dropdown-item" id="menuTextEditorBtn">📝 テキスト編集</button>
-      <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 長押し速度を調整</button>
+      <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 操作感の調整</button>
       <button type="button" class="dropdown-item" id="menuBookmarkColorBtn">🔖 しおり色を調整</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
       <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
@@ -1926,6 +1939,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
 <div class="grid" id="grid" style="display:none;"></div>
 
+<div class="reel-hint">画像タップで開く</div>
 <div class="reel-viewport" id="reelViewport">
   <div class="reel-track" id="reelTrack"></div>
 </div>
@@ -2141,7 +2155,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <div class="modal-overlay" id="longPressModalOverlay">
   <div class="modal">
     <div class="modal-header">
-      <h2>長押し・編集位置の設定</h2>
+      <h2>操作感の調整</h2>
       <button class="modal-close" id="longPressModalClose">×</button>
     </div>
     <div class="modal-body">
@@ -3337,7 +3351,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     return `
     <div class="${cardClasses.join(' ')}" data-id="${p.id}">
-      <div class="rc-cover">
+      <div class="rc-cover" data-role="cover">
         ${p.pinned ? '<div class="rc-pin-badge">PIN</div>' : ''}
         ${p.editor ? `<div class="rc-editor-badge">${escapeHTML(p.editor)}</div>` : ''}
         ${coverHTML}
@@ -3352,7 +3366,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
           <span class="num">${(p.wordcount||0).toLocaleString()}字</span>
           <span>${done}/${total}章</span>
         </div>
-        <button type="button" class="rc-open-btn">開く →</button>
       </div>
       <div class="rc-check"></div>
     </div>`;
@@ -3522,17 +3535,21 @@ h1 .mark { color:var(--accent); font-style:italic; }
         const sorted = getSorted();
         const p = sorted[i];
         if(!p) return;
-        if(e.target.classList.contains('rc-open-btn')){
-          openDetail(p.id);
-          return;
-        }
         if(selectMode){
           if(selectedIds.has(p.id)) selectedIds.delete(p.id);
           else selectedIds.add(p.id);
           renderGrid();
           return;
         }
-        if(i === reelCenterIndex) return; // 既に中央（開くボタンから開く運用のため、中央タップ自体は何もしない）
+        const isCoverTap = !!e.target.closest('[data-role="cover"]');
+        if(i === reelCenterIndex){
+          // 既に中央のカード：カバー画像タップの時だけ詳細を開く（タイトル部分等は何もしない）
+          if(isCoverTap){
+            const coverEl = card.querySelector('[data-role="cover"]');
+            openDetail(p.id, coverEl);
+          }
+          return;
+        }
         reelGoTo(i);
       };
     });
@@ -3745,9 +3762,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   function closeDetailAndReturn(){
-    document.getElementById('detailModalOverlay').classList.remove('active');
-    currentDetailId = null;
-    renderGrid();
+    playDetailModalCloseAnimation(() => {
+      currentDetailId = null;
+      renderGrid();
+    });
   }
 
   // ---------- Image handling (used both on card grid entry point and detail hamburger) ----------
@@ -3785,7 +3803,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
       rows.map(r => `<span>${escapeHTML(r.label)}：${escapeHTML(r.value)}</span>`).join('');
   }
 
-  function openDetail(id){
+  // 2026-08-21変更：originEl（拡大の起点となるDOM要素）を渡すと、その位置・サイズから
+  // モーダルが拡大して現れる演出になる。省略時は中央にフェードインする従来の見た目にフォールバックする。
+  function openDetail(id, originEl){
     currentDetailId = id;
     const p = projects.find(x=>x.id===id);
     if(!p) return;
@@ -3839,7 +3859,102 @@ h1 .mark { color:var(--accent); font-style:italic; }
     // cover editor（常時表示。詳細画面を開くたびにプレビューを最新化）
     updateDetailCoverPreview(p);
 
-    document.getElementById('detailModalOverlay').classList.add('active');
+    playDetailModalOpenAnimation(originEl);
+  }
+
+  // ================= 詳細モーダルの拡大/縮小アニメーション（2026-08-21新設） =================
+  // originElの画面上位置・サイズを起点に、モーダルがそこから拡大して現れる。
+  // 拡大アニメーション中は中身を隠し（opacity:0）、完了後に一気に表示する。
+  const DETAIL_MODAL_ANIM_MS = 320;
+
+  function playDetailModalOpenAnimation(originEl){
+    const overlay = document.getElementById('detailModalOverlay');
+    const modal = overlay.querySelector('.modal');
+
+    overlay.classList.add('active');
+
+    if(!originEl){
+      // 起点要素が無い場合は、従来通り中央にそのまま表示する（フォールバック）
+      modal.style.transition = '';
+      modal.style.transform = '';
+      modal.style.transformOrigin = '';
+      modal.classList.remove('modal-anim-collapsed');
+      return;
+    }
+
+    const originRect = originEl.getBoundingClientRect();
+
+    // 起点は次のフレームでmodalの最終位置・サイズを測ってから計算する（modalがactiveになった直後は寸法が確定していないため）
+    requestAnimationFrame(() => {
+      const modalRect = modal.getBoundingClientRect();
+      const scaleX = originRect.width / modalRect.width;
+      const scaleY = originRect.height / modalRect.height;
+      const originCenterX = originRect.left + originRect.width / 2;
+      const originCenterY = originRect.top + originRect.height / 2;
+      const modalCenterX = modalRect.left + modalRect.width / 2;
+      const modalCenterY = modalRect.top + modalRect.height / 2;
+      const translateX = originCenterX - modalCenterX;
+      const translateY = originCenterY - modalCenterY;
+
+      modal.classList.add('modal-anim-collapsed');
+      // まず起点位置・サイズへ一気にジャンプ（アニメーションなし）
+      modal.style.transition = 'none';
+      modal.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+
+      requestAnimationFrame(() => {
+        // その状態から実サイズへアニメーションで拡大
+        modal.style.transition = `transform ${DETAIL_MODAL_ANIM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+        modal.style.transform = 'translate(0,0) scale(1,1)';
+        window.setTimeout(() => {
+          modal.classList.remove('modal-anim-collapsed'); // ここで中身のopacityが一気に戻る
+          modal.style.transition = '';
+          modal.style.transform = '';
+        }, DETAIL_MODAL_ANIM_MS);
+      });
+    });
+  }
+
+  function playDetailModalCloseAnimation(callback){
+    const overlay = document.getElementById('detailModalOverlay');
+    const modal = overlay.querySelector('.modal');
+
+    // 閉じる時の起点：可能なら「現在中央にあるカードのカバー画像」を新たに探す（並び替え等で位置が変わっていることがあるため）
+    let closeTargetEl = null;
+    if(currentDetailId !== null){
+      const track = document.getElementById('reelTrack');
+      const cardEl = track && track.querySelector(`.reel-card[data-id="${currentDetailId}"]`);
+      if(cardEl) closeTargetEl = cardEl.querySelector('[data-role="cover"]');
+    }
+
+    if(!closeTargetEl){
+      // 起点が見つからない場合は、アニメーションなしで即座に閉じる
+      overlay.classList.remove('active');
+      callback();
+      return;
+    }
+
+    const originRect = closeTargetEl.getBoundingClientRect();
+    const modalRect = modal.getBoundingClientRect();
+    const scaleX = originRect.width / modalRect.width;
+    const scaleY = originRect.height / modalRect.height;
+    const originCenterX = originRect.left + originRect.width / 2;
+    const originCenterY = originRect.top + originRect.height / 2;
+    const modalCenterX = modalRect.left + modalRect.width / 2;
+    const modalCenterY = modalRect.top + modalRect.height / 2;
+    const translateX = originCenterX - modalCenterX;
+    const translateY = originCenterY - modalCenterY;
+
+    modal.classList.add('modal-anim-collapsed'); // 中身を即座に隠す（縮小中に文字がガクガクしないように）
+    modal.style.transition = `transform ${DETAIL_MODAL_ANIM_MS}ms cubic-bezier(0.4, 0, 0.6, 1)`;
+    modal.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+
+    window.setTimeout(() => {
+      overlay.classList.remove('active');
+      modal.classList.remove('modal-anim-collapsed');
+      modal.style.transition = '';
+      modal.style.transform = '';
+      callback();
+    }, DETAIL_MODAL_ANIM_MS);
   }
 
   function updateDetailCoverPreview(p){
@@ -3859,9 +3974,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   function closeDetail(){
-    document.getElementById('detailModalOverlay').classList.remove('active');
-    currentDetailId = null;
-    renderGrid();
+    playDetailModalCloseAnimation(() => {
+      currentDetailId = null;
+      renderGrid();
+    });
   }
 
   // ---------- Event bindings ----------
