@@ -3780,23 +3780,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
   // centerIndexがdelta分動いた際、窓（DOM上のカード集合）を更新する。
   // 1) 既存カードのdata-offsetを-delta分シフトする
   // 2) 窓の範囲（-range〜+range）から外れたカードをDOMから削除する
-  // 3) 新しく窓に入る必要があるカードを、まだ見えない位置（範囲外のoffset）に追加してから
-  //    次フレームで正しいoffsetへ更新し、transitionで滑らかに現れさせる
+  // 3) 新しく窓に入る必要があるカードを追加する。下側（既存）カードと完全に同じタイミング・
+  //    同じrequestAnimationFrameでtransitionを開始させることで、上下で動き出しがズレないようにする。
   function reelUpdateWindowForMove(delta, animate){
     const track = document.getElementById('reelTrack');
     const sorted = getSorted();
     const total = sorted.length;
     const range = reelSideCount() + REEL_BUFFER;
     const existing = Array.from(track.querySelectorAll('.reel-card'));
-
-    if(animate){
-      reelSetSnapDurations(existing, delta);
-      existing.forEach(card => card.classList.add('snapping'));
-      window.clearTimeout(reelCleanupTimer);
-      reelCleanupTimer = window.setTimeout(() => {
-        track.querySelectorAll('.reel-card').forEach(card => card.classList.remove('snapping'));
-      }, reelSnapMs + 60);
-    }
 
     // 1) 既存カードのoffsetをシフトし、範囲外になったものは削除
     existing.forEach(card => {
@@ -3808,43 +3799,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
       }
     });
 
-    // 2) 新しく窓に入るべきoffset（シフト後の範囲のうち、まだDOMに無いもの）を追加する
+    // 2) 新しく窓に入るべきoffset（シフト後の範囲のうち、まだDOMに無いもの）を追加する。
+    // 新規カードは、生成した瞬間に「窓のさらに外（見えない位置）」のtransformを直接指定して配置する
+    // （snappingクラスは付けない＝この初期配置自体はtransitionしない）。
     const presentOffsets = new Set(Array.from(track.querySelectorAll('.reel-card')).map(c => parseInt(c.dataset.offset, 10)));
+    const newCards = [];
     for(let offset = -range; offset <= range; offset++){
       if(presentOffsets.has(offset)) continue;
       const idx = ((reelCenterIndex + offset) % total + total) % total;
       const p = sorted[idx];
       if(!p) continue;
       const el = reelCreateCardEl(p, offset);
-      // 新規カードは、実際にDOMに追加する前段階では「窓のさらに外（見えない位置）」からスタートさせ、
-      // 次のreelPositionCardsで正しい位置へtransitionする＝スッと滑り込んでくるように見える。
       const startOffset = offset > 0 ? range + 1 : -(range + 1);
-      el.dataset.startOffset = String(startOffset);
+      reelPositionSpecificCards([el], 0, () => startOffset); // 追加前に見えない位置のtransformを確定させる
       track.appendChild(el);
+      newCards.push(el);
     }
 
     bindReelCardEvents();
 
     if(animate){
-      // 新規カードをまず「見えない開始位置」に静的配置（transitionなし）してから、
-      // 次フレームでoffset位置へ一気にtransitionさせる。
-      const newCards = Array.from(track.querySelectorAll('.reel-card')).filter(c => c.dataset.startOffset !== undefined);
-      reelPositionSpecificCards(newCards, 0, (card) => parseInt(card.dataset.startOffset, 10));
-      // 強制reflow：transitionなしの初期配置を確実にブラウザへ反映させてから、
-      // 次のスタイル変更（snapping付与＋最終位置への移動）をtransition対象にするため。
-      if(newCards.length > 0) void track.offsetHeight;
+      // 既存カード・新規カードの区別なく、全カードへ同じタイミングでsnappingクラスとdurationを付与し、
+      // 同じrequestAnimationFrame内で最終位置へのtransitionを一斉に開始する（上下の動き出しを完全同期）。
+      reelSetSnapDurations(existing, delta);
+      newCards.forEach(card => {
+        card.style.transitionDuration = reelSnapMs + 'ms';
+        card.style.transitionDelay = '0ms';
+      });
+      const allCards = Array.from(track.querySelectorAll('.reel-card'));
+      allCards.forEach(card => card.classList.add('snapping'));
+      window.clearTimeout(reelCleanupTimer);
+      reelCleanupTimer = window.setTimeout(() => {
+        track.querySelectorAll('.reel-card').forEach(card => card.classList.remove('snapping'));
+      }, reelSnapMs + 60);
       requestAnimationFrame(() => {
-        newCards.forEach(card => {
-          card.classList.add('snapping');
-          card.style.transitionDuration = reelSnapMs + 'ms';
-          card.style.transitionDelay = '0ms';
-          delete card.dataset.startOffset;
-        });
         reelPositionCards(0);
         reelUpdateSelectedClass();
       });
     } else {
-      track.querySelectorAll('.reel-card').forEach(card => { delete card.dataset.startOffset; });
       reelPositionCards(0);
       reelUpdateSelectedClass();
     }
