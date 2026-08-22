@@ -3607,11 +3607,15 @@ h1 .mark { color:var(--accent); font-style:italic; }
     renderReel(); // 2026-08-21：カード一覧本体はリール表示に統一。旧gridは温存のみ（非表示）
   }
 
-  // ================= Reel view（2026-08-21新設） =================
+  // ================= Reel view（2026-08-22 大改修：電光掲示板方式） =================
+  // 設計：全カードをDOMに置く「全部顕現」方式をやめ、常に「表示枚数＋前後バッファ2枚ずつ」だけを
+  // DOM上に保持する「窓（ウィンドウ）」方式にする。centerが動くたびに、窓の外に出たカードは
+  // DOMから削除し、新しく窓に入るカードだけをDOMに追加する（電光掲示板の入れ替えに近い）。
+  // 見た目の疑似3D演出（scale/rotateX/translateZ/opacity）自体は維持する。
   const REEL_CARD_HEIGHT = 112;
   const REEL_CARD_GAP = 14;
   const REEL_STEP = REEL_CARD_HEIGHT + REEL_CARD_GAP;
-  const REEL_VISIBLE_THRESHOLD = 2.4; // これを超えるabsOffsetのカードは非表示（opacity:0, pointer-events:none）
+  const REEL_BUFFER = 2; // 表示枚数に加えて前後に何枚バッファとして余分にDOMへ持つか（ドラッグ中の先読み用）
   let reelCenterIndex = 0;
   let reelSortedIds = []; // 直前に描画した並び順（IDの配列）。並び替え発生検知に使う
   let reelDragStartY = null;
@@ -3621,6 +3625,16 @@ h1 .mark { color:var(--accent); font-style:italic; }
   let reelMouseStartY = null;
   let reelWheelLock = false;
   let reelCleanupTimer = null;
+
+  // 画面幅（正確にはビューポートの高さ／カードの見せ方）に応じて「中心の片側に何枚見せるか」を決める。
+  // 例：sideCount=2なら中心+左右2枚ずつ=最大5枚が表示候補（うち画面内に収まるのは高さ次第）。
+  function reelSideCount(){
+    const viewport = document.getElementById('reelViewport');
+    const w = viewport ? viewport.clientWidth : window.innerWidth;
+    if(w < 380) return 1;  // 表示3枚相当（中心+左右1枚）
+    if(w < 700) return 2;  // 表示5枚相当（中心+左右2枚）
+    return 2; // 現状はワイド画面でも5枚相当で据え置き（カード自体の最大幅制限があるため）
+  }
 
   function renderReel(){
     const viewport = document.getElementById('reelViewport');
@@ -3648,38 +3662,79 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const orderChanged = newIds.length !== reelSortedIds.length || newIds.some((id,i) => id !== reelSortedIds[i]);
 
     if(orderChanged){
-      // 並び順が変わった場合のみDOMを作り直す（アニメーションなし・カクつき回避のため中心維持を試みる）
+      // 並び順が変わった場合：中心維持を試みつつ、窓を完全に作り直す（アニメーションなし）
       const prevCenterId = reelSortedIds[reelCenterIndex];
-      track.innerHTML = sorted.map(p => renderReelCard(p, selectedIds.has(p.id))).join('');
       reelSortedIds = newIds;
       const keepIdx = prevCenterId ? newIds.indexOf(prevCenterId) : -1;
       reelCenterIndex = keepIdx >= 0 ? keepIdx : Math.min(reelCenterIndex, newIds.length - 1);
-      bindReelCardEvents();
-      reelApplyLayout(false);
+      reelRebuildWindow();
     } else {
-      // 並び順は同じ：選択状態・ステータス等の中身だけを最新化（DOM再構築なし、レイアウトも動かさない）
-      // .selectedクラスはこの後のreelApplyLayout→reelUpdateSelectedClassで再計算されるため、ここでは付与しない
-      const cards = track.querySelectorAll('.reel-card');
-      cards.forEach((card, i) => {
-        const p = sorted[i];
-        if(!p) return;
-        const fresh = document.createElement('div');
-        fresh.innerHTML = renderReelCard(p, selectedIds.has(p.id));
-        const newCardEl = fresh.firstElementChild;
-        card.className = newCardEl.className;
-        card.innerHTML = newCardEl.innerHTML;
-      });
-      bindReelCardEvents();
-      reelApplyLayout(false);
+      // 並び順は同じ：窓の中身（選択状態・ステータス等）だけを最新化する
+      reelRefreshWindowContent();
     }
+  }
+
+  // 現在のreelCenterIndexを基準に、窓（表示範囲＋バッファ）に必要なカードをDOMに作り直す。
+  // アニメーションなしの完全再構築（初期表示・並び替え直後用）。
+  function reelRebuildWindow(){
+    const track = document.getElementById('reelTrack');
+    const sorted = getSorted();
+    const total = sorted.length;
+    const range = reelSideCount() + REEL_BUFFER;
+    track.innerHTML = '';
+    for(let offset = -range; offset <= range; offset++){
+      const idx = ((reelCenterIndex + offset) % total + total) % total;
+      const p = sorted[idx];
+      if(!p) continue;
+      const el = reelCreateCardEl(p, offset);
+      track.appendChild(el);
+    }
+    bindReelCardEvents();
+    reelPositionCards(0);
+    reelUpdateSelectedClass();
+  }
+
+  // 並び順・件数は変わらないが、各カードの中身（進捗・タイトル等）だけを最新化する。
+  // 窓の構造（どのoffsetにどのidがいるか）はそのまま維持する。
+  function reelRefreshWindowContent(){
+    const track = document.getElementById('reelTrack');
+    const sorted = getSorted();
+    const byId = new Map(sorted.map(p => [p.id, p]));
+    track.querySelectorAll('.reel-card').forEach(card => {
+      const p = byId.get(card.dataset.id);
+      if(!p) return;
+      const isChecked = selectedIds.has(p.id);
+      const fresh = document.createElement('div');
+      fresh.innerHTML = renderReelCard(p, isChecked);
+      const newCardEl = fresh.firstElementChild;
+      // classNameを丸ごと入れ替えると位置制御用のクラス（active/snapping等）が消えるため、
+      // reel-card系の見た目クラスだけ引き継ぎ、構造クラス（selected等の状態）は再計算に任せる。
+      card.innerHTML = newCardEl.innerHTML;
+      if(p.pinned) card.classList.add('pinned'); else card.classList.remove('pinned');
+      card.classList.toggle('select-mode', selectMode);
+      card.classList.toggle('rc-checked', selectMode && isChecked);
+    });
+    bindReelCardEvents();
+    reelUpdateSelectedClass();
+  }
+
+  // カードDOM要素を1枚生成する。offset: 生成時点でのcenterからの相対位置（初期transform算出に使う）
+  // 注：renderReelCardが返すHTMLに既にdata-id属性（プロジェクトID）が含まれているため、
+  // ここでは重複してdata-project-id等を追加せず、data-idをそのまま識別子として使う。
+  function reelCreateCardEl(p, offset){
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderReelCard(p, selectedIds.has(p.id));
+    const el = wrap.firstElementChild;
+    el.dataset.offset = String(offset);
+    return el;
   }
 
   function bindReelCardEvents(){
     const track = document.getElementById('reelTrack');
-    track.querySelectorAll('.reel-card').forEach((card, i) => {
+    track.querySelectorAll('.reel-card').forEach(card => {
       card.onclick = (e) => {
         const sorted = getSorted();
-        const p = sorted[i];
+        const p = sorted.find(x => x.id === card.dataset.id);
         if(!p) return;
         if(selectMode){
           if(selectedIds.has(p.id)) selectedIds.delete(p.id);
@@ -3687,8 +3742,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
           renderGrid();
           return;
         }
+        const offset = parseInt(card.dataset.offset, 10) || 0;
         const isCoverTap = !!e.target.closest('[data-role="cover"]');
-        if(i === reelCenterIndex){
+        if(offset === 0){
           // 既に中央のカード：カバー画像タップの時だけ詳細を開く（タイトル部分等は何もしない）
           if(isCoverTap){
             const coverEl = card.querySelector('[data-role="cover"]');
@@ -3696,30 +3752,114 @@ h1 .mark { color:var(--accent); font-style:italic; }
           }
           return;
         }
-        reelGoTo(i);
+        reelGoTo(reelCenterIndex + offset);
       };
     });
   }
 
   // 中央カードのインデックスを切り替える（animate=trueならスナップアニメーション付き）
   // 無限ループ対応：末尾の次は先頭、先頭の前は末尾へ循環する
+  // 電光掲示板方式：窓の外に出たカードをDOMから削除し、新しく窓に入るカードだけをDOMに追加する
   function reelGoTo(index, animate){
     if(animate === undefined) animate = true;
     const sorted = getSorted();
     if(sorted.length === 0) return;
+    const total = sorted.length;
     const prevCenterIndex = reelCenterIndex;
-    reelCenterIndex = ((index % sorted.length) + sorted.length) % sorted.length;
-    reelApplyLayout(animate, prevCenterIndex);
+    const nextCenterIndex = ((index % total) + total) % total;
+    const delta = reelCircularOffset(nextCenterIndex, prevCenterIndex, total); // 何枚分、どちら向きに進むか
+    if(delta === 0){
+      reelCenterIndex = nextCenterIndex;
+      reelApplyLayout(animate);
+      return;
+    }
+    reelCenterIndex = nextCenterIndex;
+    reelUpdateWindowForMove(delta, animate);
   }
 
-  // 現在のreelCenterIndexに基づき、各カードのtransformを設定する（Coverflow風の遠近感）
-  // prevCenterIndex: スナップ開始前の中心インデックス。省略時はreelCenterIndex（＝アニメーションなし扱い）
-  function reelApplyLayout(animate, prevCenterIndex){
+  // centerIndexがdelta分動いた際、窓（DOM上のカード集合）を更新する。
+  // 1) 既存カードのdata-offsetを-delta分シフトする
+  // 2) 窓の範囲（-range〜+range）から外れたカードをDOMから削除する
+  // 3) 新しく窓に入る必要があるカードを、まだ見えない位置（範囲外のoffset）に追加してから
+  //    次フレームで正しいoffsetへ更新し、transitionで滑らかに現れさせる
+  function reelUpdateWindowForMove(delta, animate){
     const track = document.getElementById('reelTrack');
-    const cards = track.querySelectorAll('.reel-card');
+    const sorted = getSorted();
+    const total = sorted.length;
+    const range = reelSideCount() + REEL_BUFFER;
+    const existing = Array.from(track.querySelectorAll('.reel-card'));
+
     if(animate){
-      const from = (prevCenterIndex === undefined) ? reelCenterIndex : prevCenterIndex;
-      reelSetSnapDurations(cards, from);
+      reelSetSnapDurations(existing, delta);
+      existing.forEach(card => card.classList.add('snapping'));
+      window.clearTimeout(reelCleanupTimer);
+      reelCleanupTimer = window.setTimeout(() => {
+        track.querySelectorAll('.reel-card').forEach(card => card.classList.remove('snapping'));
+      }, reelSnapMs + 60);
+    }
+
+    // 1) 既存カードのoffsetをシフトし、範囲外になったものは削除
+    existing.forEach(card => {
+      const newOffset = (parseInt(card.dataset.offset, 10) || 0) - delta;
+      if(Math.abs(newOffset) > range){
+        card.remove();
+      } else {
+        card.dataset.offset = String(newOffset);
+      }
+    });
+
+    // 2) 新しく窓に入るべきoffset（シフト後の範囲のうち、まだDOMに無いもの）を追加する
+    const presentOffsets = new Set(Array.from(track.querySelectorAll('.reel-card')).map(c => parseInt(c.dataset.offset, 10)));
+    for(let offset = -range; offset <= range; offset++){
+      if(presentOffsets.has(offset)) continue;
+      const idx = ((reelCenterIndex + offset) % total + total) % total;
+      const p = sorted[idx];
+      if(!p) continue;
+      const el = reelCreateCardEl(p, offset);
+      // 新規カードは、実際にDOMに追加する前段階では「窓のさらに外（見えない位置）」からスタートさせ、
+      // 次のreelPositionCardsで正しい位置へtransitionする＝スッと滑り込んでくるように見える。
+      const startOffset = offset > 0 ? range + 1 : -(range + 1);
+      el.dataset.startOffset = String(startOffset);
+      track.appendChild(el);
+    }
+
+    bindReelCardEvents();
+
+    if(animate){
+      // 新規カードをまず「見えない開始位置」に静的配置（transitionなし）してから、
+      // 次フレームでoffset位置へ一気にtransitionさせる。
+      const newCards = Array.from(track.querySelectorAll('.reel-card')).filter(c => c.dataset.startOffset !== undefined);
+      reelPositionSpecificCards(newCards, 0, (card) => parseInt(card.dataset.startOffset, 10));
+      // 強制reflow：transitionなしの初期配置を確実にブラウザへ反映させてから、
+      // 次のスタイル変更（snapping付与＋最終位置への移動）をtransition対象にするため。
+      if(newCards.length > 0) void track.offsetHeight;
+      requestAnimationFrame(() => {
+        newCards.forEach(card => {
+          card.classList.add('snapping');
+          card.style.transitionDuration = reelSnapMs + 'ms';
+          card.style.transitionDelay = '0ms';
+          delete card.dataset.startOffset;
+        });
+        reelPositionCards(0);
+        reelUpdateSelectedClass();
+      });
+    } else {
+      track.querySelectorAll('.reel-card').forEach(card => { delete card.dataset.startOffset; });
+      reelPositionCards(0);
+      reelUpdateSelectedClass();
+    }
+  }
+
+  // 現在のreelCenterIndexに基づき、各カードのtransformを設定する（centerIndex自体は変わらないが
+  // ドラッグ終了時の微調整や、選択モード切替時の再描画など、窓の入れ替えを伴わない再配置に使う）
+  function reelApplyLayout(animate){
+    const track = document.getElementById('reelTrack');
+    const cards = Array.from(track.querySelectorAll('.reel-card'));
+    if(animate){
+      cards.forEach(card => {
+        card.style.transitionDuration = reelSnapMs + 'ms';
+        card.style.transitionDelay = '0ms';
+      });
       cards.forEach(card => card.classList.add('snapping'));
       window.clearTimeout(reelCleanupTimer);
       reelCleanupTimer = window.setTimeout(() => {
@@ -3732,71 +3872,24 @@ h1 .mark { color:var(--accent); font-style:italic; }
     }
   }
 
-  // B案：中心からの移動量（何枚分動くか）に応じて、カードごとにtransition-durationを調整する。
-  // 移動距離が長いカード（画面端付近）ほど見かけの速度が上がってしまうのを防ぎ、
-  // 全カードの体感速度を揃えるのが狙い。移動しないカード（枚数差0）はduration=0扱いでよい。
-  //
-  // 加えて、疑似3Dの都合上「表示される数枚だけが見えている」構造のため、
-  // それまで画面外（非表示）にいたカードが新しく現れる瞬間、位置transformだけが先に動いて
-  // 中身が追いついていないように見える（ワープ感）問題がある。
-  // これを緩和するため、「新しく現れるカード」はopacityのフェードインを少し遅らせて開始し、
-  // 「消えていくカード」はopacityのフェードアウトを少し早めに開始することで、
-  // 位置移動とフェードのタイミングをずらし、自然な出入りに近づける。
-  function reelSetSnapDurations(cards, fromCenterIndex){
-    const total = cards.length;
-    if(total === 0) return;
-    let maxMove = 0;
-    const moves = [];
-    cards.forEach((card, i) => {
-      const prevOffset = reelCircularOffset(i, fromCenterIndex, total);
-      const nextOffset = reelCircularOffset(i, reelCenterIndex, total);
-      const dist = Math.abs(nextOffset - prevOffset);
-      moves[i] = dist;
-      if(dist > maxMove) maxMove = dist;
-    });
-    if(maxMove === 0){
-      cards.forEach(card => {
-        card.style.transitionDuration = reelSnapMs + 'ms';
-        card.style.transitionDelay = '0ms';
-      });
-      return;
-    }
-    // 基準（1枚分の移動）を reelSnapMs とし、それより移動量が多いカードは比例して長く、
-    // ただし体感が間延びしないよう上限（基準の1.6倍）を設ける。
+  // 移動量（delta＝何枚分進むか）に応じて、カードごとにtransition-durationを調整する（B案）。
+  // 電光掲示板方式では全カードが「1枚分ずつ」または「delta分まとめて」動くだけなので、
+  // 判定は「そのカードが新規追加されたものか（新規は別途reelUpdateWindowForMoveで処理済み）」を除き、
+  // 既存カード全体にdeltaの大きさに応じた統一時間を与えるだけでよく、旧来のような複雑な
+  // 出現/消滅の可視判定（REEL_VISIBLE_THRESHOLD）は不要になった（窓の外はそもそもDOMに存在しないため）。
+  function reelSetSnapDurations(cards, delta){
+    const absDelta = Math.abs(delta);
     const baseMs = reelSnapMs;
     const maxMs = reelSnapMs * 1.6;
-    const fadeDelayMs = Math.min(reelSnapMs * 0.35, 90); // フェードインの遅延量（基準時間の35%、上限90ms）
-    cards.forEach((card, i) => {
-      const dist = moves[i];
-      let ms;
-      if(dist <= 1){
-        ms = baseMs;
-      } else {
-        const ratio = Math.min(dist / Math.max(1, maxMove), 1);
-        ms = baseMs + (maxMs - baseMs) * ratio;
-      }
-      card.style.transitionDuration = Math.round(ms) + 'ms';
-
-      const prevOffset = reelCircularOffset(i, fromCenterIndex, total);
-      const nextOffset = reelCircularOffset(i, reelCenterIndex, total);
-      const wasHidden = Math.abs(prevOffset) > REEL_VISIBLE_THRESHOLD;
-      const willBeHidden = Math.abs(nextOffset) > REEL_VISIBLE_THRESHOLD;
-      const isAppearing = wasHidden && !willBeHidden;   // 画面外→画面内：新しく現れる
-      const isDisappearing = !wasHidden && willBeHidden; // 画面内→画面外：消えていく
-
-      if(isAppearing){
-        // 位置は先に動かし、フェードインは少し遅らせて開始する（transform, opacityの順でdelayを指定）
-        card.style.transitionDelay = `0ms, ${Math.round(fadeDelayMs)}ms`;
-      } else if(isDisappearing){
-        // フェードアウトは通常通り即座に開始し、位置の移動時間だけ長めに見せる意図はないため両方0でよい
-        card.style.transitionDelay = '0ms';
-      } else {
-        card.style.transitionDelay = '0ms';
-      }
+    const ratio = Math.min(Math.max(0, absDelta - 1) / 4, 1); // delta=1で基準、delta=5以上で上限
+    const ms = Math.round(baseMs + (maxMs - baseMs) * ratio);
+    cards.forEach(card => {
+      card.style.transitionDuration = ms + 'ms';
+      card.style.transitionDelay = '0ms';
     });
   }
 
-  // 循環最短距離でのオフセット（reelPositionCardsと同じロジック）
+  // 循環最短距離でのオフセット（配列インデックス間の最短差分を求める。窓のoffsetとは別物）
   function reelCircularOffset(i, centerIndex, total){
     let offset = i - centerIndex;
     if(total > 0){
@@ -3808,30 +3901,37 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   function reelUpdateSelectedClass(){
     const track = document.getElementById('reelTrack');
-    track.querySelectorAll('.reel-card').forEach((card, i) => {
-      card.classList.toggle('selected', i === reelCenterIndex && !selectMode);
+    track.querySelectorAll('.reel-card').forEach(card => {
+      const offset = parseInt(card.dataset.offset, 10) || 0;
+      card.classList.toggle('selected', offset === 0 && !selectMode);
     });
   }
 
+  // dataset.offsetを使い、疑似3D演出のtransformを計算して適用する（Coverflow風の遠近感）。
   // dragOffsetPx: ドラッグ中の追加オフセット（px）。0なら通常のスナップ位置
   function reelPositionCards(dragOffsetPx){
     const track = document.getElementById('reelTrack');
     const cards = track.querySelectorAll('.reel-card');
-    const total = cards.length;
-    cards.forEach((card, i) => {
-      const offset = reelCircularOffset(i, reelCenterIndex, total);
+    reelPositionSpecificCards(cards, dragOffsetPx, (card) => parseInt(card.dataset.offset, 10) || 0);
+  }
+
+  // getOffsetFn: カード要素からoffset（centerからの相対位置）を取り出す関数。
+  // 新規カードの初期配置（startOffset使用）と、通常配置（offset使用）の両方から呼べるよう分離。
+  function reelPositionSpecificCards(cards, dragOffsetPx, getOffsetFn){
+    cards.forEach(card => {
+      const offset = getOffsetFn(card);
       const y = offset * REEL_STEP + dragOffsetPx;
       const virtualOffset = y / REEL_STEP;
       const absOffset = Math.abs(virtualOffset);
       const scale = Math.max(0.72, 1 - absOffset * 0.14);
       const rotateX = Math.max(-46, Math.min(46, virtualOffset * 26));
       const translateZ = -absOffset * 90;
-      const opacity = absOffset > REEL_VISIBLE_THRESHOLD ? 0 : Math.max(0.28, 1 - absOffset * 0.32);
+      const opacity = Math.max(0, Math.min(1, 1 - absOffset * 0.32));
 
       card.style.transform = `translateY(${y}px) translateZ(${translateZ}px) rotateX(${-rotateX}deg) scale(${scale})`;
       card.style.opacity = opacity;
       card.style.zIndex = 100 - Math.round(absOffset * 10);
-      card.style.pointerEvents = absOffset > REEL_VISIBLE_THRESHOLD ? 'none' : 'auto';
+      card.style.pointerEvents = 'auto'; // 窓方式では表示中カードは常に操作可能
     });
   }
 
@@ -3876,7 +3976,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       else if(reelDragCurrentOffset < -threshold) cardsToMove = 1;
       else cardsToMove = 0;
     }
-    cardsToMove = Math.max(1, Math.min(cardsToMove, 6)); // 暴走防止の上限（一度に6枚まで）
+    cardsToMove = Math.max(1, Math.min(cardsToMove, 4)); // 暴走防止の上限（電光掲示板方式：窓のバッファが前後2枚のため、飛びすぎ防止で4枚までに制限）
 
     if(reelDragCurrentOffset === 0 && velocity === 0){
       reelGoTo(reelCenterIndex);
@@ -3951,6 +4051,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
       else if(e.deltaY < -10) reelGoTo(reelCenterIndex - 1);
       setTimeout(() => { reelWheelLock = false; }, 220);
     }, { passive:false });
+
+    // 画面幅が変わる（回転・PC幅でのウィンドウリサイズ等）と表示枚数（reelSideCount）が変わりうるため、
+    // 窓を作り直す。デバウンスして連続発火を抑える。
+    let reelResizeTimer = null;
+    window.addEventListener('resize', () => {
+      window.clearTimeout(reelResizeTimer);
+      reelResizeTimer = window.setTimeout(() => { reelRebuildWindow(); }, 150);
+    });
   }
 
   function renderPriorityBanner(){
