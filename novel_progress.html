@@ -51,6 +51,22 @@ header {
   align-items:center;
   gap:14px;
 }
+.header-row .header-title-block { flex:1; min-width:0; }
+.header-row .new-project-btn-header {
+  flex-shrink:0;
+  font-family:var(--font-ui);
+  font-size:0.68rem;
+  letter-spacing:0.03em;
+  padding:8px 12px;
+  border-radius:3px;
+  border:1px solid var(--accent);
+  background:var(--accent);
+  color:var(--bg);
+  font-weight:bold;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.header-row .new-project-btn-header:hover { opacity:0.9; }
 h1 {
   font-family:var(--font-body);
   font-size:1.5rem;
@@ -89,12 +105,50 @@ h1 .mark { color:var(--accent); font-style:italic; }
   border-radius:1px;
 }
 
+/* ---------- Header rotator (legend / storage / pin banner) ---------- */
+.header-rotator {
+  margin-top:14px;
+  position:relative;
+  min-height:34px;
+}
+.rotator-slide {
+  display:none;
+  align-items:center;
+  min-height:34px;
+}
+.rotator-slide.active { display:flex; }
+.rotator-slide .legend {
+  margin-top:0;
+}
+.rotator-slide .priority-banner {
+  display:flex;
+  margin:0;
+  width:100%;
+  padding:0;
+  background:none;
+  border:none;
+}
+.rotator-dots {
+  display:flex;
+  gap:5px;
+  justify-content:center;
+  margin-top:8px;
+}
+.rotator-dot {
+  width:5px; height:5px;
+  border-radius:50%;
+  background:var(--border);
+  cursor:pointer;
+  transition:background .15s;
+}
+.rotator-dot.active { background:var(--accent); }
+
 /* ---------- Storage usage indicator ---------- */
 .storage-usage-bar {
   display:flex;
   align-items:center;
   gap:10px;
-  margin-top:14px;
+  width:100%;
 }
 .storage-usage-track {
   flex:1;
@@ -243,13 +297,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   margin-top:2px;
 }
 
-/* ---------- Toolbar ---------- */
-.toolbar {
-  display:flex;
-  gap:10px;
-  padding:16px 20px;
-  align-items:center;
-}
 .btn {
   font-family:var(--font-ui);
   font-size:0.72rem;
@@ -270,16 +317,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
   font-weight:bold;
 }
 .btn.primary:hover { opacity:0.9; background:var(--accent); }
-.toolbar .sort-select {
-  margin-left:0;
-  font-family:var(--font-ui);
-  font-size:0.68rem;
-  background:var(--bg2);
-  color:var(--text2);
-  border:1px solid var(--border);
-  border-radius:3px;
-  padding:9px 10px;
-}
 
 /* ---------- Grid ---------- */
 .grid {
@@ -613,7 +650,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
    （台紙自体を独立スクロール領域にし、リール側は画面に固定されたまま動かないようにした）。 */
 .pc-split-container { display:block; }
 .pc-split-right { display:none; }
-.dash-header-row { display:block; }
 @media (min-width: 1024px) {
   .pc-split-container {
     display:flex;
@@ -661,32 +697,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
     width:100%;
   }
 
-  /* 2026-08-22新設：凡例・ピン留めバナー・新規作品/ソートを1行に集約し、縦のスペースを圧縮する。
-     ピン留めが無い時は.priority-bannerが元々display:noneのままなので、その分自然に詰まる。 */
-  .dash-header-row {
-    display:flex;
-    align-items:center;
-    gap:20px;
-    padding:16px 20px 0;
-  }
-  .dash-header-row .legend {
-    margin-top:0;
-    flex-shrink:0;
-  }
-  .dash-header-row .priority-banner {
-    margin:0;
-    flex:1;
-    min-width:0;
-  }
-  .dash-header-row .priority-banner .pin-title {
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .dash-header-row .toolbar {
-    padding:0;
-    flex-shrink:0;
-  }
 }
 .modal-header {
   padding:18px 20px;
@@ -929,9 +939,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
 @media (max-width:480px) {
   .grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 12px; }
   header { padding:20px 14px 14px; }
-  .toolbar { padding:14px 12px; flex-wrap:wrap; }
-  .toolbar .sort-select { margin-left:0; order:3; width:100%; }
-  .priority-banner { margin:14px 12px 0; }
   .stage-label { width:32px; font-size:0.55rem; }
   .dot { width:7px; height:7px; }
 }
@@ -1934,6 +1941,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .dropdown-item:last-child { border-bottom:none; }
 .dropdown-item:hover { background:var(--surface); }
 .dropdown-item.danger { color:var(--danger); }
+.dropdown-divider {
+  height:1px;
+  background:var(--border);
+  margin:2px 0;
+}
 
 /* ---------- Selection mode ---------- */
 .select-bar {
@@ -1974,26 +1986,58 @@ h1 .mark { color:var(--accent); font-style:italic; }
 <header>
   <div class="header-row">
     <button class="hamburger-btn" id="dashHamburgerBtn">☰</button>
-    <div>
+    <div class="header-title-block">
       <h1>Manu<span class="mark">script</span></h1>
       <div class="subtitle">novel progress dashboard</div>
     </div>
+    <button class="new-project-btn-header" id="newProjectBtn">＋ 新規作品</button>
     <div class="dropdown-menu" id="dashDropdown" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuSelectModeBtn">☑ カードを選択</button>
+      <button type="button" class="dropdown-item" id="menuSortBtn">🔀 並べ替え：<span id="menuSortCurrentLabel">優先順</span></button>
+      <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
+      <div class="dropdown-divider"></div>
       <button type="button" class="dropdown-item" id="menuTemplatesBtn">📄 プロンプトテンプレート管理</button>
       <button type="button" class="dropdown-item" id="menuTextEditorBtn">📝 テキスト編集</button>
+      <div class="dropdown-divider"></div>
       <button type="button" class="dropdown-item" id="menuLongPressBtn">⏱ 操作感の調整</button>
       <button type="button" class="dropdown-item" id="menuBookmarkColorBtn">🔖 しおり色を調整</button>
       <button type="button" class="dropdown-item" id="menuStorageDetailBtn">📊 ストレージ詳細</button>
-      <button type="button" class="dropdown-item" id="menuImportBtn">📥 作品をインポート</button>
+    </div>
+    <div class="dropdown-menu" id="dashSortSubmenu" style="left:0; right:auto;">
+      <button type="button" class="dropdown-item" data-sort="pinned">優先順（ピン留め優先）</button>
+      <button type="button" class="dropdown-item" data-sort="updated">更新順</button>
+      <button type="button" class="dropdown-item" data-sort="title">タイトル順</button>
     </div>
     <div class="dropdown-menu" id="dashDropdownSelectMode" style="left:0; right:auto;">
       <button type="button" class="dropdown-item" id="menuCancelSelectBtn">✕ 選択モードをキャンセル</button>
     </div>
   </div>
-  <div class="storage-usage-bar">
-    <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
-    <span class="storage-usage-text" id="storageUsageText">0 KB / 5 MB</span>
+
+  <div class="header-rotator" id="headerRotator">
+    <div class="rotator-slide active" data-slide="legend">
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文執筆中</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>推敲中</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
+      </div>
+    </div>
+    <div class="rotator-slide" data-slide="storage">
+      <div class="storage-usage-bar">
+        <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
+        <span class="storage-usage-text" id="storageUsageText">0 KB / 5 MB</span>
+      </div>
+    </div>
+    <div class="rotator-slide" data-slide="pin" id="priorityBannerSlide">
+      <div class="priority-banner" id="priorityBanner">
+        <div class="pin-icon">📌</div>
+        <div class="pin-text">
+          <div class="pin-label">Now Writing</div>
+          <div class="pin-title" id="pinTitle">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="rotator-dots" id="rotatorDots"></div>
   </div>
 </header>
 
@@ -2004,31 +2048,11 @@ h1 .mark { color:var(--accent); font-style:italic; }
   <button class="btn" id="selectDeleteBtn" style="color:var(--danger); border-color:var(--danger);">選択を削除</button>
 </div>
 
-<div class="dash-header-row" id="dashHeaderRow">
-<div class="legend">
-  <div class="legend-item"><span class="legend-dot" style="background:var(--c-genan)"></span>設定・プロット</div>
-  <div class="legend-item"><span class="legend-dot" style="background:var(--c-honbun)"></span>本文執筆中</div>
-  <div class="legend-item"><span class="legend-dot" style="background:var(--c-kousei)"></span>推敲中</div>
-  <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>完結</div>
-</div>
-
-<div class="priority-banner" id="priorityBanner">
-  <div class="pin-icon">📌</div>
-  <div class="pin-text">
-    <div class="pin-label">Now Writing</div>
-    <div class="pin-title" id="pinTitle">—</div>
-  </div>
-</div>
-
-<div class="toolbar">
-  <button class="btn primary" id="newProjectBtn">＋ 新規作品</button>
-  <select class="sort-select" id="sortSelect">
-    <option value="pinned">優先順（ピン留め優先）</option>
-    <option value="updated">更新順</option>
-    <option value="title">タイトル順</option>
-  </select>
-</div>
-</div>
+<select class="sort-select" id="sortSelect" style="display:none;">
+  <option value="pinned">優先順（ピン留め優先）</option>
+  <option value="updated">更新順</option>
+  <option value="title">タイトル順</option>
+</select>
 
 <div class="grid" id="grid" style="display:none;"></div>
 
@@ -3834,7 +3858,65 @@ h1 .mark { color:var(--accent); font-style:italic; }
     } else {
       banner.classList.remove('active');
     }
+    setupHeaderRotator();
   }
+
+  // ---------- Header rotator (legend / storage / pin banner) ----------
+  let rotatorTimer = null;
+  let rotatorIndex = 0;
+  let rotatorSlideEls = [];
+
+  function setupHeaderRotator(){
+    const allSlides = Array.from(document.querySelectorAll('#headerRotator .rotator-slide'));
+    // ピン留めが無い時は「pin」スライドを候補から外す
+    const hasPinned = projects.some(p => p.pinned);
+    rotatorSlideEls = allSlides.filter(el => el.dataset.slide !== 'pin' || hasPinned);
+
+    if(rotatorIndex >= rotatorSlideEls.length) rotatorIndex = 0;
+
+    allSlides.forEach(el => el.classList.remove('active'));
+
+    const dotsWrap = document.getElementById('rotatorDots');
+    dotsWrap.innerHTML = '';
+    if(rotatorSlideEls.length <= 1){
+      // スライドが1つ以下ならローテーション不要、そのまま表示して終了
+      if(rotatorSlideEls[0]) rotatorSlideEls[0].classList.add('active');
+      if(rotatorTimer) clearInterval(rotatorTimer);
+      return;
+    }
+    rotatorSlideEls.forEach((el, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'rotator-dot' + (i === rotatorIndex ? ' active' : '');
+      dot.onclick = (e) => { e.stopPropagation(); goToRotatorSlide(i); restartRotatorTimer(); };
+      dotsWrap.appendChild(dot);
+    });
+    rotatorSlideEls[rotatorIndex].classList.add('active');
+    restartRotatorTimer();
+  }
+
+  function goToRotatorSlide(i){
+    if(rotatorSlideEls.length === 0) return;
+    rotatorSlideEls.forEach(el => el.classList.remove('active'));
+    rotatorIndex = (i + rotatorSlideEls.length) % rotatorSlideEls.length;
+    rotatorSlideEls[rotatorIndex].classList.add('active');
+    const dots = document.querySelectorAll('#rotatorDots .rotator-dot');
+    dots.forEach((d, idx) => d.classList.toggle('active', idx === rotatorIndex));
+  }
+
+  function restartRotatorTimer(){
+    if(rotatorTimer) clearInterval(rotatorTimer);
+    if(rotatorSlideEls.length <= 1) return;
+    rotatorTimer = setInterval(() => goToRotatorSlide(rotatorIndex + 1), 2000);
+  }
+
+  // タップで手動送り（ドットやピン留めバナー自体のクリックは各要素側で処理済みなので、
+  // rotator本体の余白タップのみ次スライドへ送る）
+  document.getElementById('headerRotator').addEventListener('click', (e) => {
+    if(e.target.closest('.rotator-dot')) return;
+    if(e.target.closest('.priority-banner')) return; // ピン止め詳細を開く動作を優先
+    goToRotatorSlide(rotatorIndex + 1);
+    restartRotatorTimer();
+  });
 
   // ---------- Edit Modal ----------
   function createNewProject(){
@@ -4127,6 +4209,10 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(smenu.classList.contains('active') && !smenu.contains(e.target) && e.target.id !== 'dashHamburgerBtn'){
       smenu.classList.remove('active');
     }
+    const sortMenu = document.getElementById('dashSortSubmenu');
+    if(sortMenu.classList.contains('active') && !sortMenu.contains(e.target) && e.target.id !== 'menuSortBtn'){
+      sortMenu.classList.remove('active');
+    }
     const dmenu = document.getElementById('detailDropdown');
     if(dmenu.classList.contains('active') && !dmenu.contains(e.target) && e.target.id !== 'detailHamburgerBtn'){
       dmenu.classList.remove('active');
@@ -4136,6 +4222,25 @@ h1 .mark { color:var(--accent); font-style:italic; }
     document.getElementById('dashDropdown').classList.remove('active');
     enterSelectMode();
   };
+  const SORT_LABELS = { pinned:'優先順', updated:'更新順', title:'タイトル順' };
+  function updateSortMenuLabel(){
+    const val = document.getElementById('sortSelect').value;
+    document.getElementById('menuSortCurrentLabel').textContent = SORT_LABELS[val] || '優先順';
+  }
+  document.getElementById('menuSortBtn').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('dashDropdown').classList.remove('active');
+    document.getElementById('dashSortSubmenu').classList.toggle('active');
+  };
+  document.querySelectorAll('#dashSortSubmenu [data-sort]').forEach(btn => {
+    btn.onclick = () => {
+      document.getElementById('sortSelect').value = btn.dataset.sort;
+      document.getElementById('dashSortSubmenu').classList.remove('active');
+      updateSortMenuLabel();
+      renderGrid();
+    };
+  });
+  updateSortMenuLabel();
   document.getElementById('menuCancelSelectBtn').onclick = () => {
     document.getElementById('dashDropdownSelectMode').classList.remove('active');
     exitSelectMode();
