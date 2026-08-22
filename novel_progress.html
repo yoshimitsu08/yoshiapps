@@ -523,7 +523,9 @@ h1 .mark { color:var(--accent); font-style:italic; }
   transition:border-color 0.15s;
 }
 .reel-card.snapping {
-  transition:transform var(--reel-snap-ms, 0.32s) cubic-bezier(0.33, 1, 0.68, 1), opacity var(--reel-snap-ms, 0.32s) ease;
+  transition-property:transform, opacity;
+  transition-timing-function:cubic-bezier(0.33, 1, 0.68, 1), ease;
+  /* transition-durationはJS側でカードごとに個別設定する（中心からの距離に応じて速度を揃えるため） */
 }
 .reel-card.selected {
   border-color:var(--accent);
@@ -3704,25 +3706,75 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(animate === undefined) animate = true;
     const sorted = getSorted();
     if(sorted.length === 0) return;
+    const prevCenterIndex = reelCenterIndex;
     reelCenterIndex = ((index % sorted.length) + sorted.length) % sorted.length;
-    reelApplyLayout(animate);
+    reelApplyLayout(animate, prevCenterIndex);
   }
 
   // 現在のreelCenterIndexに基づき、各カードのtransformを設定する（Coverflow風の遠近感）
-  function reelApplyLayout(animate){
+  // prevCenterIndex: スナップ開始前の中心インデックス。省略時はreelCenterIndex（＝アニメーションなし扱い）
+  function reelApplyLayout(animate, prevCenterIndex){
     const track = document.getElementById('reelTrack');
     const cards = track.querySelectorAll('.reel-card');
     if(animate){
+      const from = (prevCenterIndex === undefined) ? reelCenterIndex : prevCenterIndex;
+      reelSetSnapDurations(cards, from);
       cards.forEach(card => card.classList.add('snapping'));
       window.clearTimeout(reelCleanupTimer);
       reelCleanupTimer = window.setTimeout(() => {
         cards.forEach(card => card.classList.remove('snapping'));
-      }, reelSnapMs + 30);
+      }, reelSnapMs + 60);
       requestAnimationFrame(() => { reelPositionCards(0); reelUpdateSelectedClass(); });
     } else {
       reelPositionCards(0);
       reelUpdateSelectedClass();
     }
+  }
+
+  // B案：中心からの移動量（何枚分動くか）に応じて、カードごとにtransition-durationを調整する。
+  // 移動距離が長いカード（画面端付近）ほど見かけの速度が上がってしまうのを防ぎ、
+  // 全カードの体感速度を揃えるのが狙い。移動しないカード（枚数差0）はduration=0扱いでよい。
+  function reelSetSnapDurations(cards, fromCenterIndex){
+    const total = cards.length;
+    if(total === 0) return;
+    let maxMove = 0;
+    const moves = [];
+    cards.forEach((card, i) => {
+      const prevOffset = reelCircularOffset(i, fromCenterIndex, total);
+      const nextOffset = reelCircularOffset(i, reelCenterIndex, total);
+      const dist = Math.abs(nextOffset - prevOffset);
+      moves[i] = dist;
+      if(dist > maxMove) maxMove = dist;
+    });
+    if(maxMove === 0){
+      cards.forEach(card => { card.style.transitionDuration = reelSnapMs + 'ms'; });
+      return;
+    }
+    // 基準（1枚分の移動）を reelSnapMs とし、それより移動量が多いカードは比例して長く、
+    // ただし体感が間延びしないよう上限（基準の1.6倍）を設ける。
+    const baseMs = reelSnapMs;
+    const maxMs = reelSnapMs * 1.6;
+    cards.forEach((card, i) => {
+      const dist = moves[i];
+      let ms;
+      if(dist <= 1){
+        ms = baseMs;
+      } else {
+        const ratio = Math.min(dist / Math.max(1, maxMove), 1);
+        ms = baseMs + (maxMs - baseMs) * ratio;
+      }
+      card.style.transitionDuration = Math.round(ms) + 'ms';
+    });
+  }
+
+  // 循環最短距離でのオフセット（reelPositionCardsと同じロジック）
+  function reelCircularOffset(i, centerIndex, total){
+    let offset = i - centerIndex;
+    if(total > 0){
+      if(offset > total / 2) offset -= total;
+      else if(offset < -total / 2) offset += total;
+    }
+    return offset;
   }
 
   function reelUpdateSelectedClass(){
@@ -3738,12 +3790,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
     const cards = track.querySelectorAll('.reel-card');
     const total = cards.length;
     cards.forEach((card, i) => {
-      // 循環最短距離：末尾と先頭が隣り合うよう、+total/-totalした場合も含めて一番近い差分を採用する
-      let offset = i - reelCenterIndex;
-      if(total > 0){
-        if(offset > total / 2) offset -= total;
-        else if(offset < -total / 2) offset += total;
-      }
+      const offset = reelCircularOffset(i, reelCenterIndex, total);
       const y = offset * REEL_STEP + dragOffsetPx;
       const virtualOffset = y / REEL_STEP;
       const absOffset = Math.abs(virtualOffset);
