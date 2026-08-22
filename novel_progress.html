@@ -3811,6 +3811,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
       if(!p) continue;
       const el = reelCreateCardEl(p, offset);
       const startOffset = offset > 0 ? range + 1 : -(range + 1);
+      el.dataset.startOffset = String(startOffset); // 距離計算用に一時保存（transition開始後に削除する）
       reelPositionSpecificCards([el], 0, () => startOffset); // 追加前に見えない位置のtransformを確定させる
       track.appendChild(el);
       newCards.push(el);
@@ -3821,22 +3822,44 @@ h1 .mark { color:var(--accent); font-style:italic; }
     if(animate){
       // 既存カード・新規カードの区別なく、全カードへ同じタイミングでsnappingクラスとdurationを付与し、
       // 同じrequestAnimationFrame内で最終位置へのtransitionを一斉に開始する（上下の動き出しを完全同期）。
-      reelSetSnapDurations(existing, delta);
+      //
+      // durationは「実際に動く距離」に応じて個別調整する（B案の考え方を新規カードにも適用）。
+      // 新規カードは「窓のさらに外（見えない位置）」から最終位置まで、既存カードより長い距離を
+      // 移動することが多いため、既存カードと同じ基準時間のままだと、距離が長い分だけ
+      // 見かけの到着が遅れて見えてしまう（次候補・次々候補が遅れてついてくる、というズレの正体）。
+      const baseMs = reelSnapMs;
+      const maxMs = reelSnapMs * 1.6;
+      let maxDist = 0;
+      const distOf = new Map();
+      existing.forEach(card => { distOf.set(card, Math.abs(delta)); });
       newCards.forEach(card => {
-        card.style.transitionDuration = reelSnapMs + 'ms';
-        card.style.transitionDelay = '0ms';
+        const startOffset = parseInt(card.dataset.startOffset, 10);
+        const finalOffset = parseInt(card.dataset.offset, 10) || 0;
+        const dist = Math.abs(finalOffset - startOffset);
+        distOf.set(card, dist);
       });
+      distOf.forEach(d => { if(d > maxDist) maxDist = d; });
+
       const allCards = Array.from(track.querySelectorAll('.reel-card'));
-      allCards.forEach(card => card.classList.add('snapping'));
+      allCards.forEach(card => {
+        const dist = distOf.get(card) || Math.abs(delta);
+        const ratio = maxDist > 0 ? Math.min(dist / maxDist, 1) : 0;
+        const ms = Math.round(baseMs + (maxMs - baseMs) * ratio);
+        card.style.transitionDuration = ms + 'ms';
+        card.style.transitionDelay = '0ms';
+        card.classList.add('snapping');
+        delete card.dataset.startOffset;
+      });
       window.clearTimeout(reelCleanupTimer);
       reelCleanupTimer = window.setTimeout(() => {
         track.querySelectorAll('.reel-card').forEach(card => card.classList.remove('snapping'));
-      }, reelSnapMs + 60);
+      }, maxMs + 60);
       requestAnimationFrame(() => {
         reelPositionCards(0);
         reelUpdateSelectedClass();
       });
     } else {
+      newCards.forEach(card => { delete card.dataset.startOffset; });
       reelPositionCards(0);
       reelUpdateSelectedClass();
     }
@@ -3862,23 +3885,6 @@ h1 .mark { color:var(--accent); font-style:italic; }
       reelPositionCards(0);
       reelUpdateSelectedClass();
     }
-  }
-
-  // 移動量（delta＝何枚分進むか）に応じて、カードごとにtransition-durationを調整する（B案）。
-  // 電光掲示板方式では全カードが「1枚分ずつ」または「delta分まとめて」動くだけなので、
-  // 判定は「そのカードが新規追加されたものか（新規は別途reelUpdateWindowForMoveで処理済み）」を除き、
-  // 既存カード全体にdeltaの大きさに応じた統一時間を与えるだけでよく、旧来のような複雑な
-  // 出現/消滅の可視判定（REEL_VISIBLE_THRESHOLD）は不要になった（窓の外はそもそもDOMに存在しないため）。
-  function reelSetSnapDurations(cards, delta){
-    const absDelta = Math.abs(delta);
-    const baseMs = reelSnapMs;
-    const maxMs = reelSnapMs * 1.6;
-    const ratio = Math.min(Math.max(0, absDelta - 1) / 4, 1); // delta=1で基準、delta=5以上で上限
-    const ms = Math.round(baseMs + (maxMs - baseMs) * ratio);
-    cards.forEach(card => {
-      card.style.transitionDuration = ms + 'ms';
-      card.style.transitionDelay = '0ms';
-    });
   }
 
   // 循環最短距離でのオフセット（配列インデックス間の最短差分を求める。窓のoffsetとは別物）
