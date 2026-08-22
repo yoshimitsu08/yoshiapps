@@ -109,17 +109,38 @@ h1 .mark { color:var(--accent); font-style:italic; }
 .header-rotator {
   margin-top:14px;
   position:relative;
-  min-height:34px;
+  height:38px; /* ピン止めバナー（最も背が高いスライド）に合わせて固定し、切替時にheaderが伸縮しないようにする */
+  overflow:hidden;
 }
 .rotator-slide {
-  display:none;
+  display:flex;
   align-items:center;
-  min-height:34px;
+  position:absolute;
+  top:0; left:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  transform:translateX(24px);
+  transition:transform .35s ease, opacity .35s ease;
+  pointer-events:none;
 }
-.rotator-slide.active { display:flex; }
+.rotator-slide.active {
+  opacity:1;
+  transform:translateX(0);
+  pointer-events:auto;
+}
+.rotator-slide.leaving {
+  opacity:0;
+  transform:translateX(-24px);
+}
 .rotator-slide .legend {
   margin-top:0;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  scrollbar-width:none;
 }
+.rotator-slide .legend::-webkit-scrollbar { display:none; }
+.rotator-slide .legend-item { flex-shrink:0; }
 .rotator-slide .priority-banner {
   display:flex;
   margin:0;
@@ -3678,10 +3699,12 @@ h1 .mark { color:var(--accent); font-style:italic; }
   }
 
   // 中央カードのインデックスを切り替える（animate=trueならスナップアニメーション付き）
+  // 無限ループ対応：末尾の次は先頭、先頭の前は末尾へ循環する
   function reelGoTo(index, animate){
     if(animate === undefined) animate = true;
     const sorted = getSorted();
-    reelCenterIndex = Math.max(0, Math.min(sorted.length - 1, index));
+    if(sorted.length === 0) return;
+    reelCenterIndex = ((index % sorted.length) + sorted.length) % sorted.length;
     reelApplyLayout(animate);
   }
 
@@ -3713,8 +3736,14 @@ h1 .mark { color:var(--accent); font-style:italic; }
   function reelPositionCards(dragOffsetPx){
     const track = document.getElementById('reelTrack');
     const cards = track.querySelectorAll('.reel-card');
+    const total = cards.length;
     cards.forEach((card, i) => {
-      const offset = i - reelCenterIndex;
+      // 循環最短距離：末尾と先頭が隣り合うよう、+total/-totalした場合も含めて一番近い差分を採用する
+      let offset = i - reelCenterIndex;
+      if(total > 0){
+        if(offset > total / 2) offset -= total;
+        else if(offset < -total / 2) offset += total;
+      }
       const y = offset * REEL_STEP + dragOffsetPx;
       const virtualOffset = y / REEL_STEP;
       const absOffset = Math.abs(virtualOffset);
@@ -3874,7 +3903,7 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
     if(rotatorIndex >= rotatorSlideEls.length) rotatorIndex = 0;
 
-    allSlides.forEach(el => el.classList.remove('active'));
+    allSlides.forEach(el => el.classList.remove('active', 'leaving'));
 
     const dotsWrap = document.getElementById('rotatorDots');
     dotsWrap.innerHTML = '';
@@ -3896,9 +3925,20 @@ h1 .mark { color:var(--accent); font-style:italic; }
 
   function goToRotatorSlide(i){
     if(rotatorSlideEls.length === 0) return;
-    rotatorSlideEls.forEach(el => el.classList.remove('active'));
-    rotatorIndex = (i + rotatorSlideEls.length) % rotatorSlideEls.length;
-    rotatorSlideEls[rotatorIndex].classList.add('active');
+    const prevIndex = rotatorIndex;
+    const nextIndex = (i + rotatorSlideEls.length) % rotatorSlideEls.length;
+    if(nextIndex === prevIndex) return;
+
+    const prevEl = rotatorSlideEls[prevIndex];
+    const nextEl = rotatorSlideEls[nextIndex];
+
+    prevEl.classList.remove('active');
+    prevEl.classList.add('leaving');
+    setTimeout(() => { prevEl.classList.remove('leaving'); }, 360);
+
+    nextEl.classList.add('active');
+    rotatorIndex = nextIndex;
+
     const dots = document.querySelectorAll('#rotatorDots .rotator-dot');
     dots.forEach((d, idx) => d.classList.toggle('active', idx === rotatorIndex));
   }
