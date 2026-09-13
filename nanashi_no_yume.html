@@ -79,6 +79,13 @@ body.forget-high .adv-forgetting{opacity:1}
 .battle-player{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0 24px;border-top:1px solid var(--border);background:rgba(20,17,13,.4)}
 .battle-commands{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 16px}
 
+/* ---------- クライマックス（名前を呼ぶ） ---------- */
+#screen-callname{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;min-height:100vh;gap:24px}
+.callname-box{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:22px;padding:0 24px;text-align:center}
+.callname-hint{font-size:15px;line-height:2;color:var(--text2);max-width:480px}
+#btn-callname{font-size:15px;padding:16px 32px;letter-spacing:4px;border-color:var(--accent);color:var(--accent)}
+#btn-callname:hover{background:var(--accent);color:var(--bg)}
+
 /* ---------- 全体レスポンシブ ---------- */
 @media(max-width:480px){
   .title-main{font-size:22px;letter-spacing:5px}
@@ -94,7 +101,7 @@ body.forget-high .adv-forgetting{opacity:1}
     <div>
       <div class="title-label">one-way adv / rpg</div>
       <div class="title-main">名前のない夢</div>
-      <div class="title-sub">— 第1章まで実装（プレビュー版）—</div>
+      <div class="title-sub">— 全5章 —</div>
     </div>
     <div class="title-buttons">
       <button id="btn-new">はじめから</button>
@@ -152,6 +159,32 @@ body.forget-high .adv-forgetting{opacity:1}
     </div>
   </section>
 
+  <!-- 受け入れる専用パート（第5章「わたし」戦） -->
+  <section id="screen-accept" class="hidden">
+    <div class="battle-bg" id="accept-bg"></div>
+    <div class="battle-scrim"></div>
+    <div class="battle-stage">
+      <div class="enemy-name" id="accept-enemy-name"></div>
+      <div class="enemy-figure" id="accept-enemy-figure"></div>
+    </div>
+    <div class="battle-log" id="accept-log"></div>
+    <div class="battle-player">
+      <div class="battle-commands">
+        <button id="btn-accept">受け入れる</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 名前を呼ぶ、クライマックス専用パート -->
+  <section id="screen-callname" class="hidden">
+    <div class="adv-bg" id="callname-bg"></div>
+    <div class="adv-scrim"></div>
+    <div class="callname-box">
+      <div class="callname-hint">港は、あの日、呼びそこねた名前を、思い出そうとしている。</div>
+      <button id="btn-callname">その名を、呼ぶ</button>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -175,12 +208,13 @@ function resolveRedactions(text, state){
   return text.replace(/\[REDACT:([a-zA-Z0-9_]+)\]/g, (m, key) => {
     const entry = REDACT_TABLE[key];
     if(!entry) return "██";
-    const resolved = entry.resolvedByFragments.some(f => state.obtainedFragments.includes(f));
+    // 全ての欠片が揃って初めて、本当の名前が示される（最終章のクライマックス演出のため）
+    const resolved = entry.resolvedByFragments.every(f => state.obtainedFragments.includes(f));
     return resolved ? entry.revealText : "██";
   });
 }
 
-/* ---------- 敵データ ---------- */
+/* ---------- 敵データ（名を持たぬ者 図鑑） ---------- */
 const ENEMIES_DATA = {
   enemy_dareka: {
     name: "誰か",
@@ -193,6 +227,79 @@ const ENEMIES_DATA = {
     enemyAttackDmg: 6,
     onSootheLine: "……名前も、なかったな。",
     onDefeatLine: "……ありがとう。"
+  },
+  enemy_hidamari: {
+    name: "陽だまりの影",
+    figure: "◐",
+    figureImage: "assets/images/enemy_hidamari.png",
+    hp: 25,
+    playerAttackDmg: 8,
+    playerSootheDmg: 10,
+    sootheGain: 40,
+    enemyAttackDmg: 5,
+    onSootheLine: "……陽ちゃん、って、呼んでくれるの。",
+    onDefeatLine: "……ありがとう。思い出してくれて。",
+    rewardFragment: "hinata_name_1"
+  },
+  enemy_hinatasan: {
+    name: "日向さん",
+    figure: "◑",
+    figureImage: "assets/images/enemy_hinatasan.png",
+    hp: 35,
+    playerAttackDmg: 9,
+    playerSootheDmg: 6,
+    sootheGain: 22,
+    enemyAttackDmg: 8,
+    onSootheLine: "……よそよそしい呼び方しか、されなかった。",
+    onDefeatLine: "……もう、いいんです。",
+    rewardFragment: "hinata_name_2"
+  },
+  enemy_hinataa: {
+    name: "ひなたぁ、と呼ぶ声",
+    figure: "◒",
+    figureImage: "assets/images/enemy_hinataa.png",
+    hp: 30,
+    playerAttackDmg: 9,
+    playerSootheDmg: 8,
+    sootheGain: 30,
+    enemyAttackDmg: 7,
+    onSootheLine: "……ただいま、って、言いたかった。",
+    onDefeatLine: "……おかえり、って、言って。",
+    rewardFragment: "hinata_name_3"
+  },
+  enemy_watashi: {
+    name: "わたし",
+    figure: "◓",
+    figureImage: "assets/images/enemy_watashi.png",
+    hp: 0,
+    special: "accept_only",
+    acceptLines: [
+      "……どうせ、誰にも必要とされてない。",
+      "……港にまで、迷惑をかけた。",
+      "……こんなわたしなんて、いない方がいい。"
+    ],
+    onDefeatLine: "……そう、思ってたんだ。",
+    rewardFragment: "hinata_name_4"
+  }
+};
+
+/* ---------- 名前の欠片（収集アイテム） ---------- */
+const FRAGMENTS_DATA = {
+  hinata_name_1: {
+    label: "陽ちゃん",
+    flavorText: "「ねえ、陽ちゃんって呼んでいいのは私だけだからね」――幼い頃、港がそう言ったことを、彼はもう覚えていない。彼女だけが、ずっと覚えていた。"
+  },
+  hinata_name_2: {
+    label: "日向さん",
+    flavorText: "職場では、誰もが彼女を「日向さん」と、少しよそよそしく呼んだ。仲が良いと思っていた同僚でさえ、下の名前で呼ぶことはなかった。"
+  },
+  hinata_name_3: {
+    label: "ひなたぁ",
+    flavorText: "「ひなたぁ、ただいまー」。実家に帰るたび、そう玄関先で名前を呼ばれた。何でもない、ありふれた呼び声。それが、こんなに愛おしいものだったなんて。"
+  },
+  hinata_name_4: {
+    label: "わたし",
+    flavorText: "誰にも呼ばれなくなった時、最後に残るのは、自分で自分を呼ぶ声。彼女はいつからか、その声にさえ、優しさを忘れていた。"
   }
 };
 
@@ -260,8 +367,127 @@ const SCENES = {
     ], next:"ch1_end_stub", forgettingDelta:-3 },
 
   ch1_end_stub: { type:"adv", bg:"#14120f", bgImage:"assets/images/floor1_bg.jpg", lines:[
-      { speaker:"", text:"――第1章「踊り場、名も無き声」、了。" },
-      { speaker:"", text:"（このプレビュー版では、ここまでが実装されています。第2章以降は、後日追加されます。）" }
+      { speaker:"", text:"――第1章「踊り場、名も無き声」、了。" }
+    ], next:"ch2_intro" },
+
+  /* ================= 第2章「陽だまりの記憶」 ================= */
+
+  ch2_intro: { type:"adv", bg:"#211f1a", bgImage:"assets/images/floor2_bg.jpg", healPlayer:true, lines:[
+      { speaker:"", text:"次の階へ降りると、景色が変わった。色褪せた午後の光、すべり台、錆びたブランコ。" },
+      { speaker:"港", text:"……児童公園？　こんな場所も、あるのか。" },
+      { speaker:"シーリ", text:"降りるほど、古い記憶に近づいていくようです。ここには、幼い頃の呼び声が眠っています。" }
+    ], next:"ch2_explore" },
+
+  ch2_explore: { type:"explore", hint:"遊具を、順番に鳴らしてください", bgImage:"assets/images/floor2_bg.jpg",
+      requireSequence:true,
+      hotspots:[
+        {x:"20%",y:"55%"},{x:"50%",y:"30%"},{x:"78%",y:"58%"}
+      ],
+      onComplete:"ch2_pre_battle" },
+
+  ch2_pre_battle: { type:"adv", bg:"#211f1a", bgImage:"assets/images/floor2_bg.jpg", lines:[
+      { speaker:"", text:"鼻歌の続きをなぞるように、遊具を鳴らし終えた瞬間――すべり台の陰から、光をまとった影が現れる。" },
+      { speaker:"シーリ", text:"……優しい気配です。乱暴にしないであげて。" }
+    ], next:"ch2_battle" },
+
+  ch2_battle: { type:"battle", enemyId:"enemy_hidamari", bgImage:"assets/images/floor2_bg.jpg", onWin:"ch2_after_battle", onLose:"ch2_battle" },
+
+  ch2_after_battle: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/floor2_bg.jpg", lines:[
+      { speaker:"シーリ", text:"……何か、聞こえましたか？" },
+      { speaker:"港", text:"ああ。「陽ちゃん」と、呼ぶ声だ。誰の声だったかは、まだわからないが。" },
+      { speaker:"シーリ", text:"（陽ちゃん……その響きに、なぜか、胸が痛みます。）" }
+    ], next:"ch3_intro", forgettingDelta:-10 },
+
+  /* ================= 第3章「よそよそしい呼び名」 ================= */
+
+  ch3_intro: { type:"adv", bg:"#171512", bgImage:"assets/images/floor3_bg.jpg", healPlayer:true, lines:[
+      { speaker:"", text:"次の階は、モノトーンなオフィスの景色だった。似たような扉が、いくつも並んでいる。" },
+      { speaker:"港", text:"……こんな場所にまで、あいつは通っていたのか。" },
+      { speaker:"シーリ", text:"あなたの名前は？　と、あなたに聞いたら――怒りますか？" },
+      { speaker:"港", text:"いや。怒りはしない。ただ、答えられないのが、少し悔しいだけだ。" }
+    ], next:"ch3_explore" },
+
+  ch3_explore: { type:"explore", hint:"ノックの音が違う扉を、選んでください", bgImage:"assets/images/floor3_bg.jpg",
+      hotspots:[
+        {x:"25%",y:"45%"},{x:"50%",y:"45%"},{x:"75%",y:"45%"}
+      ],
+      correctIndex:1,
+      wrongText:"……違う。この扉じゃない。",
+      onComplete:"ch3_pre_battle" },
+
+  ch3_pre_battle: { type:"adv", bg:"#171512", bgImage:"assets/images/floor3_bg.jpg", lines:[
+      { speaker:"", text:"正しい扉を開けると、硬質な、よそよそしい気配が、こちらを睨んでいる。" }
+    ], next:"ch3_battle" },
+
+  ch3_battle: { type:"battle", enemyId:"enemy_hinatasan", bgImage:"assets/images/floor3_bg.jpg", onWin:"ch3_after_battle", onLose:"ch3_battle" },
+
+  ch3_after_battle: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/floor3_bg.jpg", lines:[
+      { speaker:"シーリ", text:"……なぜか、呼吸の仕方も、心臓の音も、覚えているのに――名前だけが、ない。" },
+      { speaker:"港", text:"……それは、俺と同じだ。" }
+    ], next:"ch4_intro", forgettingDelta:-10 },
+
+  /* ================= 第4章「呼びかける声、遠い部屋」 ================= */
+
+  ch4_intro: { type:"adv", bg:"#211f1a", bgImage:"assets/images/floor4_bg.jpg", healPlayer:true, lines:[
+      { speaker:"", text:"次の階は、家庭的な温かみのある一室だった。壁には、額縁だけが残された跡がある。" },
+      { speaker:"港", text:"写真が、外されている……いや、割れて、散らばっているのか。" },
+      { speaker:"シーリ", text:"欠片を、正しい順に壁へ戻してください。誰かが、そこに帰ってくるように。" }
+    ], next:"ch4_explore" },
+
+  ch4_explore: { type:"explore", hint:"写真の欠片を、正しい順に壁へ戻してください", bgImage:"assets/images/floor4_bg.jpg",
+      requireSequence:true,
+      hotspots:[
+        {x:"30%",y:"35%"},{x:"62%",y:"30%"},{x:"38%",y:"65%"},{x:"68%",y:"62%"}
+      ],
+      onComplete:"ch4_pre_battle" },
+
+  ch4_pre_battle: { type:"adv", bg:"#211f1a", bgImage:"assets/images/floor4_bg.jpg", lines:[
+      { speaker:"", text:"最後の欠片が壁に戻った瞬間、部屋の奥で、温かく、切ない気配が身じろぎする。" }
+    ], next:"ch4_battle" },
+
+  ch4_battle: { type:"battle", enemyId:"enemy_hinataa", bgImage:"assets/images/floor4_bg.jpg", onWin:"ch4_after_battle", onLose:"ch4_battle" },
+
+  ch4_after_battle: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/floor4_bg.jpg", lines:[
+      { speaker:"シーリ", text:"……「ただいま」って、言いたかった。そう、聞こえた気がします。" },
+      { speaker:"港", text:"それなら、今度会ったら、俺が先に言ってやる。「おかえり」って。" }
+    ], next:"ch5_intro", forgettingDelta:-10 },
+
+  /* ================= 第5章「鏡の底、最後の階段」 ================= */
+
+  ch5_intro: { type:"adv", bg:"#14120f", bgImage:"assets/images/floor5_bg.jpg", healPlayer:true, lines:[
+      { speaker:"", text:"最後の階は、無数の割れた鏡に囲まれた部屋だった。どの鏡にも、港自身の姿が映っている。" },
+      { speaker:"シーリ", text:"……港。ここから先は、わたしにも、何が起こるか分かりません。" },
+      { speaker:"港", text:"構わない。ここまで来たんだ。" },
+      { speaker:"", text:"鏡の奥、一番大きな一枚に、港ではない誰かの輪郭が、ゆっくりと浮かび上がる。" }
+    ], next:"ch5_accept" },
+
+  ch5_accept: { type:"accept", enemyId:"enemy_watashi", bgImage:"assets/images/floor5_bg.jpg", onComplete:"ch5_after_accept" },
+
+  ch5_after_accept: { type:"adv", bg:"#14120f", bgImage:"assets/images/floor5_bg.jpg", lines:[
+      { speaker:"シーリ", text:"……港。わたしは、ずっと、思い出せませんでした。自分の名前を、呼ぶ声を。" },
+      { speaker:"港", text:"（この声は――）" },
+      { speaker:"シーリ", text:"最後に、一つだけ、聞いてもいいですか。あなたが捜していた、その名前を――教えてくれますか。" }
+    ], next:"ch5_call_name", forgettingDelta:-100 },
+
+  ch5_call_name: { type:"callname", bgImage:"assets/images/floor5_bg.jpg", revealed:"日向", onComplete:"ch5_reveal" },
+
+  ch5_reveal: { type:"adv", bg:"#14120f", bgImage:"assets/images/floor5_bg.jpg", lines:[
+      { speaker:"港", text:"日向。お前の名前は、日向だ。" },
+      { speaker:"日向", text:"……ああ。そうだ。わたしは、日向だった。" },
+      { speaker:"日向", text:"港。あの日、突き放すようなことを言って、ごめん。あんな言い方しか、できなかった。" },
+      { speaker:"港", text:"謝るのは、俺の方だ。お前の名前を、呼びそこねた。ただ、それだけのことが――" },
+      { speaker:"日向", text:"……ずっと、苦しかったんだね。" },
+      { speaker:"", text:"日向の輪郭が、淡い光をまとって、少しずつ透きとおっていく。" },
+      { speaker:"日向", text:"港。わたしのことは、もう、いいから。ちゃんと、笑って、生きて。" },
+      { speaker:"港", text:"……日向。" }
+    ], next:"ending" },
+
+  ending: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/ending_bg.jpg", lines:[
+      { speaker:"", text:"目を開けると、そこは病室だった。モニターの電子音は、変わらずそこにある。" },
+      { speaker:"", text:"――ただ、そのリズムが、さっきまでより、ほんの少しだけ、穏やかに聞こえた。" },
+      { speaker:"港", text:"……日向。" },
+      { speaker:"", text:"久しぶりに、はっきりと、その名を呼んだ。" },
+      { speaker:"", text:"――『名前のない夢』、了。" }
     ], next:"TITLE" }
 
 };
@@ -311,7 +537,9 @@ const screens = {
   title: document.getElementById("screen-title"),
   adv: document.getElementById("screen-adv"),
   explore: document.getElementById("screen-explore"),
-  battle: document.getElementById("screen-battle")
+  battle: document.getElementById("screen-battle"),
+  accept: document.getElementById("screen-accept"),
+  callname: document.getElementById("screen-callname")
 };
 function showScreen(name){
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
@@ -346,11 +574,14 @@ function goToScene(sceneId){
   if(sceneId === "TITLE"){ initTitle(); return; }
   const scene = SCENES[sceneId];
   if(!scene){ console.error("unknown scene", sceneId); return; }
+  if(scene.healPlayer) state.playerHp.current = state.playerHp.max;
   state.currentSceneId = sceneId;
   writeSave();
   if(scene.type === "adv") renderAdv(scene);
   else if(scene.type === "explore") renderExplore(scene);
   else if(scene.type === "battle") renderBattle(scene);
+  else if(scene.type === "accept") renderAccept(scene);
+  else if(scene.type === "callname") renderCallname(scene);
 }
 function onSceneComplete(scene, nextId){
   if(scene.forgettingDelta) applyForgettingDelta(scene.forgettingDelta);
@@ -421,7 +652,11 @@ function showAdvChoices(scene){
   box.classList.remove("hidden");
 }
 
-/* ---------- 探索エンジン ---------- */
+/* ---------- 探索エンジン ----------
+   3種類のモードに対応：
+   1) 通常（任意の順でタップ）－ 第1章
+   2) requireSequence（配列の順番通りにタップ）－ 第2・4章
+   3) correctIndex（正解を1つだけ選ぶ。誤答は進行を止めない）－ 第3章 */
 function renderExplore(scene){
   showScreen("explore");
   document.getElementById("explore-hint").textContent = scene.hint || "";
@@ -429,6 +664,7 @@ function renderExplore(scene){
   applyBgImage(bg, scene.bgImage, "#1a1814");
   bg.querySelectorAll(".hotspot").forEach(n => n.remove());
   const doneFlags = new Array(scene.hotspots.length).fill(false);
+  let sequenceCursor = 0;
   scene.hotspots.forEach((hs, idx) => {
     const el = document.createElement("div");
     el.className = "hotspot";
@@ -436,13 +672,36 @@ function renderExplore(scene){
     el.style.top = hs.y;
     el.addEventListener("click", () => {
       if(doneFlags[idx]) return;
+
+      if(typeof scene.correctIndex === "number"){
+        if(idx !== scene.correctIndex){
+          document.getElementById("explore-hint").textContent = scene.wrongText || "……違う。";
+          setTimeout(() => { document.getElementById("explore-hint").textContent = scene.hint || ""; }, 900);
+          return;
+        }
+        doneFlags[idx] = true;
+        el.classList.add("done");
+        document.getElementById("explore-progress").textContent = "1 / 1";
+        setTimeout(() => onSceneComplete(scene, scene.onComplete), 500);
+        return;
+      }
+
+      if(scene.requireSequence){
+        if(idx !== sequenceCursor){
+          // 順番違い。軽く反応するだけで、進行は妨げない
+          return;
+        }
+        sequenceCursor++;
+      }
+
       doneFlags[idx] = true;
       el.classList.add("done");
       updateExploreProgress(doneFlags, scene);
     });
     bg.appendChild(el);
   });
-  updateExploreProgress(doneFlags, scene);
+  if(typeof scene.correctIndex !== "number") updateExploreProgress(doneFlags, scene);
+  else document.getElementById("explore-progress").textContent = "";
   bg.dataset.sceneId = state.currentSceneId;
 }
 function updateExploreProgress(doneFlags, scene){
@@ -497,6 +756,9 @@ function renderBattleCommands(){
     { label:"攻撃", fn: cmdAttack },
     { label:"なだめる", fn: cmdSoothe }
   ];
+  if(state.obtainedFragments.length > 0){
+    cmds.push({ label:"記憶を見せる", fn: cmdShowMemory });
+  }
   cmds.forEach(c => {
     const btn = document.createElement("button");
     btn.textContent = c.label;
@@ -517,6 +779,14 @@ function cmdSoothe(){
   if(b.soothe >= 100) applyForgettingDelta(-5);
   afterPlayerAction(`港はそっと声をかけた。「${b.enemyDef.onSootheLine}」`);
 }
+function cmdShowMemory(){
+  const b = battleCtx;
+  const lastFragmentId = state.obtainedFragments[state.obtainedFragments.length - 1];
+  const fragment = FRAGMENTS_DATA[lastFragmentId];
+  b.enemyHp -= 25;
+  applyForgettingDelta(-3);
+  afterPlayerAction(fragment ? `港は、記憶を見せた。「${fragment.flavorText}」` : "港は、記憶を見せた。");
+}
 function afterPlayerAction(logText){
   const b = battleCtx;
   updateBattleUI(logText);
@@ -536,6 +806,8 @@ function afterPlayerAction(logText){
 function finishBattle(won){
   const scene = battleCtx.scene;
   if(won){
+    const reward = battleCtx.enemyDef.rewardFragment;
+    if(reward && !state.obtainedFragments.includes(reward)) state.obtainedFragments.push(reward);
     document.getElementById("battle-log").textContent = battleCtx.enemyDef.onDefeatLine;
     setTimeout(() => onSceneComplete(scene, scene.onWin), 900);
   } else {
@@ -544,6 +816,59 @@ function finishBattle(won){
     setTimeout(() => goToScene(scene.onLose), 900);
   }
 }
+
+/* ---------- 受け入れるエンジン（第5章「わたし」専用） ----------
+   攻撃せず、用意された台詞を最後まで聞くと自動的に浄化される特殊戦。 */
+let acceptCtx = null;
+function renderAccept(scene){
+  showScreen("accept");
+  const enemyDef = ENEMIES_DATA[scene.enemyId];
+  acceptCtx = { scene, enemyDef, lineIndex: 0 };
+  applyBgImage(document.getElementById("accept-bg"), scene.bgImage, "#14120f");
+  document.getElementById("accept-enemy-name").textContent = enemyDef.name;
+  const figureEl = document.getElementById("accept-enemy-figure");
+  figureEl.innerHTML = "";
+  if(enemyDef.figureImage){
+    const img = document.createElement("img");
+    img.src = enemyDef.figureImage;
+    img.alt = enemyDef.name;
+    img.className = "enemy-figure-img";
+    figureEl.appendChild(img);
+  } else {
+    figureEl.textContent = enemyDef.figure;
+  }
+  document.getElementById("accept-log").textContent = enemyDef.acceptLines[0];
+}
+document.getElementById("btn-accept").addEventListener("click", () => {
+  const ctx = acceptCtx;
+  const enemyDef = ctx.enemyDef;
+  ctx.lineIndex++;
+  if(ctx.lineIndex < enemyDef.acceptLines.length){
+    document.getElementById("accept-log").textContent = enemyDef.acceptLines[ctx.lineIndex];
+  } else {
+    if(enemyDef.rewardFragment && !state.obtainedFragments.includes(enemyDef.rewardFragment)){
+      state.obtainedFragments.push(enemyDef.rewardFragment);
+    }
+    document.getElementById("accept-log").textContent = enemyDef.onDefeatLine;
+    document.getElementById("btn-accept").disabled = true;
+    setTimeout(() => {
+      document.getElementById("btn-accept").disabled = false;
+      onSceneComplete(ctx.scene, ctx.scene.onComplete);
+    }, 1200);
+  }
+});
+
+/* ---------- クライマックス「名前を呼ぶ」エンジン ---------- */
+function renderCallname(scene){
+  showScreen("callname");
+  applyBgImage(document.getElementById("callname-bg"), scene.bgImage, "#14120f");
+}
+document.getElementById("btn-callname").addEventListener("click", () => {
+  const scene = SCENES[state.currentSceneId];
+  if(!scene || scene.type !== "callname") return;
+  document.getElementById("btn-callname").disabled = true;
+  onSceneComplete(scene, scene.onComplete);
+});
 
 /* ---------- 起動 ---------- */
 state = defaultState();
