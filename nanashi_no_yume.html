@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名前のない夢</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1814;--bg2:#211f1b;--bg3:#2a2722;--surface:#302d27;
+  --accent:#c8a96e;--text:#e8e0d0;--text2:#a09880;--text3:#706858;
+  --border:#3f3b34;--danger:#a85c4a;--heal:#7c9a7a;
+  --font-ui:'Courier New',monospace;--font-body:'Georgia',serif;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);overflow-x:hidden}
+#app{min-height:100vh;display:flex;flex-direction:column}
+
+/* ---------- 共通 ---------- */
+.hidden{display:none!important}
+button{font-family:var(--font-ui);cursor:pointer;background:var(--bg2);color:var(--text);border:1px solid var(--border);padding:10px 16px;letter-spacing:1px;transition:border-color .15s,background .15s}
+button:hover{border-color:var(--accent);background:var(--surface)}
+button:disabled{opacity:.35;cursor:default}
+button:disabled:hover{border-color:var(--border);background:var(--bg2)}
+
+/* ---------- タイトル ---------- */
+#screen-title{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center;padding:24px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 30%,rgba(200,169,110,.10) 0%,transparent 70%),
+    linear-gradient(180deg,rgba(14,12,9,.45) 0%,rgba(14,12,9,.75) 100%),
+    url('assets/images/title_bg.jpg') center/cover no-repeat;}
+.title-label{font-family:var(--font-ui);font-size:10px;letter-spacing:4px;color:var(--text3);text-transform:uppercase}
+.title-main{font-family:var(--font-ui);font-size:28px;letter-spacing:8px;color:var(--accent)}
+.title-sub{font-family:var(--font-ui);font-size:11px;letter-spacing:2px;color:var(--text3)}
+.title-buttons{display:flex;flex-direction:column;gap:10px;width:220px}
+.title-note{font-size:11px;color:var(--text3);max-width:320px;line-height:1.7}
+
+/* ---------- ADV ---------- */
+#screen-adv{flex:1;display:flex;flex-direction:column;justify-content:flex-end;position:relative;min-height:100vh}
+.adv-bg{position:absolute;inset:0;background-color:var(--bg2);background-size:cover;background-position:center;background-repeat:no-repeat;transition:background-color 1.2s}
+.adv-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,14,11,.25) 0%,rgba(16,14,11,.55) 100%);pointer-events:none}
+.adv-forgetting{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,transparent 40%,rgba(0,0,0,.35) 100%);opacity:0;transition:opacity 1.5s;pointer-events:none}
+body.forget-high .adv-forgetting{opacity:1}
+.adv-box{position:relative;z-index:2;margin:0 auto;width:100%;max-width:720px;padding:20px 20px 28px;background:linear-gradient(180deg,rgba(26,24,20,0) 0%,rgba(26,24,20,.92) 18%,rgba(26,24,20,.96) 100%);}
+.adv-speaker{font-family:var(--font-ui);font-size:11px;letter-spacing:3px;color:var(--accent);margin-bottom:8px;min-height:14px}
+.adv-text{font-size:16px;line-height:1.9;color:var(--text);min-height:96px;white-space:pre-wrap}
+.adv-text .redact{color:var(--danger);letter-spacing:1px}
+.adv-next{margin-top:10px;display:flex;justify-content:flex-end}
+.adv-next span{font-family:var(--font-ui);font-size:11px;color:var(--text3);letter-spacing:2px;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+.adv-choices{position:relative;z-index:2;display:flex;flex-direction:column;gap:8px;max-width:720px;margin:0 auto 24px;width:100%;padding:0 20px}
+
+/* ---------- 探索 ---------- */
+#screen-explore{flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative}
+.explore-bg{flex:1;position:relative;background-color:#1a1814;background-size:cover;background-position:center;background-repeat:no-repeat;overflow:hidden}
+.explore-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,14,11,.25) 0%,rgba(16,14,11,.15) 40%,rgba(16,14,11,.55) 100%);pointer-events:none}
+.explore-hint{position:absolute;top:16px;left:0;right:0;text-align:center;font-family:var(--font-ui);font-size:11px;letter-spacing:2px;color:var(--text3);z-index:2}
+.hotspot{position:absolute;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,rgba(200,169,110,.55) 0%,rgba(200,169,110,.05) 70%,transparent 100%);
+  border:1px solid rgba(200,169,110,.4);cursor:pointer;animation:pulse 2.2s infinite;transform:translate(-50%,-50%)}
+.hotspot.done{background:radial-gradient(circle,rgba(200,169,110,.12) 0%,transparent 70%);border-color:var(--border);animation:none;cursor:default}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.explore-progress{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-family:var(--font-ui);font-size:11px;color:var(--text3);letter-spacing:2px;z-index:2}
+
+/* ---------- 戦闘 ---------- */
+#screen-battle{flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;background-color:#1a1814}
+.battle-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat}
+.battle-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,26,21,.55) 0%,rgba(20,17,13,.8) 60%,rgba(20,17,13,.92) 100%)}
+.battle-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;z-index:2}
+.enemy-name{font-family:var(--font-ui);font-size:13px;letter-spacing:3px;color:var(--text)}
+.enemy-figure{font-size:64px;opacity:.85;filter:drop-shadow(0 0 18px rgba(200,169,110,.25));display:flex;align-items:center;justify-content:center;min-height:120px}
+.enemy-figure-img{max-width:220px;max-height:220px;width:auto;height:auto;object-fit:contain;filter:drop-shadow(0 0 24px rgba(200,169,110,.2))}
+.hpbar-wrap{width:220px}
+.hpbar-label{display:flex;justify-content:space-between;font-family:var(--font-ui);font-size:10px;color:var(--text3);margin-bottom:3px}
+.hpbar{height:8px;background:var(--bg3);border:1px solid var(--border)}
+.hpbar-fill{height:100%;background:var(--accent);transition:width .35s}
+.hpbar-fill.enemy{background:var(--danger)}
+.soothe-fill{height:100%;background:var(--heal);transition:width .35s}
+
+.battle-log{position:relative;z-index:2;min-height:44px;padding:10px 20px;font-size:13px;color:var(--text2);text-align:center;line-height:1.7}
+.battle-player{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0 24px;border-top:1px solid var(--border);background:rgba(20,17,13,.4)}
+.battle-commands{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 16px}
+
+/* ---------- 全体レスポンシブ ---------- */
+@media(max-width:480px){
+  .title-main{font-size:22px;letter-spacing:5px}
+  .adv-text{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- タイトル画面 -->
+  <section id="screen-title">
+    <div>
+      <div class="title-label">one-way adv / rpg</div>
+      <div class="title-main">名前のない夢</div>
+      <div class="title-sub">— 第1章まで実装（プレビュー版）—</div>
+    </div>
+    <div class="title-buttons">
+      <button id="btn-new">はじめから</button>
+      <button id="btn-continue">続きから</button>
+      <button id="btn-reset">データを消してはじめから</button>
+    </div>
+    <div class="title-note">物語は分岐しません。選んだ答えは台詞の雰囲気を変えるだけで、結末は一つです。</div>
+  </section>
+
+  <!-- ADVパート -->
+  <section id="screen-adv" class="hidden">
+    <div class="adv-bg" id="adv-bg"></div>
+    <div class="adv-scrim"></div>
+    <div class="adv-forgetting"></div>
+    <div class="adv-choices hidden" id="adv-choices"></div>
+    <div class="adv-box">
+      <div class="adv-speaker" id="adv-speaker"></div>
+      <div class="adv-text" id="adv-text"></div>
+      <div class="adv-next"><span id="adv-next-label">▼ タップで次へ</span></div>
+    </div>
+  </section>
+
+  <!-- 探索パート -->
+  <section id="screen-explore" class="hidden">
+    <div class="explore-bg" id="explore-bg">
+      <div class="explore-scrim"></div>
+      <div class="explore-hint" id="explore-hint"></div>
+      <div class="explore-progress" id="explore-progress"></div>
+    </div>
+  </section>
+
+  <!-- 戦闘パート -->
+  <section id="screen-battle" class="hidden">
+    <div class="battle-bg" id="battle-bg"></div>
+    <div class="battle-scrim"></div>
+    <div class="battle-stage">
+      <div class="enemy-name" id="battle-enemy-name"></div>
+      <div class="enemy-figure" id="battle-enemy-figure">◆</div>
+      <div class="hpbar-wrap">
+        <div class="hpbar-label"><span>HP</span><span id="battle-enemy-hp-label"></span></div>
+        <div class="hpbar"><div class="hpbar-fill enemy" id="battle-enemy-hp"></div></div>
+      </div>
+      <div class="hpbar-wrap">
+        <div class="hpbar-label"><span>浄化</span><span id="battle-soothe-label"></span></div>
+        <div class="hpbar"><div class="soothe-fill" id="battle-soothe"></div></div>
+      </div>
+    </div>
+    <div class="battle-log" id="battle-log"></div>
+    <div class="battle-player">
+      <div class="hpbar-wrap">
+        <div class="hpbar-label"><span id="battle-player-name">港</span><span id="battle-player-hp-label"></span></div>
+        <div class="hpbar"><div class="hpbar-fill" id="battle-player-hp"></div></div>
+      </div>
+      <div class="battle-commands" id="battle-commands"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================
+   名前のない夢 — Phase0+1 実装（プロローグ＋第1章）
+   一方通行ADV×RPG。データはこのファイル内に直接埋め込み、
+   fetch不要（file://直接プレビューとGitHub Pages配信の両方で
+   同じ挙動になるようにするため）。
+   ========================================================= */
+
+const SAVE_KEY = "nanashi_no_yume_save";
+
+/* ---------- REDACT（伏字）解決テーブル ----------
+   忘却度と名前の欠片の入手状況で [REDACT:key] を解決する。
+   第1章の範囲では hinata_name はまだ解決されない。 */
+const REDACT_TABLE = {
+  hinata_name: { revealText: "日向", resolvedByFragments: ["hinata_name_1","hinata_name_2","hinata_name_3","hinata_name_4"] }
+};
+
+function resolveRedactions(text, state){
+  return text.replace(/\[REDACT:([a-zA-Z0-9_]+)\]/g, (m, key) => {
+    const entry = REDACT_TABLE[key];
+    if(!entry) return "██";
+    const resolved = entry.resolvedByFragments.some(f => state.obtainedFragments.includes(f));
+    return resolved ? entry.revealText : "██";
+  });
+}
+
+/* ---------- 敵データ ---------- */
+const ENEMIES_DATA = {
+  enemy_dareka: {
+    name: "誰か",
+    figure: "◈",
+    figureImage: "assets/images/enemy_dareka.png",
+    hp: 20,
+    playerAttackDmg: 10,
+    playerSootheDmg: 4,
+    sootheGain: 25,
+    enemyAttackDmg: 6,
+    onSootheLine: "……名前も、なかったな。",
+    onDefeatLine: "……ありがとう。"
+  }
+};
+
+/* ---------- シナリオデータ（フラット・id引き） ----------
+   next / onComplete / onWin / onLose で遷移先idを指す。
+   "TITLE" はタイトルに戻ることを意味する特別値。 */
+const SCENES = {
+
+  pro_1: { type:"adv", bg:"#211f1b", bgImage:"assets/images/prologue_bg.jpg", lines:[
+      { speaker:"", text:"病室には、消毒液のにおいと、モニターの電子音だけがある。" },
+      { speaker:"森", text:"……無理しないでよ、港。もう三時間もここにいる。" },
+      { speaker:"港", text:"……ああ。わかってる。" },
+      { speaker:"森", text:"あの日、[REDACT:hinata_name]が飛び出さなければ、なんて。誰も、そんなふうには思ってないから。" },
+      { speaker:"港", text:"（思ってないのは、俺だけかもしれない。）" }
+    ], next:"pro_2" },
+
+  pro_2: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/prologue_bg.jpg", lines:[
+      { speaker:"", text:"森が帰ったあと、港は一人、ベッドのそばの丸椅子に腰を下ろす。" },
+      { speaker:"", text:"疲労が、潮のように満ちてくる。まぶたが、重い。" },
+      { speaker:"", text:"――そのまま、港の意識は、静かに沈んでいった。" }
+    ], next:"ch1_wake" },
+
+  ch1_wake: { type:"adv", bg:"#171512", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"港", text:"……ここは、どこだ。" },
+      { speaker:"", text:"見上げれば、上へ下へと、扉の並ぶ螺旋の階段が、闇の中に続いている。" },
+      { speaker:"シーリ", text:"目が覚めましたか。ここは、まどろみの塔、と呼ばれています。" },
+      { speaker:"港", text:"塔……？　お前は？" },
+      { speaker:"シーリ", text:"わたしは、案内人。名前は……ありません。あなたは？" },
+      { speaker:"港", text:"俺は……港だ。それで、俺はここに、[REDACT:hinata_name]を捜しに来たはずなんだが。" },
+      { speaker:"シーリ", text:"……その名前、わたしには、わかりません。でも、なぜか、聞き覚えがある気がします。" }
+    ], next:"ch1_choice" },
+
+  ch1_choice: { type:"adv", bg:"#171512", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"シーリ", text:"下に降りるほど、眠りは深くなります。怖いですか？" }
+    ],
+    choices:[
+      { label:"少しだけ、怖い", flag:"flavor_scared" },
+      { label:"今更、怖いものなんてない", flag:"flavor_brave" }
+    ],
+    next:"ch1_explain" },
+
+  ch1_explain: { type:"adv", bg:"#171512", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"シーリ", text:"この階には、名前を失くした者たちが彷徨っています。灯りを辿って、道を探してください。" },
+      { speaker:"", text:"（画面に浮かぶ、淡い光の点を、すべてタップして進む。）" }
+    ], next:"ch1_explore" },
+
+  ch1_explore: { type:"explore", hint:"淡い灯りを、すべて辿ってください", bgImage:"assets/images/floor1_bg.jpg",
+      hotspots:[
+        {x:"22%",y:"35%"},{x:"70%",y:"25%"},{x:"48%",y:"62%"}
+      ],
+      onComplete:"ch1_pre_battle" },
+
+  ch1_pre_battle: { type:"adv", bg:"#171512", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"", text:"最後の灯りに触れた瞬間、闇の奥で、何かが身を起こす。" },
+      { speaker:"シーリ", text:"……気をつけて。名前を失くした者は、時々、怒っています。" }
+    ], next:"ch1_battle" },
+
+  ch1_battle: { type:"battle", enemyId:"enemy_dareka", bgImage:"assets/images/floor1_bg.jpg", onWin:"ch1_after_battle", onLose:"ch1_battle" },
+
+  ch1_after_battle: { type:"adv", bg:"#1c1a16", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"シーリ", text:"……静かになりました。あなたのおかげ、なのでしょうか。" },
+      { speaker:"港", text:"礎（いしずえ）というより、ただ、無我夢中だっただけだ。" },
+      { speaker:"シーリ", text:"それでも、ここには、まだたくさんの「名前のない者」がいます。降りるほど、あなた自身の記憶も、薄れていくかもしれません。" },
+      { speaker:"港", text:"……構わない。[REDACT:hinata_name]を、見つけるまでは。" }
+    ], next:"ch1_end_stub", forgettingDelta:-3 },
+
+  ch1_end_stub: { type:"adv", bg:"#14120f", bgImage:"assets/images/floor1_bg.jpg", lines:[
+      { speaker:"", text:"――第1章「踊り場、名も無き声」、了。" },
+      { speaker:"", text:"（このプレビュー版では、ここまでが実装されています。第2章以降は、後日追加されます。）" }
+    ], next:"TITLE" }
+
+};
+
+/* ---------- 状態管理 ---------- */
+function defaultState(){
+  return {
+    currentSceneId: "pro_1",
+    forgettingLevel: 0,
+    obtainedFragments: [],
+    flags: {},
+    playerHp: { current: 30, max: 30 }
+  };
+}
+let state = null;
+
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+function writeSave(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){ /* localStorageが使えない環境でも進行は継続 */ }
+}
+function applyForgettingDelta(amount){
+  state.forgettingLevel = Math.max(0, Math.min(100, state.forgettingLevel + amount));
+  document.body.classList.toggle("forget-high", state.forgettingLevel >= 30);
+}
+
+/* ---------- 背景画像の適用（共通ヘルパー） ----------
+   bgImageがあれば画像を、なければ従来通りfallbackColor（or var(--bg2)）を敷く。
+   画像未着手の章でも、色だけで見た目が破綻しないようにするため。 */
+function applyBgImage(el, bgImage, fallbackColor){
+  if(bgImage){
+    el.style.backgroundImage = `url('${bgImage}')`;
+    el.style.backgroundColor = fallbackColor || "var(--bg2)";
+  } else {
+    el.style.backgroundImage = "none";
+    el.style.backgroundColor = fallbackColor || "var(--bg2)";
+  }
+}
+
+/* ---------- 画面切り替え ---------- */
+const screens = {
+  title: document.getElementById("screen-title"),
+  adv: document.getElementById("screen-adv"),
+  explore: document.getElementById("screen-explore"),
+  battle: document.getElementById("screen-battle")
+};
+function showScreen(name){
+  Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
+}
+
+/* ---------- タイトル画面 ---------- */
+function initTitle(){
+  const saved = loadSave();
+  document.getElementById("btn-continue").disabled = !saved;
+  showScreen("title");
+}
+document.getElementById("btn-new").addEventListener("click", () => {
+  state = defaultState();
+  writeSave();
+  goToScene(state.currentSceneId);
+});
+document.getElementById("btn-continue").addEventListener("click", () => {
+  const saved = loadSave();
+  if(!saved) return;
+  state = saved;
+  document.body.classList.toggle("forget-high", state.forgettingLevel >= 30);
+  goToScene(state.currentSceneId);
+});
+document.getElementById("btn-reset").addEventListener("click", () => {
+  if(!confirm("セーブデータを消去して、はじめからやり直します。よろしいですか？")) return;
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  initTitle();
+});
+
+/* ---------- シーン遷移の中枢 ---------- */
+function goToScene(sceneId){
+  if(sceneId === "TITLE"){ initTitle(); return; }
+  const scene = SCENES[sceneId];
+  if(!scene){ console.error("unknown scene", sceneId); return; }
+  state.currentSceneId = sceneId;
+  writeSave();
+  if(scene.type === "adv") renderAdv(scene);
+  else if(scene.type === "explore") renderExplore(scene);
+  else if(scene.type === "battle") renderBattle(scene);
+}
+function onSceneComplete(scene, nextId){
+  if(scene.forgettingDelta) applyForgettingDelta(scene.forgettingDelta);
+  goToScene(nextId);
+}
+
+/* ---------- ADVエンジン ---------- */
+let advLineIndex = 0;
+function renderAdv(scene){
+  showScreen("adv");
+  applyBgImage(document.getElementById("adv-bg"), scene.bgImage, scene.bg);
+  advLineIndex = 0;
+  document.getElementById("adv-choices").classList.add("hidden");
+  document.getElementById("adv-next-label").classList.remove("hidden");
+  showAdvLine(scene);
+}
+function showAdvLine(scene){
+  const line = scene.lines[advLineIndex];
+  document.getElementById("adv-speaker").textContent = line.speaker || "";
+  typeText(document.getElementById("adv-text"), resolveRedactions(line.text, state));
+}
+let typeTimer = null;
+function typeText(el, text){
+  if(typeTimer) clearInterval(typeTimer);
+  el.textContent = "";
+  let i = 0;
+  typeTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if(i >= text.length) clearInterval(typeTimer);
+  }, 22);
+}
+document.getElementById("screen-adv").addEventListener("click", (e) => {
+  if(e.target.closest(".adv-choices")) return;
+  const scene = SCENES[state.currentSceneId];
+  if(!scene || scene.type !== "adv") return;
+  // タイプ中なら全文表示、そうでなければ次の行へ
+  if(typeTimer){
+    clearInterval(typeTimer);
+    typeTimer = null;
+    document.getElementById("adv-text").textContent = resolveRedactions(scene.lines[advLineIndex].text, state);
+    return;
+  }
+  advLineIndex++;
+  if(advLineIndex < scene.lines.length){
+    showAdvLine(scene);
+  } else if(scene.choices){
+    showAdvChoices(scene);
+  } else {
+    onSceneComplete(scene, scene.next);
+  }
+});
+function showAdvChoices(scene){
+  document.getElementById("adv-next-label").classList.add("hidden");
+  const box = document.getElementById("adv-choices");
+  box.innerHTML = "";
+  scene.choices.forEach(choice => {
+    const btn = document.createElement("button");
+    btn.textContent = choice.label;
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      state.flags[choice.flag] = true;
+      box.classList.add("hidden");
+      onSceneComplete(scene, scene.next);
+    });
+    box.appendChild(btn);
+  });
+  box.classList.remove("hidden");
+}
+
+/* ---------- 探索エンジン ---------- */
+function renderExplore(scene){
+  showScreen("explore");
+  document.getElementById("explore-hint").textContent = scene.hint || "";
+  const bg = document.getElementById("explore-bg");
+  applyBgImage(bg, scene.bgImage, "#1a1814");
+  bg.querySelectorAll(".hotspot").forEach(n => n.remove());
+  const doneFlags = new Array(scene.hotspots.length).fill(false);
+  scene.hotspots.forEach((hs, idx) => {
+    const el = document.createElement("div");
+    el.className = "hotspot";
+    el.style.left = hs.x;
+    el.style.top = hs.y;
+    el.addEventListener("click", () => {
+      if(doneFlags[idx]) return;
+      doneFlags[idx] = true;
+      el.classList.add("done");
+      updateExploreProgress(doneFlags, scene);
+    });
+    bg.appendChild(el);
+  });
+  updateExploreProgress(doneFlags, scene);
+  bg.dataset.sceneId = state.currentSceneId;
+}
+function updateExploreProgress(doneFlags, scene){
+  const done = doneFlags.filter(Boolean).length;
+  document.getElementById("explore-progress").textContent = `${done} / ${scene.hotspots.length}`;
+  if(done === scene.hotspots.length){
+    setTimeout(() => onSceneComplete(scene, scene.onComplete), 500);
+  }
+}
+
+/* ---------- 戦闘エンジン ---------- */
+let battleCtx = null;
+function renderBattle(scene){
+  showScreen("battle");
+  const enemyDef = ENEMIES_DATA[scene.enemyId];
+  battleCtx = {
+    scene, enemyDef,
+    enemyHp: enemyDef.hp, enemyHpMax: enemyDef.hp,
+    soothe: 0
+  };
+  applyBgImage(document.getElementById("battle-bg"), scene.bgImage, "#1a1814");
+  document.getElementById("battle-enemy-name").textContent = enemyDef.name;
+  const figureEl = document.getElementById("battle-enemy-figure");
+  if(enemyDef.figureImage){
+    figureEl.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = enemyDef.figureImage;
+    img.alt = enemyDef.name;
+    img.className = "enemy-figure-img";
+    figureEl.appendChild(img);
+  } else {
+    figureEl.textContent = enemyDef.figure;
+  }
+  document.getElementById("battle-player-name").textContent = "港";
+  updateBattleUI("……名前を失くした者が、こちらを見ている。");
+  renderBattleCommands();
+}
+function updateBattleUI(logText){
+  const b = battleCtx;
+  document.getElementById("battle-enemy-hp").style.width = Math.max(0,(b.enemyHp/b.enemyHpMax*100)) + "%";
+  document.getElementById("battle-enemy-hp-label").textContent = `${Math.max(0,b.enemyHp)} / ${b.enemyHpMax}`;
+  document.getElementById("battle-soothe").style.width = Math.min(100,b.soothe) + "%";
+  document.getElementById("battle-soothe-label").textContent = `${Math.min(100,b.soothe)} / 100`;
+  document.getElementById("battle-player-hp").style.width = Math.max(0,(state.playerHp.current/state.playerHp.max*100)) + "%";
+  document.getElementById("battle-player-hp-label").textContent = `${Math.max(0,state.playerHp.current)} / ${state.playerHp.max}`;
+  if(logText) document.getElementById("battle-log").textContent = logText;
+}
+function renderBattleCommands(){
+  const wrap = document.getElementById("battle-commands");
+  wrap.innerHTML = "";
+  const cmds = [
+    { label:"攻撃", fn: cmdAttack },
+    { label:"なだめる", fn: cmdSoothe }
+  ];
+  cmds.forEach(c => {
+    const btn = document.createElement("button");
+    btn.textContent = c.label;
+    btn.addEventListener("click", c.fn);
+    wrap.appendChild(btn);
+  });
+}
+function cmdAttack(){
+  const b = battleCtx;
+  b.enemyHp -= b.enemyDef.playerAttackDmg;
+  applyForgettingDelta(2);
+  afterPlayerAction(`港の攻撃。${b.enemyDef.name}にダメージ。`);
+}
+function cmdSoothe(){
+  const b = battleCtx;
+  b.enemyHp -= b.enemyDef.playerSootheDmg;
+  b.soothe += b.enemyDef.sootheGain;
+  if(b.soothe >= 100) applyForgettingDelta(-5);
+  afterPlayerAction(`港はそっと声をかけた。「${b.enemyDef.onSootheLine}」`);
+}
+function afterPlayerAction(logText){
+  const b = battleCtx;
+  updateBattleUI(logText);
+  if(b.enemyHp <= 0 || b.soothe >= 100){
+    setTimeout(() => finishBattle(true), 900);
+    return;
+  }
+  // 敵の反撃
+  setTimeout(() => {
+    state.playerHp.current -= b.enemyDef.enemyAttackDmg;
+    updateBattleUI(`${b.enemyDef.name}の反撃。港はダメージを受けた。`);
+    if(state.playerHp.current <= 0){
+      setTimeout(() => finishBattle(false), 900);
+    }
+  }, 700);
+}
+function finishBattle(won){
+  const scene = battleCtx.scene;
+  if(won){
+    document.getElementById("battle-log").textContent = battleCtx.enemyDef.onDefeatLine;
+    setTimeout(() => onSceneComplete(scene, scene.onWin), 900);
+  } else {
+    state.playerHp.current = state.playerHp.max;
+    document.getElementById("battle-log").textContent = "……港は、意識を失いかけた。しかし、何度でも立ち上がれる。";
+    setTimeout(() => goToScene(scene.onLose), 900);
+  }
+}
+
+/* ---------- 起動 ---------- */
+state = defaultState();
+initTitle();
+</script>
+</body>
+</html>
